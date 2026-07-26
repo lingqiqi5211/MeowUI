@@ -4,7 +4,7 @@ MeowUI 是面向 **libxposed 模块设置页** 的 Compose UI 库。业务层只
 
 - 包名：`io.github.lingqiqi5211.meowui`
 - 最低系统：Android 8.0（API 26）
-- Xposed：仅支持 libxposed API 102
+- Xposed：仅支持 libxposed API
 - 许可证：Apache-2.0
 - 发布状态：尚未发布到 Maven Central 或 JitPack，当前仅支持源码接入
 

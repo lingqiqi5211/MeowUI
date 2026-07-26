@@ -4,7 +4,7 @@
 
 - Android 8.0（API 26）及以上
 - Compose 项目
-- libxposed API/service 102.0.0
+- libxposed API/service（版本见 `gradle/libs.versions.toml`）
 - MeowUI 当前源码版本：`0.1.0-SNAPSHOT`
 
 MeowUI 尚未发布到 Maven Central 或 JitPack，因此需要通过本地源码接入。

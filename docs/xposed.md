@@ -30,7 +30,7 @@ dependencies {
 }
 ```
 
-宿主项目仍应按自己的 libxposed API 102 模块结构完成入口和清单配置；MeowUI 不替代 libxposed 本身的模块声明。
+宿主项目仍应按自己的 libxposed API 模块结构完成入口和清单配置；MeowUI 不替代 libxposed 本身的模块声明。
 
 ## 共享 key 与 preference name
 
@@ -142,7 +142,7 @@ val connectionState by rememberMeowPreferenceConnectionState()
 - `PreferenceConnectionState.Connected`
 - `PreferenceConnectionState.Disconnected(cause)`
 
-连接未建立或已经断开时，key 绑定的写入型设置项会自动不可操作。建议使用 `MeowTip` 显示状态，不要用无法关闭的 Loading Dialog 长期阻塞页面。
+连接已断开（`Disconnected`）时，key 绑定的写入型设置项会自动不可操作；`Connecting` 期间保持可操作，写入结果仍通过 `PreferenceWriteResult` 上报。建议使用 `MeowTip` 显示状态，不要用无法关闭的 Loading Dialog 长期阻塞页面。
 
 ## Hook 进程
 

@@ -45,7 +45,7 @@
 - Hook 逻辑在远程设置不可用时必须使用安全默认值，不得让目标应用崩溃。
 - 不在 Hook callback 中依赖 Compose、Activity 或设置页生命周期。
 - 不记录令牌、用户输入、私有路径或其他敏感值。
-- 不引入经典 Xposed API 82 兼容实现；MeowUI 只面向 libxposed API 102。
+- 不引入经典 Xposed API 兼容实现；MeowUI 只面向 libxposed API。
 
 ## 文档
 

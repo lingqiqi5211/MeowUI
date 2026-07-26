@@ -8,7 +8,7 @@ MeowUI 面向 libxposed 模块设置页，提供一套业务 API 和两套独立
 | --- | --- |
 | [开始使用](getting-started.md) | 本地 composite build、模块选择、共享 key、设置页入口与风格切换 |
 | [组件手册](components.md) | 设置项、Dialog、Popup、页面、导航、Bottom Sheet、Tip、下拉刷新与 Blur |
-| [libxposed 接入](xposed.md) | libxposed API 102 的设置进程、Hook 进程、连接状态与错误处理 |
+| [libxposed 接入](xposed.md) | libxposed API 的设置进程、Hook 进程、连接状态与错误处理 |
 | [双 UI 设计规范](design-guidelines.md) | Material 3 Expressive 与 Miuix 的视觉边界、列表圆角、动效和模糊规则 |
 
 ## 快速选择

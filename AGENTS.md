@@ -16,7 +16,7 @@
 | 定位 | 面向 libxposed 模块设置页的 Compose UI 库 |
 | 包名根路径 | `io.github.lingqiqi5211.meowui` |
 | 最低系统 | Android 8.0（API 26） |
-| Xposed | 仅 libxposed API 102，不兼容经典 API 82 |
+| Xposed | 仅 libxposed API，不兼容经典 Xposed API |
 | UI | Material 3 Expressive 与 Miuix，业务层只写一份页面 |
 | JDK | 25；本机使用 `D:\qiqi\Codes\Java\jdk-25` |
 | 字节码目标 | JVM 21，不因 JDK 25 改为 25 |
