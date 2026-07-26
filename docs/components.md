@@ -12,7 +12,7 @@ MeowUI 的公共组件只暴露一套业务 API。`MeowTheme` 根据 `MeowUiStyl
 | 顶栏 | `MeowTopBar`、`MeowTopBarAction`、`MeowMenuItem` |
 | 导航 | `MeowTabRow`、`MeowNavigationBar`、`MeowNavigationItem` |
 | 容器 | `MeowBottomSheet`、`MeowAdaptiveLayout` |
-| 提示与刷新 | `MeowTip`、`MeowPullToRefresh` |
+| 提示与刷新 | `MeowTip`、`MeowPullToRefresh`、`rememberMeowSnackbarState` |
 | 效果 | `MeowScaffoldEffect`、`rememberMeowBlurScaffoldEffect` |
 
 ## 设置分组
@@ -315,7 +315,7 @@ MeowNavigationBar(
 ```
 
 - `MeowNavigationBarStyle.Standard`：Material 使用 Expressive `ShortNavigationBar`，Miuix 使用原生普通底栏。
-- `MeowNavigationBarStyle.Floating`：Material 使用 64 dp 胶囊底栏，Miuix 使用原生悬浮底栏；两者都保留图标、单行文字、选中状态与安全区间距。
+- `MeowNavigationBarStyle.Floating`：Material 使用 64 dp 胶囊底栏，选中指示器随选中项平滑滑动，并支持直接拖动指示器切页；Miuix 使用原生悬浮底栏容器并补充名称显示。两者都保留图标、单行文字、选中状态与安全区间距。
 - sample 的“Floating bottom bar”开关可直接比较普通与悬浮样式。
 - `badge` 为空时不显示；`enabled = false` 时该项不可操作。
 
@@ -332,6 +332,26 @@ MeowBottomSheet(
 ```
 
 `startAction` 与 `endAction` 可放置关闭、确认等操作。Bottom Sheet 适合承载与当前页面相关的补充内容，不应代替顶栏的常用图标菜单。Miuix 分支内容自带滚动、overscroll 与底部安全区间距；空标题与空动作不会占位。
+
+## Snackbar
+
+```kotlin
+val snackbarState = rememberMeowSnackbarState()
+
+MeowScaffold(
+    title = "模块设置",
+    snackbarState = snackbarState,
+) { /* 页面内容 */ }
+
+scope.launch {
+    val result = snackbarState.show("已保存", actionLabel = "撤销")
+    if (result == MeowSnackbarResult.ActionPerformed) {
+        undo()
+    }
+}
+```
+
+`show` 挂起到 snackbar 消失并返回 `MeowSnackbarResult`；Material 与 Miuix 分别使用各自的原生 Snackbar 宿主与滑动关闭手势。`snackbarState` 也可传给 `MeowPreferencePage`。
 
 ## Tip
 

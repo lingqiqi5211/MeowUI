@@ -19,6 +19,7 @@ fun MeowPreferencePage(
     navigationIcon: (@Composable () -> Unit)? = null,
     actionItems: List<MeowTopBarAction> = emptyList(),
     bottomBar: @Composable () -> Unit = {},
+    snackbarState: MeowSnackbarState? = null,
     effect: MeowScaffoldEffect = MeowScaffoldEffect(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -30,6 +31,7 @@ fun MeowPreferencePage(
         navigationIcon = navigationIcon,
         actionItems = actionItems,
         bottomBar = bottomBar,
+        snackbarState = snackbarState,
         effect = effect,
     ) { _ ->
         MeowPreferenceScreen(content = content)

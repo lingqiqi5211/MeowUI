@@ -59,6 +59,7 @@ fun MeowScaffold(
     navigationIcon: (@Composable () -> Unit)? = null,
     actionItems: List<MeowTopBarAction> = emptyList(),
     bottomBar: @Composable () -> Unit = {},
+    snackbarState: MeowSnackbarState? = null,
     effect: MeowScaffoldEffect = MeowScaffoldEffect(),
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -88,6 +89,9 @@ fun MeowScaffold(
                             )
                         },
                         bottomBar = bottomBar,
+                        snackbarHost = {
+                            snackbarState?.let { MeowSnackbarHost(it) }
+                        },
                         content = { paddingValues ->
                             MeowScaffoldContent(
                                 paddingValues = paddingValues,
@@ -118,6 +122,9 @@ fun MeowScaffold(
                             )
                         },
                         bottomBar = bottomBar,
+                        snackbarHost = {
+                            snackbarState?.let { MeowSnackbarHost(it) }
+                        },
                         content = { paddingValues ->
                             MeowScaffoldContent(
                                 paddingValues = paddingValues,

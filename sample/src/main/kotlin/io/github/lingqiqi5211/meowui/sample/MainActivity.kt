@@ -8,11 +8,27 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MoreVert
@@ -26,8 +42,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.blur.rememberMeowBlurScaffoldEffect
@@ -49,6 +71,7 @@ import io.github.lingqiqi5211.meowui.component.MeowPullToRefresh
 import io.github.lingqiqi5211.meowui.component.MeowScaffold
 import io.github.lingqiqi5211.meowui.component.MeowSingleChoiceDialog
 import io.github.lingqiqi5211.meowui.component.MeowSliderPreference
+import io.github.lingqiqi5211.meowui.component.MeowSnackbarResult
 import io.github.lingqiqi5211.meowui.component.MeowSwitchPreference
 import io.github.lingqiqi5211.meowui.component.MeowTabRow
 import io.github.lingqiqi5211.meowui.component.MeowTabRowStyle
@@ -56,6 +79,7 @@ import io.github.lingqiqi5211.meowui.component.MeowTip
 import io.github.lingqiqi5211.meowui.component.MeowTextInputDialog
 import io.github.lingqiqi5211.meowui.component.MeowTextInputPreference
 import io.github.lingqiqi5211.meowui.component.MeowTopBarAction
+import io.github.lingqiqi5211.meowui.component.rememberMeowSnackbarState
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.core.preference.InMemoryPreferenceStore
 import io.github.lingqiqi5211.meowui.core.preference.PreferenceKey
@@ -76,6 +100,7 @@ private object SamplePreferences {
     val DarkTheme = PreferenceKey("dark_theme", false)
     val DynamicColor = PreferenceKey("dynamic_color", true)
     val PaletteStyle = PreferenceKey("palette_style", MeowPaletteStyle.TonalSpot.name)
+    val SeedColor = PreferenceKey("seed_color", 0xFF7B4DFF.toInt())
     val Blur = PreferenceKey("background_blur", true)
     val FloatingNavigation = PreferenceKey("floating_navigation", true)
     val FeatureEnabled = PreferenceKey("feature_enabled", true)
@@ -84,6 +109,22 @@ private object SamplePreferences {
     val Mode = PreferenceKey("mode", "Balanced")
     val Nickname = PreferenceKey("nickname", "Meow")
 }
+
+// 供取色界面选择的预置种子色。
+private val seedColorOptions = listOf(
+    0xFF7B4DFF.toInt(),
+    0xFFB94073.toInt(),
+    0xFFBA1A1A.toInt(),
+    0xFF944A00.toInt(),
+    0xFF795900.toInt(),
+    0xFF006D39.toInt(),
+    0xFF006A64.toInt(),
+    0xFF00639B.toInt(),
+    0xFF335BBC.toInt(),
+    0xFF6750A4.toInt(),
+    0xFF575D7E.toInt(),
+    0xFF5F6162.toInt(),
+)
 
 private val navigationItems = listOf(
     MeowNavigationItem(
@@ -115,6 +156,7 @@ private fun SampleApp() {
     val darkTheme by rememberMeowPreferenceValue(SamplePreferences.DarkTheme, store)
     val dynamicColor by rememberMeowPreferenceValue(SamplePreferences.DynamicColor, store)
     val paletteStyleName by rememberMeowPreferenceValue(SamplePreferences.PaletteStyle, store)
+    val seedColorValue by rememberMeowPreferenceValue(SamplePreferences.SeedColor, store)
     val blurEnabled by rememberMeowPreferenceValue(SamplePreferences.Blur, store)
     val floatingNavigation by rememberMeowPreferenceValue(
         SamplePreferences.FloatingNavigation,
@@ -133,7 +175,7 @@ private fun SampleApp() {
             style = style,
             darkTheme = darkTheme,
             dynamicColor = dynamicColor,
-            seedColor = Color(0xFF7B4DFF),
+            seedColor = Color(seedColorValue),
             paletteStyle = paletteStyle,
         ) {
             SampleSettings(
@@ -162,6 +204,7 @@ private fun SampleSettings(
     var dialogText by rememberSaveable { mutableStateOf("Meow") }
     val coroutineScope = rememberCoroutineScope()
     val effect = rememberMeowBlurScaffoldEffect(enabled = blurEnabled)
+    val snackbarState = rememberMeowSnackbarState()
 
     MeowScaffold(
         title = navigationItems[selectedPage].label,
@@ -201,6 +244,7 @@ private fun SampleSettings(
                 },
             )
         },
+        snackbarState = snackbarState,
         effect = effect,
     ) { _ ->
         MeowPullToRefresh(
@@ -211,6 +255,7 @@ private fun SampleSettings(
                     coroutineScope.launch {
                         delay(900)
                         isRefreshing = false
+                        snackbarState.show("Preferences refreshed")
                     }
                 }
             },
@@ -238,6 +283,17 @@ private fun SampleSettings(
                         onInput = { showInput = true },
                         onLoading = { showLoading = true },
                         onBottomSheet = { showBottomSheet = true },
+                        onSnackbar = {
+                            coroutineScope.launch {
+                                val result = snackbarState.show(
+                                    message = "Mode saved",
+                                    actionLabel = "Undo",
+                                )
+                                if (result == MeowSnackbarResult.ActionPerformed) {
+                                    snackbarState.show("Change undone")
+                                }
+                            }
+                        },
                     )
 
                     else -> AboutPage()
@@ -341,47 +397,8 @@ private fun SettingsPage(
             label = "settings-tab",
         ) { tab ->
             if (tab == 0) {
-                MeowPreferenceSection(title = "Appearance") {
-                    MeowPopupPreference(
-                        title = "UI style",
-                        key = SamplePreferences.Style,
-                        options = listOf(
-                            SamplePreferences.MaterialStyle,
-                            SamplePreferences.MiuixStyle,
-                        ),
-                        optionLabel = {
-                            if (it == SamplePreferences.MiuixStyle) {
-                                "Miuix"
-                            } else {
-                                "Material 3 Expressive"
-                            }
-                        },
-                    )
-                    MeowSwitchPreference(
-                        title = "Dark theme",
-                        key = SamplePreferences.DarkTheme,
-                    )
-                    MeowSwitchPreference(
-                        title = "Dynamic color",
-                        summary = "Miuix restores its blue and white defaults when this is off",
-                        key = SamplePreferences.DynamicColor,
-                    )
-                    MeowPopupPreference(
-                        title = "Palette style",
-                        summary = "How the seed color expands into the Material scheme",
-                        key = SamplePreferences.PaletteStyle,
-                        options = MeowPaletteStyle.entries.map { it.name },
-                    )
-                    MeowSwitchPreference(
-                        title = "Background blur",
-                        summary = "Both styles use real blur when supported and an opaque fallback otherwise",
-                        key = SamplePreferences.Blur,
-                    )
-                    MeowSwitchPreference(
-                        title = "Floating bottom bar",
-                        summary = "Switch between each style’s standard and floating navigation",
-                        key = SamplePreferences.FloatingNavigation,
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                    AppearanceSections()
                 }
             } else {
                 MeowPreferenceSection(title = "Controls") {
@@ -434,6 +451,118 @@ private fun SettingsPage(
 }
 
 @Composable
+private fun AppearanceSections() {
+    MeowPreferenceSection(title = "Appearance") {
+        MeowPopupPreference(
+            title = "UI style",
+            key = SamplePreferences.Style,
+            options = listOf(
+                SamplePreferences.MaterialStyle,
+                SamplePreferences.MiuixStyle,
+            ),
+            optionLabel = {
+                if (it == SamplePreferences.MiuixStyle) {
+                    "Miuix"
+                } else {
+                    "Material 3 Expressive"
+                }
+            },
+        )
+        MeowSwitchPreference(
+            title = "Dark theme",
+            key = SamplePreferences.DarkTheme,
+        )
+        MeowSwitchPreference(
+            title = "Dynamic color",
+            summary = "Miuix restores its blue and white defaults when this is off",
+            key = SamplePreferences.DynamicColor,
+        )
+        MeowPopupPreference(
+            title = "Palette style",
+            summary = "How the seed color expands into the Material scheme",
+            key = SamplePreferences.PaletteStyle,
+            options = MeowPaletteStyle.entries.map { it.name },
+        )
+        MeowSwitchPreference(
+            title = "Background blur",
+            summary = "Both styles use real blur when supported and an opaque fallback otherwise",
+            key = SamplePreferences.Blur,
+        )
+        MeowSwitchPreference(
+            title = "Floating bottom bar",
+            summary = "Switch between each style’s standard and floating navigation",
+            key = SamplePreferences.FloatingNavigation,
+        )
+    }
+    MeowPreferenceSection(title = "Theme color") {
+        item(key = "seed_colors") {
+            SeedColorRow()
+        }
+    }
+}
+
+@Composable
+private fun SeedColorRow() {
+    val selectedColor = rememberMeowPreferenceValue(SamplePreferences.SeedColor).value
+    val writeColor = rememberMeowPreferenceWriter(SamplePreferences.SeedColor)
+
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(seedColorOptions) { colorValue ->
+            SeedColorSwatch(
+                colorValue = colorValue,
+                selected = colorValue == selectedColor,
+                onClick = { writeColor(colorValue) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeedColorSwatch(
+    colorValue: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val color = Color(colorValue)
+    val checkTint = if (color.luminance() > 0.5f) Color.Black else Color.White
+
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(color)
+            .then(
+                if (selected) {
+                    Modifier.border(3.dp, MeowTheme.colors.onSurface, CircleShape)
+                } else {
+                    Modifier
+                },
+            )
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Image(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                colorFilter = ColorFilter.tint(checkTint),
+            )
+        }
+    }
+}
+
+@Composable
 private fun DialogsPage(
     onAlert: () -> Unit,
     onWarning: () -> Unit,
@@ -441,6 +570,7 @@ private fun DialogsPage(
     onInput: () -> Unit,
     onLoading: () -> Unit,
     onBottomSheet: () -> Unit,
+    onSnackbar: () -> Unit,
 ) {
     MeowPreferenceScreen {
         MeowPreferenceSection(title = "Dialogs") {
@@ -477,24 +607,111 @@ private fun DialogsPage(
                 onClick = onBottomSheet,
             )
         }
+        MeowPreferenceSection(title = "Feedback") {
+            MeowActionPreference(
+                title = "Show snackbar",
+                summary = "Cross-style snackbar with an undo action",
+                onClick = onSnackbar,
+            )
+        }
     }
 }
 
 @Composable
 private fun AboutPage() {
+    val uriHandler = LocalUriHandler.current
+    var showUpdateSheet by rememberSaveable { mutableStateOf(false) }
+    var showLicenses by rememberSaveable { mutableStateOf(false) }
+
     MeowPreferenceScreen {
+        AboutHero()
         MeowPreferenceSection(title = "About") {
             MeowActionPreference(
-                title = "MeowUI 0.1.0",
-                summary = "Android 8+ · Material 3 Expressive · Miuix · libxposed",
-                onClick = {},
+                title = "View source code",
+                summary = "github.com/lingqiqi5211/MeowUI",
+                onClick = { uriHandler.openUri("https://github.com/lingqiqi5211/MeowUI") },
             )
             MeowActionPreference(
-                title = "Background blur",
-                summary = "Available for both styles with automatic fallback",
-                onClick = {},
+                title = "Open source licenses",
+                summary = "Compose · Miuix · materialKolor · libxposed",
+                onClick = { showLicenses = true },
+            )
+            MeowActionPreference(
+                title = "Get updates",
+                summary = "Releases and project home",
+                onClick = { showUpdateSheet = true },
             )
         }
+    }
+
+    MeowAlertDialog(
+        show = showLicenses,
+        title = "Open source licenses",
+        message = "Jetpack Compose / Material 3 Expressive · Apache-2.0\n" +
+            "Miuix · Apache-2.0\n" +
+            "materialKolor · MIT\n" +
+            "libxposed API · Apache-2.0",
+        onConfirm = { showLicenses = false },
+        onDismissRequest = { showLicenses = false },
+        cancelText = null,
+    )
+    MeowBottomSheet(
+        show = showUpdateSheet,
+        title = "Get updates",
+        onDismissRequest = { showUpdateSheet = false },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            MeowButton(
+                text = "GitHub Releases",
+                onClick = { uriHandler.openUri("https://github.com/lingqiqi5211/MeowUI/releases") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            MeowButton(
+                text = "Project home",
+                onClick = { uriHandler.openUri("https://github.com/lingqiqi5211/MeowUI") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutHero() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(CircleShape)
+                .background(MeowTheme.colors.primary),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                imageVector = Icons.Rounded.Pets,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                colorFilter = ColorFilter.tint(MeowTheme.colors.onPrimary),
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        BasicText(
+            text = "MeowUI",
+            style = MeowTheme.typography.pageTitle.copy(color = MeowTheme.colors.onBackground),
+        )
+        Spacer(Modifier.height(4.dp))
+        BasicText(
+            text = "0.1.0 · Android 8+ · Material 3 Expressive · Miuix",
+            style = MeowTheme.typography.summary.copy(color = MeowTheme.colors.onSurfaceVariant),
+        )
     }
 }
 

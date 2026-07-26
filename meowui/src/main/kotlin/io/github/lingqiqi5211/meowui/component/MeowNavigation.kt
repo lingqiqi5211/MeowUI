@@ -1,12 +1,15 @@
 package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,7 +42,13 @@ import androidx.compose.material3.ToggleButton as MaterialToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,21 +57,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.lingqiqi5211.meowui.theme.LocalMeowDarkTheme
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.Badge as MiuixBadge
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar as MiuixFloatingNavigationBar
-import top.yukonga.miuix.kmp.basic.FloatingNavigationBarItem as MiuixFloatingNavigationBarItem
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
@@ -242,18 +255,10 @@ fun MeowNavigationBar(
                         cornerRadius = MiuixFloatingCornerRadius,
                     ) {
                         items.forEachIndexed { index, item ->
-                            val badgeContent: (@Composable () -> Unit)? = item.badge
-                                ?.takeIf(String::isNotEmpty)
-                                ?.let { badge ->
-                                    { MiuixNavigationBadge(badge) }
-                                }
-                            MiuixFloatingNavigationBarItem(
+                            MiuixFloatingLabeledItem(
+                                item = item,
                                 selected = index == selectedIndex,
                                 onClick = { onItemSelected(index) },
-                                icon = item.icon,
-                                label = item.label,
-                                enabled = item.enabled,
-                                badge = badgeContent,
                             )
                         }
                     }
@@ -323,11 +328,19 @@ private fun MaterialFloatingNavigationBar(
         val tabWidthPx = with(LocalDensity.current) { tabWidth.toPx() }
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
 
-        val indicatorProgress by animateFloatAsState(
-            targetValue = selectedIndex.toFloat(),
-            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-            label = "floating-navigation-indicator",
-        )
+        val animationScope = rememberCoroutineScope()
+        val settleSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+        val indicatorProgress = remember { Animatable(selectedIndex.toFloat()) }
+        var dragging by remember { mutableStateOf(false) }
+        val currentSelectedIndex by rememberUpdatedState(selectedIndex)
+        val currentOnItemSelected by rememberUpdatedState(onItemSelected)
+
+        // 点击或外部改变选中项时把胶囊动画到目标位；拖动期间由手势直接驱动。
+        LaunchedEffect(selectedIndex) {
+            if (!dragging) {
+                indicatorProgress.animateTo(selectedIndex.toFloat(), settleSpec)
+            }
+        }
 
         val containerColor = effect.floatingBottomBarContainerColor
             ?: MaterialTheme.colorScheme.surfaceContainer
@@ -376,8 +389,46 @@ private fun MaterialFloatingNavigationBar(
                 modifier = Modifier
                     .padding(horizontal = FloatingNavigationBarPadding)
                     .graphicsLayer {
-                        val offset = indicatorProgress * tabWidthPx
+                        val offset = indicatorProgress.value * tabWidthPx
                         translationX = if (isLtr) offset else -offset
+                    }
+                    // 胶囊支持手动拖动切页：跟手移动，抬手吸附到最近一项。
+                    .pointerInput(items.size, tabWidthPx, isLtr) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { dragging = true },
+                            onDragEnd = {
+                                dragging = false
+                                val target = indicatorProgress.value
+                                    .roundToInt()
+                                    .coerceIn(0, items.lastIndex)
+                                val resolved = if (items[target].enabled) {
+                                    target
+                                } else {
+                                    currentSelectedIndex
+                                }
+                                animationScope.launch {
+                                    indicatorProgress.animateTo(resolved.toFloat(), settleSpec)
+                                }
+                                if (resolved != currentSelectedIndex) {
+                                    currentOnItemSelected(resolved)
+                                }
+                            },
+                            onDragCancel = {
+                                dragging = false
+                                animationScope.launch {
+                                    indicatorProgress.animateTo(
+                                        currentSelectedIndex.toFloat(),
+                                        settleSpec,
+                                    )
+                                }
+                            },
+                        ) { change, dragAmount ->
+                            change.consume()
+                            val deltaTabs = dragAmount / tabWidthPx * if (isLtr) 1f else -1f
+                            val newValue = (indicatorProgress.value + deltaTabs)
+                                .coerceIn(0f, items.lastIndex.toFloat())
+                            animationScope.launch { indicatorProgress.snapTo(newValue) }
+                        }
                     }
                     .clip(CircleShape)
                     .background(activeContentColor.copy(alpha = 0.15f))
@@ -391,7 +442,7 @@ private fun MaterialFloatingNavigationBar(
                         .requiredWidth(barWidth - FloatingNavigationBarPadding * 2)
                         .height(FloatingNavigationItemHeight)
                         .graphicsLayer {
-                            val offset = indicatorProgress * tabWidthPx
+                            val offset = indicatorProgress.value * tabWidthPx
                             translationX = if (isLtr) -offset else offset
                         },
                     verticalAlignment = Alignment.CenterVertically,
@@ -508,6 +559,64 @@ private fun MaterialNavigationIcon(item: MeowNavigationItem) {
         MaterialIcon(
             imageVector = item.icon,
             contentDescription = item.label,
+        )
+    }
+}
+
+/**
+ * Miuix 悬浮底栏的带名称项。miuix 原生 FloatingNavigationBarItem 只显示图标，
+ * 这里按其 NavigationBar 图文项的配色规则补充文字显示。
+ */
+@Composable
+private fun MiuixFloatingLabeledItem(
+    item: MeowNavigationItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val baseColor = MiuixTheme.colorScheme.onSurfaceContainer
+    val tint = when {
+        !item.enabled -> baseColor.copy(alpha = 0.3f)
+        isPressed && selected -> baseColor.copy(alpha = 0.5f)
+        isPressed -> baseColor.copy(alpha = 0.6f)
+        selected -> baseColor
+        else -> baseColor.copy(alpha = 0.4f)
+    }
+
+    Column(
+        modifier = Modifier.selectable(
+            selected = selected,
+            interactionSource = interactionSource,
+            indication = null,
+            enabled = item.enabled,
+            role = Role.Tab,
+            onClick = onClick,
+        ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier.padding(top = 8.dp, start = 10.dp, end = 10.dp),
+        ) {
+            MiuixIcon(
+                imageVector = item.icon,
+                contentDescription = null,
+                modifier = Modifier.size(26.dp),
+                tint = tint,
+            )
+            item.badge?.takeIf(String::isNotEmpty)?.let { badge ->
+                Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                    MiuixNavigationBadge(badge)
+                }
+            }
+        }
+        MiuixText(
+            text = item.label,
+            modifier = Modifier.padding(bottom = 8.dp),
+            color = tint,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            maxLines = 1,
         )
     }
 }
