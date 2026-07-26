@@ -10,24 +10,18 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Info
@@ -47,9 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.blur.rememberMeowBlurScaffoldEffect
@@ -59,6 +52,7 @@ import io.github.lingqiqi5211.meowui.component.MeowAlertStyle
 import io.github.lingqiqi5211.meowui.component.MeowBottomSheet
 import io.github.lingqiqi5211.meowui.component.MeowButton
 import io.github.lingqiqi5211.meowui.component.MeowCheckboxPreference
+import io.github.lingqiqi5211.meowui.component.MeowColorPickerDialog
 import io.github.lingqiqi5211.meowui.component.MeowPopupPreference
 import io.github.lingqiqi5211.meowui.component.MeowLoadingDialog
 import io.github.lingqiqi5211.meowui.component.MeowMenuItem
@@ -101,6 +95,7 @@ private object SamplePreferences {
     val DynamicColor = PreferenceKey("dynamic_color", true)
     val PaletteStyle = PreferenceKey("palette_style", MeowPaletteStyle.TonalSpot.name)
     val SeedColor = PreferenceKey("seed_color", 0xFF7B4DFF.toInt())
+    val FloatingLabels = PreferenceKey("floating_labels", true)
     val Blur = PreferenceKey("background_blur", true)
     val FloatingNavigation = PreferenceKey("floating_navigation", true)
     val FeatureEnabled = PreferenceKey("feature_enabled", true)
@@ -109,22 +104,6 @@ private object SamplePreferences {
     val Mode = PreferenceKey("mode", "Balanced")
     val Nickname = PreferenceKey("nickname", "Meow")
 }
-
-// 供取色界面选择的预置种子色。
-private val seedColorOptions = listOf(
-    0xFF7B4DFF.toInt(),
-    0xFFB94073.toInt(),
-    0xFFBA1A1A.toInt(),
-    0xFF944A00.toInt(),
-    0xFF795900.toInt(),
-    0xFF006D39.toInt(),
-    0xFF006A64.toInt(),
-    0xFF00639B.toInt(),
-    0xFF335BBC.toInt(),
-    0xFF6750A4.toInt(),
-    0xFF575D7E.toInt(),
-    0xFF5F6162.toInt(),
-)
 
 private val navigationItems = listOf(
     MeowNavigationItem(
@@ -162,6 +141,7 @@ private fun SampleApp() {
         SamplePreferences.FloatingNavigation,
         store,
     )
+    val floatingLabels by rememberMeowPreferenceValue(SamplePreferences.FloatingLabels, store)
     val style = if (styleName == SamplePreferences.MiuixStyle) {
         MeowUiStyle.Miuix
     } else {
@@ -181,6 +161,7 @@ private fun SampleApp() {
             SampleSettings(
                 blurEnabled = blurEnabled,
                 floatingNavigation = floatingNavigation,
+                floatingLabels = floatingLabels,
             )
         }
     }
@@ -190,6 +171,7 @@ private fun SampleApp() {
 private fun SampleSettings(
     blurEnabled: Boolean,
     floatingNavigation: Boolean,
+    floatingLabels: Boolean,
 ) {
     var selectedPage by rememberSaveable { mutableIntStateOf(0) }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -242,6 +224,7 @@ private fun SampleSettings(
                 } else {
                     MeowNavigationBarStyle.Standard
                 },
+                showFloatingLabels = floatingLabels,
             )
         },
         snackbarState = snackbarState,
@@ -472,11 +455,9 @@ private fun AppearanceSections() {
             title = "Dark theme",
             key = SamplePreferences.DarkTheme,
         )
-        MeowSwitchPreference(
-            title = "Dynamic color",
-            summary = "Miuix restores its blue and white defaults when this is off",
-            key = SamplePreferences.DynamicColor,
-        )
+        item(key = "theme_color") {
+            ThemeColorPreference()
+        }
         MeowPopupPreference(
             title = "Palette style",
             summary = "How the seed color expands into the Material scheme",
@@ -493,73 +474,36 @@ private fun AppearanceSections() {
             summary = "Switch between each style’s standard and floating navigation",
             key = SamplePreferences.FloatingNavigation,
         )
-    }
-    MeowPreferenceSection(title = "Theme color") {
-        item(key = "seed_colors") {
-            SeedColorRow()
-        }
-    }
-}
-
-@Composable
-private fun SeedColorRow() {
-    val selectedColor = rememberMeowPreferenceValue(SamplePreferences.SeedColor).value
-    val writeColor = rememberMeowPreferenceWriter(SamplePreferences.SeedColor)
-
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        items(seedColorOptions) { colorValue ->
-            SeedColorSwatch(
-                colorValue = colorValue,
-                selected = colorValue == selectedColor,
-                onClick = { writeColor(colorValue) },
-            )
-        }
+        MeowSwitchPreference(
+            title = "Floating bar labels",
+            summary = "Show names under the floating bottom bar icons",
+            key = SamplePreferences.FloatingLabels,
+        )
     }
 }
 
 @Composable
-private fun SeedColorSwatch(
-    colorValue: Int,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val color = Color(colorValue)
-    val checkTint = if (color.luminance() > 0.5f) Color.Black else Color.White
+private fun ThemeColorPreference() {
+    var showPicker by rememberSaveable { mutableStateOf(false) }
+    val dynamicColor = rememberMeowPreferenceValue(SamplePreferences.DynamicColor).value
+    val seedColorValue = rememberMeowPreferenceValue(SamplePreferences.SeedColor).value
+    val writeDynamic = rememberMeowPreferenceWriter(SamplePreferences.DynamicColor)
+    val writeSeed = rememberMeowPreferenceWriter(SamplePreferences.SeedColor)
 
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(color)
-            .then(
-                if (selected) {
-                    Modifier.border(3.dp, MeowTheme.colors.onSurface, CircleShape)
-                } else {
-                    Modifier
-                },
-            )
-            .selectable(
-                selected = selected,
-                role = Role.RadioButton,
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
-            Image(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                colorFilter = ColorFilter.tint(checkTint),
-            )
-        }
-    }
+    MeowActionPreference(
+        title = "Theme color",
+        summary = "Follow wallpaper or pick a custom seed color",
+        value = if (dynamicColor) "Wallpaper" else "Custom",
+        onClick = { showPicker = true },
+    )
+    MeowColorPickerDialog(
+        show = showPicker,
+        dynamicColor = dynamicColor,
+        seedColor = Color(seedColorValue),
+        onDynamicColorChange = { writeDynamic(it) },
+        onSeedColorChange = { writeSeed(it.toArgb()) },
+        onDismissRequest = { showPicker = false },
+    )
 }
 
 @Composable
@@ -728,6 +672,7 @@ private fun MaterialPreview() {
             SampleSettings(
                 blurEnabled = false,
                 floatingNavigation = true,
+                floatingLabels = true,
             )
         }
     }
@@ -746,6 +691,7 @@ private fun MiuixPreview() {
             SampleSettings(
                 blurEnabled = false,
                 floatingNavigation = true,
+                floatingLabels = true,
             )
         }
     }

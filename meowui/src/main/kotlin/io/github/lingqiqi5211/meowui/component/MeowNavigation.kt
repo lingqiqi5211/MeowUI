@@ -185,6 +185,7 @@ fun MeowNavigationBar(
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     style: MeowNavigationBarStyle = MeowNavigationBarStyle.Standard,
+    showFloatingLabels: Boolean = true,
 ) {
     if (items.isEmpty()) return
     require(selectedIndex in items.indices) {
@@ -221,6 +222,7 @@ fun MeowNavigationBar(
                         selectedIndex = selectedIndex,
                         onItemSelected = onItemSelected,
                         modifier = modifier,
+                        showLabels = showFloatingLabels,
                     )
                 },
             )
@@ -258,6 +260,7 @@ fun MeowNavigationBar(
                             MiuixFloatingLabeledItem(
                                 item = item,
                                 selected = index == selectedIndex,
+                                showLabel = showFloatingLabels,
                                 onClick = { onItemSelected(index) },
                             )
                         }
@@ -308,6 +311,7 @@ private fun MaterialFloatingNavigationBar(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     modifier: Modifier,
+    showLabels: Boolean,
 ) {
     val effect = LocalMeowScaffoldEffect.current
     val isDark = LocalMeowDarkTheme.current
@@ -377,6 +381,7 @@ private fun MaterialFloatingNavigationBar(
                         selected = index == selectedIndex,
                         onClick = { onItemSelected(index) },
                         tint = contentColor,
+                        showLabel = showLabels,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
@@ -453,6 +458,7 @@ private fun MaterialFloatingNavigationBar(
                             selected = false,
                             onClick = null,
                             tint = activeContentColor,
+                            showLabel = showLabels,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
@@ -470,6 +476,7 @@ private fun MaterialFloatingNavigationItem(
     selected: Boolean,
     onClick: (() -> Unit)?,
     tint: Color,
+    showLabel: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val resolvedTint = if (item.enabled) tint else tint.copy(alpha = 0.38f)
@@ -495,16 +502,18 @@ private fun MaterialFloatingNavigationItem(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         MaterialFloatingNavigationIcon(item = item, tint = resolvedTint)
-        MaterialText(
-            text = item.label,
-            color = resolvedTint,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-            ),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (showLabel) {
+            MaterialText(
+                text = item.label,
+                color = resolvedTint,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -571,6 +580,7 @@ private fun MaterialNavigationIcon(item: MeowNavigationItem) {
 private fun MiuixFloatingLabeledItem(
     item: MeowNavigationItem,
     selected: Boolean,
+    showLabel: Boolean,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -596,7 +606,11 @@ private fun MiuixFloatingLabeledItem(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            modifier = Modifier.padding(top = 8.dp, start = 10.dp, end = 10.dp),
+            modifier = if (showLabel) {
+                Modifier.padding(top = 8.dp, start = 10.dp, end = 10.dp)
+            } else {
+                Modifier.padding(10.dp)
+            },
         ) {
             MiuixIcon(
                 imageVector = item.icon,
@@ -610,14 +624,16 @@ private fun MiuixFloatingLabeledItem(
                 }
             }
         }
-        MiuixText(
-            text = item.label,
-            modifier = Modifier.padding(bottom = 8.dp),
-            color = tint,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            maxLines = 1,
-        )
+        if (showLabel) {
+            MiuixText(
+                text = item.label,
+                modifier = Modifier.padding(bottom = 8.dp),
+                color = tint,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 1,
+            )
+        }
     }
 }
 

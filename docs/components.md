@@ -13,6 +13,7 @@ MeowUI 的公共组件只暴露一套业务 API。`MeowTheme` 根据 `MeowUiStyl
 | 导航 | `MeowTabRow`、`MeowNavigationBar`、`MeowNavigationItem` |
 | 容器 | `MeowBottomSheet`、`MeowAdaptiveLayout` |
 | 提示与刷新 | `MeowTip`、`MeowPullToRefresh`、`rememberMeowSnackbarState` |
+| 取色 | `MeowColorPickerDialog`、`MeowColorPickerDefaults` |
 | 效果 | `MeowScaffoldEffect`、`rememberMeowBlurScaffoldEffect` |
 
 ## 设置分组
@@ -316,6 +317,7 @@ MeowNavigationBar(
 
 - `MeowNavigationBarStyle.Standard`：Material 使用 Expressive `ShortNavigationBar`，Miuix 使用原生普通底栏。
 - `MeowNavigationBarStyle.Floating`：Material 使用 64 dp 胶囊底栏，选中指示器随选中项平滑滑动，并支持直接拖动指示器切页；Miuix 使用原生悬浮底栏容器并补充名称显示。两者都保留图标、单行文字、选中状态与安全区间距。
+- `showFloatingLabels = false` 可隐藏悬浮底栏图标下方的名称，仅悬浮样式受影响。
 - sample 的“Floating bottom bar”开关可直接比较普通与悬浮样式。
 - `badge` 为空时不显示；`enabled = false` 时该项不可操作。
 
@@ -367,13 +369,27 @@ MeowTip(
 
 支持 `Info`、`Success`、`Warning`、`Error`。只有提供 `onAction` 时才应设置 `actionText`。
 
+## 取色窗口
+
+```kotlin
+MeowColorPickerDialog(
+    show = showColorPicker,
+    dynamicColor = dynamicColor,
+    seedColor = seedColor,
+    onDynamicColorChange = { dynamicColor = it },
+    onSeedColorChange = { seedColor = it },
+    onDismissRequest = { showColorPicker = false },
+)
+```
+
+统一的取色窗口：第一个色块表示跟随壁纸（系统动态取色，Android 12+ 显示），其余为自定义种子色，可用 `presetColors` 替换；每个色块以该种子展开后的配色绘制双色预览。选择即时通过回调生效，适合与 `MeowTheme` 的 `dynamicColor` / `seedColor` 直接绑定。
+
 ## 下拉刷新
 
 ```kotlin
 MeowPullToRefresh(
     isRefreshing = refreshing,
     onRefresh = onRefresh,
-    contentPadding = contentPadding,
 ) {
     RefreshableContent()
 }

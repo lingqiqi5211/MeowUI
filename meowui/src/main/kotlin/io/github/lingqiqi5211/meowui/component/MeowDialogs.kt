@@ -683,7 +683,7 @@ private fun <T> MiuixChoiceList(
 }
 
 @Composable
-private fun MiuixDialogButtons(
+internal fun MiuixDialogButtons(
     confirmText: String,
     cancelText: String?,
     onConfirm: () -> Unit,

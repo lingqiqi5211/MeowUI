@@ -15,12 +15,15 @@ import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon as MaterialIcon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TextButton as MaterialTextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox as MaterialPullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -113,7 +116,7 @@ fun MeowTip(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MeowPullToRefresh(
     isRefreshing: Boolean,
@@ -124,10 +127,20 @@ fun MeowPullToRefresh(
 ) {
     MeowStyleContent(
         materialExpressive = {
+            val state = rememberPullToRefreshState()
             MaterialPullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = onRefresh,
                 modifier = modifier,
+                state = state,
+                // Expressive 形变加载指示器，替换默认的圆形箭头指示器。
+                indicator = {
+                    PullToRefreshDefaults.LoadingIndicator(
+                        state = state,
+                        isRefreshing = isRefreshing,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                },
             ) {
                 Box(modifier = Modifier.padding(contentPadding)) {
                     content()
