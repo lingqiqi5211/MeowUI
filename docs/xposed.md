@@ -1,6 +1,6 @@
 # libxposed 接入
 
-MeowUI **只支持 libxposed API 102**，本文所有示例均采用 API 102。
+MeowUI **只支持 libxposed API**，本文所有示例均采用 libxposed API 进行演示。
 
 ## 模块关系
 
