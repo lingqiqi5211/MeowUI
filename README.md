@@ -1,19 +1,21 @@
 # MeowUI
 
-MeowUI 是面向 **libxposed 模块设置页** 的 Compose UI 库。业务层只编写一份页面、设置 key 与回调，运行时可以在 **Material 3 Expressive** 和 **Miuix** 之间切换；两套界面共用业务语义，但分别使用各自的布局、组件、配色与动效。
+MeowUI 是面向 **libxposed 模块设置页** 的 Compose UI 库。业务层只编写一份页面、设置 key 与回调，运行时即可在 **Material 3 Expressive** 与 **Miuix** 之间切换；两套界面共享同一套业务语义，但分别使用各自的原生布局、组件、配色与动效。
 
 - 包名：`io.github.lingqiqi5211.meowui`
 - 最低系统：Android 8.0（API 26）
 - Xposed：仅支持 libxposed API 102
-- 发布状态：尚未发布到 Maven Central 或 JitPack
+- 许可证：Apache-2.0
+- 发布状态：尚未发布到 Maven Central 或 JitPack，当前仅支持源码接入
 
 ## 特点
 
-- **一次编写，两套 UI**：调用侧不需要维护 Material 与 Miuix 两份页面。
-- **设置项直接绑定 key**：常用组件只需传入 `title`、`key` 和必要选项，即可自动读取、观察并写回设置。
-- **各自遵循原生体系**：Material 分支使用 Material 3 Expressive 组件与动效；Miuix 分支使用 Miuix 官方组件与配色。
-- **完整设置页组件**：包含设置列表、Dialog、Popup、滚动顶栏、Tab、普通/悬浮底栏、Bottom Sheet、Tip 和下拉刷新。
-- **可选模糊**：顶栏与底栏可接入 Blur；不支持的设备会自动使用普通表面，不影响布局和操作。
+- **一次编写，两套 UI**：调用侧不维护 Material 与 Miuix 两份页面，风格分支全部封装在库内部，公共 API 不暴露任何 Material 或 Miuix 类型。
+- **设置项直接绑定 key**：常用组件只需传入 `title`、`key` 和必要选项，即可自动读取、观察并写回设置；写入结果通过 `PreferenceWriteResult` 统一上报。
+- **各自遵循原生体系**：Material 分支使用 Material 3 Expressive 组件、segmented 圆角与 Expressive 动效（悬浮底栏为滑动胶囊指示器）；Miuix 分支使用 Miuix 官方组件、squircle 与滚动反馈。
+- **主题可定制**：种子色经 tonal palette 展开为完整 MD3 配色，支持 `MeowPaletteStyle` 多种调色板风格与系统动态取色；浅深色与配色切换平滑过渡，系统栏亮暗自动跟随主题。
+- **完整设置页组件**：设置分组与列表、Dialog、Popup、可滚动大标题顶栏（含返回键与图标菜单）、Tab、普通/悬浮底栏、Bottom Sheet、Tip 和下拉刷新。
+- **可选模糊**：顶栏与底栏可接入 Blur；系统不支持时自动回退为普通表面，不影响布局和操作。
 
 ## 模块
 
@@ -53,9 +55,9 @@ dependencies {
 
 `0.1.0-SNAPSHOT` 是当前源码工程的本地坐标，不代表已经发布到任何远程仓库。
 
-## 最小 key 绑定示例
+## 最小示例
 
-设置页与 Hook 进程应引用同一份 key：
+设置页与 Hook 进程引用同一份 key：
 
 ```kotlin
 object SettingsKeys {
@@ -80,7 +82,11 @@ class SettingsActivity : ComponentActivity() {
                 MeowUiStyle.MaterialExpressive
             }
 
-            MeowTheme(style = style) {
+            MeowTheme(
+                style = style,
+                seedColor = Color(0xFF7B4DFF),
+                paletteStyle = MeowPaletteStyle.TonalSpot,
+            ) {
                 MeowPreferencePage(title = "模块设置") {
                     MeowPreferenceSection(title = "界面") {
                         MeowPopupPreference(
@@ -111,6 +117,8 @@ class SettingsActivity : ComponentActivity() {
 }
 ```
 
+分组内容是 `@Composable` DSL，行参数可以直接使用 `stringResource` 等资源调用；子页面顶栏通过 `MeowPreferencePage(onBackClick = ...)` 获得风格原生的返回按钮。
+
 ## 文档
 
 - [文档目录](docs/README.md)
@@ -118,5 +126,7 @@ class SettingsActivity : ComponentActivity() {
 - [组件手册](docs/components.md)
 - [libxposed 接入](docs/xposed.md)
 - [双 UI 设计规范](docs/design-guidelines.md)
+
+运行 `sample` 模块可在同一部设备上对比两套风格的真实效果（`./gradlew :sample:assembleDebug`）。
 
 许可证见 [LICENSE](LICENSE)。
