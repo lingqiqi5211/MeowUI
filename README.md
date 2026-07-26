@@ -13,7 +13,7 @@ MeowUI 是面向 **libxposed 模块设置页** 的 Compose UI 库。业务层只
 - **一次编写，两套 UI**：调用侧不维护 Material 与 Miuix 两份页面，风格分支全部封装在库内部，公共 API 不暴露任何 Material 或 Miuix 类型。
 - **设置项直接绑定 key**：常用组件只需传入 `title`、`key` 和必要选项，即可自动读取、观察并写回设置；写入结果通过 `PreferenceWriteResult` 统一上报。
 - **各自遵循原生体系**：Material 分支使用 Material 3 Expressive 组件、segmented 圆角与 Expressive 动效（悬浮底栏为滑动胶囊指示器）；Miuix 分支使用 Miuix 官方组件、squircle 与滚动反馈。
-- **主题可定制**：种子色经 tonal palette 展开为完整 MD3 配色，支持 `MeowPaletteStyle` 多种调色板风格与系统动态取色；浅深色与配色切换平滑过渡，系统栏亮暗自动跟随主题。
+- **主题可定制**：种子色经 tonal palette 展开为完整 MD3 配色，Miuix 分支经 Monet 引擎生成同源配色；支持 `MeowPaletteStyle` 多种调色板风格、系统动态取色与统一取色窗口 `MeowColorPickerDialog`；浅深色与配色切换平滑过渡，系统栏亮暗自动跟随主题。
 - **完整设置页组件**：设置分组与列表、Dialog、Popup、可滚动大标题顶栏（含返回键与图标菜单）、Tab、普通/悬浮底栏、Bottom Sheet、Tip 和下拉刷新。
 - **可选模糊**：顶栏与底栏可接入 Blur；系统不支持时自动回退为普通表面，不影响布局和操作。
 

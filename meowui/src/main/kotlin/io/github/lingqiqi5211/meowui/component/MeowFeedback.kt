@@ -125,6 +125,11 @@ fun MeowPullToRefresh(
     contentPadding: PaddingValues = PaddingValues(0.dp),
     content: @Composable () -> Unit,
 ) {
+    // 刷新指示器从顶栏下方出现，而不是盖在顶栏上。
+    val indicatorTopPadding =
+        LocalMeowScaffoldContentPadding.current.calculateTopPadding() +
+            contentPadding.calculateTopPadding()
+
     MeowStyleContent(
         materialExpressive = {
             val state = rememberPullToRefreshState()
@@ -138,7 +143,9 @@ fun MeowPullToRefresh(
                     PullToRefreshDefaults.LoadingIndicator(
                         state = state,
                         isRefreshing = isRefreshing,
-                        modifier = Modifier.align(Alignment.TopCenter),
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = indicatorTopPadding),
                     )
                 },
             ) {
@@ -148,13 +155,18 @@ fun MeowPullToRefresh(
             }
         },
         miuix = {
+            // miuix 只用 contentPadding.top 偏移指示器，内容垫边由外层 Box 负责。
             MiuixPullToRefresh(
                 isRefreshing = isRefreshing,
                 onRefresh = onRefresh,
                 modifier = modifier,
-                contentPadding = contentPadding,
+                contentPadding = PaddingValues(top = indicatorTopPadding),
                 topAppBarScrollBehavior = LocalMeowScrollContext.current.miuixTopBar,
-                content = content,
+                content = {
+                    Box(modifier = Modifier.padding(contentPadding)) {
+                        content()
+                    }
+                },
             )
         },
     )

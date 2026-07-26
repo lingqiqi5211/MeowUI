@@ -32,6 +32,8 @@ import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
+import top.yukonga.miuix.kmp.theme.ThemeColorSpec as MiuixColorSpec
+import top.yukonga.miuix.kmp.theme.ThemePaletteStyle as MiuixPaletteStyle
 
 @Immutable
 data class MeowColorScheme(
@@ -120,12 +122,11 @@ object MeowTheme {
      *
      * @param style 当前 UI 风格，决定走 Material 3 Expressive 还是 Miuix 分支。
      * @param darkTheme 是否使用深色主题，同时驱动状态栏与导航栏图标亮暗。
-     * @param dynamicColor Android 12+ 上跟随系统取色。Material 分支以系统主色为种子
-     * 展开调色板；Miuix 分支使用 Monet 配色。低版本或关闭时回退 [seedColor] 与
-     * Miuix 自身配色。
-     * @param seedColor 关闭动态取色时 Material 分支的种子色，会展开为完整的
-     * MD3 tonal palette，而不是仅替换 primary。不影响 Miuix 分支。
-     * @param paletteStyle 种子色展开为配色方案的调色板风格，仅影响 Material 分支。
+     * @param dynamicColor Android 12+ 上跟随系统主色（跟随壁纸取色）；
+     * 低版本或关闭时两个分支都回退到 [seedColor]。
+     * @param seedColor 关闭动态取色时的种子色。Material 分支展开为完整的
+     * MD3 tonal palette；Miuix 分支经 Miuix Monet 引擎生成同源配色。
+     * @param paletteStyle 种子色展开为配色方案的调色板风格，两个分支共用。
      * @param dimensions 页面级间距 token。
      */
     @Composable
@@ -159,6 +160,8 @@ object MeowTheme {
                 MeowUiStyle.Miuix -> MiuixContent(
                     darkTheme = darkTheme,
                     dynamicColor = dynamicColor,
+                    seedColor = seedColor,
+                    paletteStyle = paletteStyle,
                     dimensions = dimensions,
                     content = movableContent,
                 )
@@ -237,19 +240,33 @@ private fun MaterialExpressiveContent(
 private fun MiuixContent(
     darkTheme: Boolean,
     dynamicColor: Boolean,
+    seedColor: Color,
+    paletteStyle: MeowPaletteStyle,
     dimensions: MeowDimensions,
     content: @Composable () -> Unit,
 ) {
-    val colorSchemeMode = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (darkTheme) ColorSchemeMode.MonetDark else ColorSchemeMode.MonetLight
-        }
-
-        darkTheme -> ColorSchemeMode.Dark
-        else -> ColorSchemeMode.Light
+    // 始终走 Miuix Monet 引擎：动态取色时以系统主色为种子，
+    // 关闭时用调用侧种子色，与 Material 分支同源。
+    val keyColor = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        colorResource(id = android.R.color.system_accent1_500)
+    } else {
+        seedColor
     }
-    val controller = remember(colorSchemeMode) {
-        ThemeController(colorSchemeMode = colorSchemeMode)
+    val colorSchemeMode = if (darkTheme) ColorSchemeMode.MonetDark else ColorSchemeMode.MonetLight
+    val miuixPaletteStyle = paletteStyle.toMiuixPaletteStyle()
+    val miuixColorSpec = if (paletteStyle.supportsSpec2025) {
+        MiuixColorSpec.Spec2025
+    } else {
+        MiuixColorSpec.Spec2021
+    }
+    val controller = remember(colorSchemeMode, keyColor, miuixPaletteStyle, miuixColorSpec, darkTheme) {
+        ThemeController(
+            colorSchemeMode = colorSchemeMode,
+            keyColor = keyColor,
+            paletteStyle = miuixPaletteStyle,
+            colorSpec = miuixColorSpec,
+            isDark = darkTheme,
+        )
     }
 
     MiuixTheme(controller = controller) {
@@ -313,6 +330,18 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+private fun MeowPaletteStyle.toMiuixPaletteStyle(): MiuixPaletteStyle = when (this) {
+    MeowPaletteStyle.TonalSpot -> MiuixPaletteStyle.TonalSpot
+    MeowPaletteStyle.Neutral -> MiuixPaletteStyle.Neutral
+    MeowPaletteStyle.Vibrant -> MiuixPaletteStyle.Vibrant
+    MeowPaletteStyle.Expressive -> MiuixPaletteStyle.Expressive
+    MeowPaletteStyle.Rainbow -> MiuixPaletteStyle.Rainbow
+    MeowPaletteStyle.FruitSalad -> MiuixPaletteStyle.FruitSalad
+    MeowPaletteStyle.Monochrome -> MiuixPaletteStyle.Monochrome
+    MeowPaletteStyle.Fidelity -> MiuixPaletteStyle.Fidelity
+    MeowPaletteStyle.Content -> MiuixPaletteStyle.Content
 }
 
 @Composable

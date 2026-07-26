@@ -1,10 +1,10 @@
 package io.github.lingqiqi5211.meowui.theme
 
 /**
- * 从种子色派生 Material 3 Expressive 配色方案时使用的调色板风格。
+ * 从种子色派生配色方案时使用的调色板风格。
  *
- * 仅影响 Material 3 Expressive 分支的配色生成；Miuix 分支始终保持系统 Monet
- * 或 Miuix 自身的 Light/Dark 配色。
+ * 两个分支共用：Material 3 Expressive 由 tonal palette 展开，
+ * Miuix 由 Miuix Monet 引擎生成同风格配色。
  */
 enum class MeowPaletteStyle {
     /** Material 3 默认风格，与系统动态取色观感最接近。 */

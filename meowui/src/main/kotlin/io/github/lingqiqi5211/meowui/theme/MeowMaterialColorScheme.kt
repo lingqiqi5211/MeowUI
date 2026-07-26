@@ -48,7 +48,7 @@ internal fun meowMaterialColorScheme(
 }
 
 // 2025 color spec 仅覆盖这四种风格，其余风格回退 2021 spec。
-private val MeowPaletteStyle.supportsSpec2025: Boolean
+internal val MeowPaletteStyle.supportsSpec2025: Boolean
     get() = when (this) {
         MeowPaletteStyle.TonalSpot,
         MeowPaletteStyle.Neutral,

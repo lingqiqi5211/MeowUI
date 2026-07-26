@@ -101,7 +101,7 @@ sample ---------> 公开库模块
 ### Miuix
 
 - 优先使用 Miuix 官方组件、squircle、滚动反馈、Popup、Dialog、Tab、Bottom Sheet 与 Blur 组合方式。
-- 关闭动态取色时恢复 Miuix 自身 Light/Dark 配色；Material seed color 不得覆盖默认蓝/白体系。
+- 配色始终由 Miuix Monet 引擎生成：动态取色跟随系统主色，关闭时以 `seedColor` 与 `paletteStyle` 派生；不得直接复用 Material 组件配色。
 - Dialog 单选项不得出现重复 indication、异常长按遮罩或打开/关闭闪烁。
 - Popup 当前值、Tab、顶栏和悬浮底栏按 Miuix 标准尺寸与反馈实现，不复用 Material 外观。
 

@@ -162,8 +162,8 @@ Material 3 Expressive 分支的配色始终由种子色展开为完整的 MD3 to
   例如 `Expressive`、`Vibrant`、`Monochrome`；支持 2025 color spec 的风格会自动启用。
 - 浅深色或种子切换时所有色 role 平滑过渡。
 
-Miuix 分支不受 `seedColor` 与 `paletteStyle` 影响：`dynamicColor = true` 时使用系统
-Monet 配色，关闭时恢复 Miuix 自身的 Light/Dark 配色。
+Miuix 分支经 Miuix Monet 引擎生成同源配色：`dynamicColor = true` 时以系统主色为种子，
+关闭时同样使用 `seedColor` 与 `paletteStyle`，两种风格的主题色保持一致。
 
 ## 传入文本与 key
 

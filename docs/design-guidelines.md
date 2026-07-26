@@ -143,7 +143,7 @@ Material 分支通过统一 `MeowScaffoldEffect` 接入 Blur。Blur 不可用时
 ### 主题、配色与 squircle
 
 - 优先使用 Miuix 官方组件和 Android example 的组合方式。
-- 动态取色关闭时使用 Miuix 自身 Light/Dark 配色；浅色模式保持默认蓝/白体系，Material seed color 不得覆盖。
+- 配色由 Miuix Monet 引擎生成：动态取色跟随系统主色，关闭时以 `seedColor` 与 `paletteStyle` 派生同源配色；不直接复用 Material 组件配色。
 - Miuix 原生 Card、Button、IconButton、Preference、Dialog 和 Navigation 直接使用其 squircle，不额外套第二层圆角裁剪。
 - 自定义 Miuix 形状按用途选择：纯色背景使用 squircle background，需要裁剪图片时使用 squircle clip，可点击且需要裁剪反馈时使用 squircle surface。
 - 不为不可见的几何差异滥用 offscreen layer；小尺寸或无需裁剪的元素优先选择成本更低的实现。
