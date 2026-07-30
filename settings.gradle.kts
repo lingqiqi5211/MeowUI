@@ -28,9 +28,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "MeowUI"
 
-include(":meowui-core")
 include(":meowui")
-include(":meowui-blur")
-include(":meowui-libxposed")
-include(":sample")
 include(":meowui-xposed")
+include(":sample")

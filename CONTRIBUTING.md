@@ -11,16 +11,16 @@
 
 ## 模块选择
 
-| 改动内容 | 所属模块 |
+| 改动内容 | 所属位置 |
 | --- | --- |
-| 类型化 key、存储接口、无 UI 状态 | `meowui-core` |
-| 双 UI 主题与 Compose 组件 | `meowui` |
-| 模糊与无模糊回退 | `meowui-blur` |
-| libxposed 远程设置连接 | `meowui-libxposed` |
-| 设置 Activity 与 Compose 生命周期组合 | `meowui-xposed` |
+| 类型化 key、存储接口、无 UI 状态 | `meowui` 的 `core` 包 |
+| 双 UI 主题与 Compose 组件 | `meowui` 的 `component` / `theme` 包 |
+| 模糊与无模糊回退 | `meowui` 的 `blur` 包 |
+| libxposed 远程设置连接 | `meowui-xposed` 的 `libxposed` 包 |
+| 设置 Activity 与 Compose 生命周期组合 | `meowui-xposed` 的 `xposed` 包 |
 | 公开 API 的实际预览 | `sample` |
 
-不要让 `meowui-core` 依赖 Compose 或 libxposed，不要让 `meowui` 直接依赖 libxposed，也不要让基础 UI 反向依赖 `meowui-blur`。
+不要让 `core` / `libxposed` 包依赖 Compose 页面逻辑，也不要让 `meowui` 直接依赖 libxposed。
 
 ## 组件贡献要求
 
@@ -60,7 +60,7 @@
 按改动范围完成最小验证：
 
 - 文档：检查相对链接、代码围栏、API 名称、过时描述和改动文件范围。
-- `meowui-core` / `meowui-libxposed`：检查类型、连接状态、默认值与失败路径。
+- `core` / `libxposed` 包：检查类型、连接状态、默认值与失败路径。
 - Compose 组件：检查 Material 3 Expressive 与 Miuix 的浅色、深色、动态取色关闭、首次显示和交互状态。
 - 模糊：同时检查启用、关闭和不支持设备的回退。
 - sample：确认示例只调用公开 API。

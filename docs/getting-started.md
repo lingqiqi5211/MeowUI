@@ -4,10 +4,10 @@
 
 - Android 8.0（API 26）及以上
 - Compose 项目
-- libxposed API/service（版本见 `gradle/libs.versions.toml`）
-- MeowUI 当前源码版本：`0.1.0-SNAPSHOT`
+- libxposed API/service（仅 Xposed 场景，版本见 `gradle/libs.versions.toml`）
+- MeowUI 当前版本：`0.1.0`
 
-MeowUI 尚未发布到 Maven Central 或 JitPack，因此需要通过本地源码接入。
+发布到 Maven Central 后可直接添加依赖；尚未发布前，也可以按下文用本地源码接入，依赖坐标一致。
 
 ## 使用 composite build
 
@@ -31,19 +31,11 @@ includeBuild("../MeowUI")
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.0-SNAPSHOT")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.0")
 }
 ```
 
-需要 Blur 时额外加入：
-
-```kotlin
-dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-blur:0.1.0-SNAPSHOT")
-}
-```
-
-最终应用使用 Blur 时，应确认合并后的 Manifest 包含：
+Blur 能力已内置在 `meowui` 中（`io.github.lingqiqi5211.meowui.blur` 包），其底层依赖 `miuix-blur-android` 声明 minSdk 33。**只要应用的 minSdk 低于 33（无论是否使用 Blur），主 Manifest 都必须包含**下面的 override（运行时低版本会自动回退为不模糊，不会崩溃）：
 
 ```xml
 <manifest xmlns:tools="http://schemas.android.com/tools">
@@ -51,19 +43,21 @@ dependencies {
 </manifest>
 ```
 
-### Hook 模块
+### Hook 模块 / 共享 key 模块
+
+Hook 进程的远程设置连接与 `PreferenceKey` 等定义也在 `meowui-xposed` 中（`io.github.lingqiqi5211.meowui.libxposed` 与 `io.github.lingqiqi5211.meowui.core.preference` 包）：
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-libxposed:0.1.0-SNAPSHOT")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.0")
 }
 ```
 
-如果共享 key 放在独立模块，该模块可以直接依赖：
+普通应用（不涉及 Xposed）只需要 UI 库本体：
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-core:0.1.0-SNAPSHOT")
+    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.0")
 }
 ```
 

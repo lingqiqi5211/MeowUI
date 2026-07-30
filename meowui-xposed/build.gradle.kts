@@ -1,12 +1,18 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.maven.publish)
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
     }
+}
+
+mavenPublishing {
+    publishToMavenCentral()
+    signAllPublications()
 }
 
 android {
@@ -16,7 +22,6 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
-        consumerProguardFiles("consumer-rules.pro")
     }
 
     compileOptions {
@@ -33,6 +38,9 @@ dependencies {
     api(project(":meowui"))
     api(libs.androidx.activity.compose)
 
-    api(project(":meowui-libxposed"))
+    compileOnly(libs.libxposed.api)
+    implementation(libs.libxposed.service)
+
+    testImplementation(libs.junit)
 }
 

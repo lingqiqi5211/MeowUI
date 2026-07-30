@@ -14,13 +14,14 @@ import com.materialkolor.dynamicColorScheme as materialKolorDynamicColorScheme
  * Material 3 Expressive 分支的配色生成。
  *
  * 用 materialKolor 从种子色展开完整的 MD3 tonal palette（含 container、surface 系列与
- * fixed 色role），支持 2025 color spec 的风格自动启用该 spec。
+ * fixed 色 role）。旧主题入口会为支持的风格自动启用 2025 spec，统一外观入口可明确指定。
  */
 @Stable
 internal fun meowMaterialColorScheme(
     seedColor: Color,
     isDark: Boolean,
     paletteStyle: MeowPaletteStyle,
+    colorSpec: MeowColorSpec? = null,
 ): ColorScheme {
     val style = when (paletteStyle) {
         MeowPaletteStyle.TonalSpot -> MaterialKolorPaletteStyle.TonalSpot
@@ -33,10 +34,18 @@ internal fun meowMaterialColorScheme(
         MeowPaletteStyle.Fidelity -> MaterialKolorPaletteStyle.Fidelity
         MeowPaletteStyle.Content -> MaterialKolorPaletteStyle.Content
     }
-    val specVersion = if (paletteStyle.supportsSpec2025) {
-        ColorSpec.SpecVersion.SPEC_2025
-    } else {
-        ColorSpec.SpecVersion.SPEC_2021
+    val specVersion = when (colorSpec) {
+        MeowColorSpec.Spec2021 -> ColorSpec.SpecVersion.SPEC_2021
+        MeowColorSpec.Spec2025 -> if (paletteStyle.supportsSpec2025) {
+            ColorSpec.SpecVersion.SPEC_2025
+        } else {
+            ColorSpec.SpecVersion.SPEC_2021
+        }
+        null -> if (paletteStyle.supportsSpec2025) {
+            ColorSpec.SpecVersion.SPEC_2025
+        } else {
+            ColorSpec.SpecVersion.SPEC_2021
+        }
     }
 
     return materialKolorDynamicColorScheme(

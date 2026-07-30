@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
@@ -22,9 +23,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -77,7 +80,10 @@ data class MeowDimensions(
 )
 
 private val LocalMeowUiStyle = staticCompositionLocalOf { MeowUiStyle.MaterialExpressive }
-private val LocalMeowColors = staticCompositionLocalOf<MeowColorScheme> {
+
+// 配色与深浅色随主题设置频繁变化，用可追踪的 compositionLocalOf，
+// 只重组真正读取它们的节点；static 版本会让整棵子树整体闪刷一次。
+private val LocalMeowColors = compositionLocalOf<MeowColorScheme> {
     error("MeowTheme is missing")
 }
 private val LocalMeowTypography = staticCompositionLocalOf<MeowTypography> {
@@ -89,7 +95,7 @@ private val LocalMeowShapes = staticCompositionLocalOf<MeowShapes> {
 private val LocalMeowDimensions = staticCompositionLocalOf { MeowDimensions() }
 
 /** 当前主题是否为深色，供库内组件做深浅色差异化（如阴影浓度）。 */
-internal val LocalMeowDarkTheme = staticCompositionLocalOf { false }
+internal val LocalMeowDarkTheme = compositionLocalOf { false }
 
 object MeowTheme {
     val style: MeowUiStyle
@@ -139,33 +145,106 @@ object MeowTheme {
         dimensions: MeowDimensions = MeowDimensions(),
         content: @Composable () -> Unit,
     ) {
-        val latestContent by rememberUpdatedState(content)
-        val movableContent = remember {
-            movableContentOf { latestContent() }
+        MeowThemeContent(
+            style = style,
+            darkTheme = darkTheme,
+            dynamicColor = dynamicColor,
+            seedColor = seedColor,
+            paletteStyle = paletteStyle,
+            colorSpec = null,
+            miuixMonetEnabled = true,
+            dimensions = dimensions,
+            content = content,
+        )
+    }
+
+    /**
+     * 使用统一的 [MeowAppearance] 应用主题、色彩标准与界面缩放。
+     *
+     * 界面缩放限制在 80% 到 110%，并保留系统字体缩放比例。
+     */
+    @Composable
+    operator fun invoke(
+        appearance: MeowAppearance,
+        dimensions: MeowDimensions = MeowDimensions(),
+        content: @Composable () -> Unit,
+    ) {
+        val darkTheme = when (appearance.themeMode) {
+            MeowThemeMode.System -> isSystemInDarkTheme()
+            MeowThemeMode.Light -> false
+            MeowThemeMode.Dark -> true
+        }
+        val baseDensity = LocalDensity.current
+        val interfaceScale = appearance.interfaceScale
+            .takeIf(Float::isFinite)
+            ?.coerceIn(
+                MeowAppearanceDefaults.MinInterfaceScale,
+                MeowAppearanceDefaults.MaxInterfaceScale,
+            ) ?: 1f
+        val scaledDensity = remember(baseDensity, interfaceScale) {
+            Density(
+                density = baseDensity.density * interfaceScale,
+                fontScale = baseDensity.fontScale,
+            )
         }
 
-        SystemBarAppearanceEffect(darkTheme = darkTheme)
+        CompositionLocalProvider(LocalDensity provides scaledDensity) {
+            MeowThemeContent(
+                style = appearance.style,
+                darkTheme = darkTheme,
+                dynamicColor = appearance.dynamicColor,
+                seedColor = appearance.seedColor,
+                paletteStyle = appearance.paletteStyle,
+                colorSpec = appearance.colorSpec,
+                miuixMonetEnabled = appearance.miuixMonetEnabled,
+                dimensions = dimensions,
+                content = content,
+            )
+        }
+    }
+}
 
-        CompositionLocalProvider(LocalMeowDarkTheme provides darkTheme) {
-            when (style) {
-                MeowUiStyle.MaterialExpressive -> MaterialExpressiveContent(
-                    darkTheme = darkTheme,
-                    dynamicColor = dynamicColor,
-                    seedColor = seedColor,
-                    paletteStyle = paletteStyle,
-                    dimensions = dimensions,
-                    content = movableContent,
-                )
+@Composable
+private fun MeowThemeContent(
+    style: MeowUiStyle,
+    darkTheme: Boolean,
+    dynamicColor: Boolean,
+    seedColor: Color,
+    paletteStyle: MeowPaletteStyle,
+    colorSpec: MeowColorSpec?,
+    miuixMonetEnabled: Boolean,
+    dimensions: MeowDimensions,
+    content: @Composable () -> Unit,
+) {
+    val latestContent by rememberUpdatedState(content)
+    val movableContent = remember {
+        movableContentOf { latestContent() }
+    }
 
-                MeowUiStyle.Miuix -> MiuixContent(
-                    darkTheme = darkTheme,
-                    dynamicColor = dynamicColor,
-                    seedColor = seedColor,
-                    paletteStyle = paletteStyle,
-                    dimensions = dimensions,
-                    content = movableContent,
-                )
-            }
+    SystemBarAppearanceEffect(darkTheme = darkTheme)
+
+    CompositionLocalProvider(LocalMeowDarkTheme provides darkTheme) {
+        when (style) {
+            MeowUiStyle.MaterialExpressive -> MaterialExpressiveContent(
+                darkTheme = darkTheme,
+                dynamicColor = dynamicColor,
+                seedColor = seedColor,
+                paletteStyle = paletteStyle,
+                colorSpec = colorSpec,
+                dimensions = dimensions,
+                content = movableContent,
+            )
+
+            MeowUiStyle.Miuix -> MiuixContent(
+                darkTheme = darkTheme,
+                dynamicColor = dynamicColor,
+                seedColor = seedColor,
+                paletteStyle = paletteStyle,
+                colorSpec = colorSpec,
+                monetEnabled = miuixMonetEnabled,
+                dimensions = dimensions,
+                content = movableContent,
+            )
         }
     }
 }
@@ -177,6 +256,7 @@ private fun MaterialExpressiveContent(
     dynamicColor: Boolean,
     seedColor: Color,
     paletteStyle: MeowPaletteStyle,
+    colorSpec: MeowColorSpec?,
     dimensions: MeowDimensions,
     content: @Composable () -> Unit,
 ) {
@@ -187,11 +267,12 @@ private fun MaterialExpressiveContent(
     } else {
         seedColor
     }
-    val baseColorScheme = remember(keyColor, darkTheme, paletteStyle) {
+    val baseColorScheme = remember(keyColor, darkTheme, paletteStyle, colorSpec) {
         meowMaterialColorScheme(
             seedColor = keyColor,
             isDark = darkTheme,
             paletteStyle = paletteStyle,
+            colorSpec = colorSpec,
         )
     }
     val colorScheme = baseColorScheme.animateAsState()
@@ -242,22 +323,36 @@ private fun MiuixContent(
     dynamicColor: Boolean,
     seedColor: Color,
     paletteStyle: MeowPaletteStyle,
+    colorSpec: MeowColorSpec?,
+    monetEnabled: Boolean,
     dimensions: MeowDimensions,
     content: @Composable () -> Unit,
 ) {
-    // 始终走 Miuix Monet 引擎：动态取色时以系统主色为种子，
-    // 关闭时用调用侧种子色，与 Material 分支同源。
+    // 启用 Monet 时从系统主色或调用侧种子色生成配色；关闭时使用 Miuix 原生配色。
     val keyColor = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         colorResource(id = android.R.color.system_accent1_500)
     } else {
         seedColor
     }
-    val colorSchemeMode = if (darkTheme) ColorSchemeMode.MonetDark else ColorSchemeMode.MonetLight
+    val colorSchemeMode = when {
+        !monetEnabled && darkTheme -> ColorSchemeMode.Dark
+        !monetEnabled -> ColorSchemeMode.Light
+        darkTheme -> ColorSchemeMode.MonetDark
+        else -> ColorSchemeMode.MonetLight
+    }
     val miuixPaletteStyle = paletteStyle.toMiuixPaletteStyle()
-    val miuixColorSpec = if (paletteStyle.supportsSpec2025) {
-        MiuixColorSpec.Spec2025
-    } else {
-        MiuixColorSpec.Spec2021
+    val miuixColorSpec = when (colorSpec) {
+        MeowColorSpec.Spec2021 -> MiuixColorSpec.Spec2021
+        MeowColorSpec.Spec2025 -> if (paletteStyle.supportsSpec2025) {
+            MiuixColorSpec.Spec2025
+        } else {
+            MiuixColorSpec.Spec2021
+        }
+        null -> if (paletteStyle.supportsSpec2025) {
+            MiuixColorSpec.Spec2025
+        } else {
+            MiuixColorSpec.Spec2021
+        }
     }
     val controller = remember(colorSchemeMode, keyColor, miuixPaletteStyle, miuixColorSpec, darkTheme) {
         ThemeController(
@@ -269,7 +364,25 @@ private fun MiuixContent(
         )
     }
 
+    // 外层提供 colorSchemeMode 等控制器信息；内层用逐色动画后的配色覆盖颜色，
+    // 让 Monet 开关、种子色切换时 Miuix 原生组件的颜色平滑过渡而不是硬切。
     MiuixTheme(controller = controller) {
+        val animatedColors = MiuixTheme.colorScheme.animateAsState()
+        MiuixContentInner(
+            animatedColors = animatedColors,
+            dimensions = dimensions,
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun MiuixContentInner(
+    animatedColors: top.yukonga.miuix.kmp.theme.Colors,
+    dimensions: MeowDimensions,
+    content: @Composable () -> Unit,
+) {
+    MiuixTheme(colors = animatedColors) {
         val colors = MiuixTheme.colorScheme
         val typography = MiuixTheme.textStyles
         CompositionLocalProvider(

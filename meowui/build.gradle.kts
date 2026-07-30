@@ -1,12 +1,18 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.maven.publish)
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
     }
+}
+
+mavenPublishing {
+    publishToMavenCentral()
+    signAllPublications()
 }
 
 android {
@@ -16,7 +22,6 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
-        consumerProguardFiles("consumer-rules.pro")
     }
 
     compileOptions {
@@ -30,7 +35,7 @@ android {
 }
 
 dependencies {
-    api(project(":meowui-core"))
+    api(libs.kotlinx.coroutines.core)
     api(libs.compose.runtime)
     api(libs.compose.ui)
     api(libs.compose.ui.graphics)
@@ -45,7 +50,10 @@ dependencies {
     implementation(libs.miuix.ui)
     implementation(libs.miuix.preference)
     implementation(libs.miuix.icons)
+    implementation(libs.miuix.blur.android)
     implementation(libs.kotlinx.coroutines.android)
 
     debugImplementation(libs.compose.ui.tooling)
+
+    testImplementation(libs.junit)
 }

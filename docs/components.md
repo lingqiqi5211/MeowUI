@@ -6,14 +6,14 @@ MeowUI 的公共组件只暴露一套业务 API。`MeowTheme` 根据 `MeowUiStyl
 
 | 类别 | API |
 | --- | --- |
-| 页面 | `MeowPreferencePage`、`MeowPreferenceScreen`、`MeowPreferenceSection`、`MeowScaffold` |
+| 页面 | `MeowPreferencePage`、`MeowAppearancePage`、`MeowPreferenceScreen`、`MeowPreferenceSection`、`MeowScaffold` |
 | 设置项 | `MeowSwitchPreference`、`MeowCheckboxPreference`、`MeowSliderPreference`、`MeowPopupPreference`、`MeowTextInputPreference`、`MeowActionPreference`、`MeowButton` |
 | Dialog | `MeowAlertDialog`、`MeowSingleChoiceDialog`、`MeowTextInputDialog`、`MeowLoadingDialog` |
 | 顶栏 | `MeowTopBar`、`MeowTopBarAction`、`MeowMenuItem` |
 | 导航 | `MeowTabRow`、`MeowNavigationBar`、`MeowNavigationItem` |
 | 容器 | `MeowBottomSheet`、`MeowAdaptiveLayout` |
 | 提示与刷新 | `MeowTip`、`MeowPullToRefresh`、`rememberMeowSnackbarState` |
-| 取色 | `MeowColorPickerDialog`、`MeowColorPickerDefaults` |
+| 取色 | `MeowColorPicker`、`MeowColorPickerDialog`、`MeowColorPickerDefaults` |
 | 效果 | `MeowScaffoldEffect`、`rememberMeowBlurScaffoldEffect` |
 
 ## 设置分组
@@ -143,14 +143,48 @@ MeowActionPreference(
 )
 ```
 
-### Button
+### 带图标的列表项
 
-`MeowButton` 是独立按钮，不代表设置值。放入设置分组时使用 `item` 包装；页面底部操作也可以直接使用。
+Switch、Checkbox、Action 都有可为空的 `leading` 槽位，用来做“左侧图标 + 常规列表项”的行。两种常见形态（sample 的 Controls 页有完整示例）：
 
 ```kotlin
+// 应用列表（HyperCeiler 首页式）：大图标 + 应用名/包名
+MeowActionPreference(
+    title = "Meow Music",
+    summary = "com.meow.music",
+    leading = { AppIcon(packageInfo) }, // 约 40dp，通常是真实应用图标
+    onClick = { openAppConfig() },
+)
+
+// 选项列表（KernelSU 设置式）：小图标 + 标题/摘要
+MeowActionPreference(
+    title = "Theme palette",
+    summary = "Seed color and palette style",
+    leading = {
+        Image(
+            imageVector = Icons.Rounded.Palette,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            colorFilter = ColorFilter.tint(MeowTheme.colors.onSurfaceVariant),
+        )
+    },
+    onClick = onOpenPalette,
+)
+```
+
+`leading` 为 null 时布局自动收紧，同一分组内可以混排有图标和无图标的行。
+
+### Button
+
+`MeowButton` 是独立按钮，不代表设置值，**不要放进设置分组**——按钮不是列表项，放在分组卡片内会破坏分组语义与圆角结构。把它放在分组之外（如页面底部）：
+
+```kotlin
+MeowPreferenceSection(title = "Controls") { /* 设置项 */ }
+
 MeowButton(
     text = "立即应用",
     onClick = onApply,
+    modifier = Modifier.fillMaxWidth(),
 )
 ```
 
@@ -320,6 +354,7 @@ MeowNavigationBar(
 - `showFloatingLabels = false` 可隐藏悬浮底栏图标下方的名称，仅悬浮样式受影响。
 - sample 的“Floating bottom bar”开关可直接比较普通与悬浮样式。
 - `badge` 为空时不显示；`enabled = false` 时该项不可操作。
+- 重复点击当前项不会再次触发切页；悬浮指示器拖动时会接管并取消旧动画，松手后只提交一次最终目标。
 
 ## Bottom Sheet
 
@@ -384,6 +419,88 @@ MeowColorPickerDialog(
 
 统一的取色窗口：第一个色块表示跟随壁纸（系统动态取色，Android 12+ 显示），其余为自定义种子色，可用 `presetColors` 替换；每个色块以该种子展开后的配色绘制双色预览。选择即时通过回调生效，适合与 `MeowTheme` 的 `dynamicColor` / `seedColor` 直接绑定。
 
+## 外观设置页
+
+`MeowAppearance` 集中保存 UI 风格、深浅模式、动态取色、种子色、色彩风格、色彩标准、预测性返回偏好与界面缩放。把同一份状态交给主题和外观页即可：
+
+```kotlin
+MeowTheme(appearance = appearance) {
+    MeowAppearancePage(
+        appearance = appearance,
+        onAppearanceChange = onAppearanceChange,
+        onBackClick = onBack,
+    )
+}
+```
+
+- **头图**：默认显示内置的 `MeowAppearancePreview` —— 一块随主题实时着色的迷你界面，按设备形态自动切换（手机为竖屏单栏、展开态折叠屏为铰链双栏、平板为横屏侧栏布局）。`showPreview = false` 可去掉头图；`previewContent` 不为 null 时用自定义内容替换，同样不需要区分 Material 与 Miuix。
+- `extraContent` 可在标准选项之后加入模块自己的外观设置。
+- 界面缩放范围为 80%–110%，松开 Slider 后提交；系统字体缩放比例保持不变。
+- 不支持 2025 色彩标准的色彩风格只显示并使用 2021，避免无效组合。
+- Miuix 风格下可通过 Monet 开关关闭取色，改用 Miuix 原生配色；关闭后取色卡与调色板、色彩标准选项一并隐藏。Material 分支忽略该开关。
+- 预测性返回只保存使用者偏好，导航层需要自行读取 `predictiveBackEnabled` 决定返回行为。参考 sample 的做法（借鉴 InstallerX-Revived）：在页面 entry 内部用 `androidx.navigationevent.compose.NavigationBackHandler` 在关闭时拦截系统预测手势，拖动期间不出预览，松手确认后再调用出栈，由 `NavDisplay` 播放普通 pop 转场，不会闪跳；Android 14 以下不会显示该选项。
+
+### 自定义外观页
+
+`MeowAppearancePage` 只是把公开组件按固定顺序拼装。需要不同的布局、增删设置项或改文案结构时，直接用同一批积木搭自己的页面，状态仍然是一份 `MeowAppearance`：
+
+```kotlin
+@Composable
+fun MyAppearancePage(
+    appearance: MeowAppearance,
+    onChange: (MeowAppearance) -> Unit,
+    onBack: () -> Unit,
+) {
+    MeowPreferencePage(title = "外观", onBackClick = onBack) {
+        // 1. 头图：内置预览或任何自定义 Composable
+        MeowAppearancePreview()
+
+        // 2. 主题色：横向色票选择器（也可以改用 MeowColorPickerDialog 弹窗取色）
+        MeowColorPicker(
+            dynamicColor = appearance.dynamicColor,
+            seedColor = appearance.seedColor,
+            paletteStyle = appearance.paletteStyle,
+            colorSpec = appearance.colorSpec,
+            onDynamicColorChange = { onChange(appearance.copy(dynamicColor = it)) },
+            onSeedColorChange = {
+                onChange(appearance.copy(dynamicColor = false, seedColor = it))
+            },
+        )
+
+        // 3. 深浅模式：三段 Tab
+        val modes = MeowThemeMode.entries
+        MeowTabRow(
+            tabs = listOf("跟随系统", "浅色", "深色"),
+            selectedIndex = modes.indexOf(appearance.themeMode),
+            onTabSelected = { onChange(appearance.copy(themeMode = modes[it])) },
+            style = MeowTabRowStyle.Contour,
+        )
+
+        // 4. 其余选项照常用偏好分组组装
+        MeowPreferenceSection(title = "界面") {
+            MeowPopupPreference(
+                title = "调色板风格",
+                value = appearance.paletteStyle,
+                options = MeowPaletteStyle.entries,
+                onValueChange = { onChange(appearance.copy(paletteStyle = it)) },
+            )
+            MeowSwitchPreference(
+                title = "预测式返回",
+                checked = appearance.predictiveBackEnabled,
+                onCheckedChange = { onChange(appearance.copy(predictiveBackEnabled = it)) },
+            )
+        }
+    }
+}
+```
+
+要点：
+
+- 把同一份 `MeowAppearance` 同时交给 `MeowTheme(appearance = …)` 和自定义页面，每次变更通过回调回传并持久化（sample 用 `PreferenceKey` 逐字段存取，见 `sample/MainActivity.kt` 的 `updateAppearance`）。
+- 所有积木都是风格自适应的，页面代码不需要出现任何 Material 或 Miuix 类型。
+- Miuix 关闭 Monet 时种子色与调色板不生效，自定义页面建议参照默认页用 `appearance.style != MeowUiStyle.Miuix || appearance.miuixMonetEnabled` 控制相关选项的显隐。
+- 旧的 `MeowTheme(style = …)` 与 `MeowColorPickerDialog` 用法继续保留。
+
 ## 下拉刷新
 
 ```kotlin
@@ -399,7 +516,7 @@ MeowPullToRefresh(
 
 ## Blur
 
-Blur 位于可选模块 `meowui-blur`。设置页最简单的接法：
+Blur 内置在 `meowui` 的 `io.github.lingqiqi5211.meowui.blur` 包。注意其底层依赖声明 minSdk 33：**minSdk 低于 33 的应用（无论是否使用 Blur）都要在主 Manifest 加 `<uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />`**，低版本运行时自动回退为普通表面。设置页最简单的接法：
 
 ```kotlin
 val effect = rememberMeowBlurScaffoldEffect(enabled = blurEnabled)

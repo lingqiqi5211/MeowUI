@@ -1,0 +1,10 @@
+# MeowUI 库本体不使用反射,常规场景不需要下游额外配置任何规则。
+#
+# 唯一需要保护的是枚举常量名:MeowAppearance 的各枚举(MeowUiStyle、MeowThemeMode、
+# MeowPaletteStyle、MeowColorSpec 等)通常以 enum.name 持久化到偏好存储,
+# 若被 R8 重命名会导致存量配置在版本间失效。
+-keepclassmembers enum io.github.lingqiqi5211.meowui.** {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+    <fields>;
+}

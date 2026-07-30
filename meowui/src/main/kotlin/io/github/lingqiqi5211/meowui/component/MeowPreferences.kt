@@ -1,5 +1,6 @@
 package io.github.lingqiqi5211.meowui.component
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.currentRecomposeScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +65,7 @@ import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
@@ -163,27 +166,28 @@ fun MeowPreferenceSection(
     title: String? = null,
     content: @Composable MeowPreferenceSectionScope.() -> Unit,
 ) {
-    val scope = MeowPreferenceSectionScope()
+    val scope = remember { MeowPreferenceSectionScope() }
+    scope.beginCollection(currentRecomposeScope)
     scope.content()
-    val entries = scope.entries
+    val entries = scope.endCollection()
     if (entries.isEmpty()) return
 
-    MeowStyleContent(
-        materialExpressive = {
-            MaterialPreferenceSection(
-                modifier = modifier,
-                title = title,
-                entries = entries,
-            )
-        },
-        miuix = {
-            MiuixPreferenceSection(
-                modifier = modifier,
-                title = title,
-                entries = entries,
-            )
-        },
-    )
+    // 直接按风格分发而不是经过 MeowStyleContent 的 lambda 槽位：
+    // entries 每趟收集都会重建，经 lambda 捕获后会被跳过更新，
+    // 导致条目内容（如受控开关的 checked）停留在旧值，直到页面整体重建。
+    when (MeowTheme.style) {
+        MeowUiStyle.MaterialExpressive -> MaterialPreferenceSection(
+            modifier = modifier,
+            title = title,
+            entries = entries,
+        )
+
+        MeowUiStyle.Miuix -> MiuixPreferenceSection(
+            modifier = modifier,
+            title = title,
+            entries = entries,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -202,7 +206,11 @@ private fun MaterialPreferenceSection(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+        Column(
+            // 分区内条目增减（如外观页隐藏调色板选项）时高度平滑过渡。
+            modifier = Modifier.animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+        ) {
             entries.forEachIndexed { index, entry ->
                 key(entry.key) {
                     CompositionLocalProvider(
@@ -236,7 +244,9 @@ private fun MiuixPreferenceSection(
             )
         }
         MiuixCard(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(),
             insideMargin = PaddingValues(0.dp),
         ) {
             entries.forEach { entry ->
@@ -275,12 +285,13 @@ fun MeowActionPreference(
                 title = title,
                 modifier = modifier,
                 summary = summary,
-                startAction = leading,
+                startAction = miuixStartAction(leading),
                 endActions = {
                     value?.takeIf(String::isNotBlank)?.let {
                         MiuixText(
                             text = it,
                             color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                            style = MeowTheme.typography.value,
                             maxLines = 1,
                         )
                     }
@@ -322,7 +333,7 @@ fun MeowSwitchPreference(
                 title = title,
                 modifier = modifier,
                 summary = summary,
-                startAction = leading,
+                startAction = miuixStartAction(leading),
                 enabled = enabled,
             )
         },
@@ -358,7 +369,7 @@ fun MeowCheckboxPreference(
                 onCheckedChange = onCheckedChange,
                 modifier = modifier,
                 summary = summary,
-                startAction = leading,
+                startAction = miuixStartAction(leading),
                 checkboxLocation = CheckboxLocation.End,
                 enabled = enabled,
             )
@@ -790,12 +801,6 @@ private fun MaterialSliderPreference(
         shapes = materialPreferenceItemShapes(),
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
-        trailingContent = {
-            MaterialText(
-                text = valueText(value),
-                style = MaterialTheme.typography.labelLarge,
-            )
-        },
         supportingContent = {
             Column(
                 modifier = Modifier
@@ -819,10 +824,24 @@ private fun MaterialSliderPreference(
         },
         colors = materialPreferenceItemColors(),
     ) {
-        MaterialPreferenceHeadline(
-            text = title,
-            hasSupportingContent = true,
-        )
+        // 数值文本与标题同行显示，而不是放 trailing 槽位：
+        // trailing 会占满整行右侧，把下方的滑条挤得不足全宽。
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                MaterialPreferenceHeadline(
+                    text = title,
+                    hasSupportingContent = true,
+                )
+            }
+            MaterialText(
+                text = valueText(value),
+                modifier = Modifier.padding(top = materialPreferenceInternalPadding()),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
     }
 }
 
@@ -859,6 +878,21 @@ private fun MaterialPreferenceSupportingText(
 @Composable
 private fun materialPreferenceInternalPadding() =
     (4 * LocalDensity.current.fontScale).dp
+
+/**
+ * Miuix 分支的 leading 图标与标题间距。
+ * Miuix 原生 startAction 与文字几乎贴着，参考 KernelSU 的做法补 6dp 尾距；
+ * Material 分支的间距由 SegmentedListItem 自身提供，不需要处理。
+ */
+private fun miuixStartAction(
+    leading: (@Composable () -> Unit)?,
+): (@Composable () -> Unit)? = leading?.let { icon ->
+    {
+        Box(modifier = Modifier.padding(end = 6.dp)) {
+            icon()
+        }
+    }
+}
 
 @Composable
 private fun materialTrailingContent(

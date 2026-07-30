@@ -1,1 +1,5 @@
-<manifest />
+<manifest xmlns:tools="http://schemas.android.com/tools">
+    <!-- miuix-blur-android 声明 minSdk 33，MeowUI 在低版本运行时会安全回退，
+         这里覆盖其 minSdk 约束；minSdk < 33 的接入方仍需在应用清单中保留同样的 override。 -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+</manifest>

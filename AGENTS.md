@@ -44,24 +44,18 @@
 
 | 模块 | 职责 | 不得包含 |
 | --- | --- | --- |
-| `meowui-core` | `MeowUiStyle`、`PreferenceKey`、`PreferenceStore` 与内存实现 | Compose、Activity、libxposed |
-| `meowui` | 双 UI 主题、设置项、Dialog、Popup、Scaffold、导航、反馈与自适应布局 | libxposed 连接实现 |
-| `meowui-blur` | 双风格 Blur 与安全回退 | 基础组件的必需依赖、业务页面 |
-| `meowui-libxposed` | libxposed 远程设置连接与存储适配 | Compose UI、页面逻辑 |
-| `meowui-xposed` | 组合 `meowui` 与 `meowui-libxposed` 的 Activity/Compose 入口 | 重复实现组件或存储逻辑 |
+| `meowui` | 双 UI 主题、设置项、Dialog、Popup、Scaffold、导航、反馈、自适应布局、Blur，以及 `core` 包（`MeowUiStyle`、`PreferenceKey`、`PreferenceStore` 与内存实现） | libxposed 连接实现 |
+| `meowui-xposed` | libxposed 集成：`libxposed` 包（远程设置连接与存储适配，无 Compose）+ `xposed` 包（Activity/Compose 入口） | 重复实现组件或存储逻辑 |
 | `sample` | 展示公开 API 和两套 UI 的真实效果 | 库核心实现、只供示例使用的私有捷径 |
 
 允许的主要依赖方向：
 
 ```text
-meowui ---------> meowui-core
-meowui-blur ----> meowui
-meowui-libxposed -> meowui-core
-meowui-xposed --> meowui + meowui-libxposed
-sample ---------> 公开库模块
+meowui-xposed --> meowui
+sample ---------> meowui
 ```
 
-不得为了调用方便反转依赖，也不得让 `meowui-core`、`meowui-libxposed` 感知 Compose 页面生命周期。
+包边界仍然生效：`io.github.lingqiqi5211.meowui.core` 与 `...libxposed` 包不得引用 Compose 页面生命周期；不得为了调用方便反转依赖。
 
 ## 公共组件与状态
 
@@ -128,8 +122,8 @@ sample ---------> 公开库模块
 | 改动范围 | 最低检查 |
 | --- | --- |
 | 仅文档 | `git diff --check`、相对链接、代码围栏、API 名称、模块关系、发布状态 |
-| `meowui-core` | 静态检查；获准构建时运行 `:meowui-core:testDebugUnitTest` |
-| `meowui-libxposed` | 静态检查；获准构建时运行 `:meowui-libxposed:testDebugUnitTest` 与对应编译任务 |
+| `core` / `preference` 包 | 静态检查；获准构建时运行 `:meowui:testDebugUnitTest` |
+| `libxposed` 包 | 静态检查；获准构建时运行 `:meowui-xposed:testDebugUnitTest` 与对应编译任务 |
 | Compose 组件 | 静态检查；获准构建时至少编译 `:meowui` |
 | sample 视觉 | 同时检查两种风格、浅色、深色、动态取色关闭、首次显示、状态切换与滚动；获准时构建 `:sample:assembleDebug` |
 | Blur | 同时检查开启、关闭、系统不支持与 backdrop 为 `null` 的路径 |

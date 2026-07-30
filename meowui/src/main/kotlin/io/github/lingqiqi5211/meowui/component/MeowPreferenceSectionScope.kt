@@ -1,6 +1,7 @@
 package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.RecomposeScope
 import androidx.compose.ui.Modifier
 import io.github.lingqiqi5211.meowui.core.preference.PreferenceKey
 
@@ -24,18 +25,70 @@ internal data class MeowPreferenceSectionEntry(
 @MeowPreferenceSectionDsl
 @Suppress("FunctionName")
 class MeowPreferenceSectionScope internal constructor() {
-    internal val entries = mutableListOf<MeowPreferenceSectionEntry>()
+    // 注意:本类必须保持 unstable(不要加 @Stable/@Immutable)。
+    // pending 路径假设 content lambda 作为整体重跑(receiver 不稳定使其不可被跳过);
+    // 若未来变为可跳过,嵌套作用域的局部重跑可能让 pending 只含部分条目并覆盖全量。
+    // 收集式 DSL 的陷阱：section 的 content 是 composable lambda，捕获值变化时它会在
+    // 自己的重启作用域里单独重跑，而持有 entries 的 section 主体不重组，导致渲染停在
+    // 旧条目上。因此收集分两条路：主体重组时正常收集（body）；lambda 单独重跑时先把
+    // 结果暂存（pending）并把 section 主体一并失效，让渲染在下一趟重组里取到新条目。
+    private var sectionScope: RecomposeScope? = null
+    private var collectingInBody = false
+    private var bodyContentRan = false
+    private var invalidationRequested = false
+    private val bodyEntries = mutableListOf<MeowPreferenceSectionEntry>()
+    private val pendingEntries = mutableListOf<MeowPreferenceSectionEntry>()
+    private var committedEntries: List<MeowPreferenceSectionEntry> = emptyList()
+
+    internal fun beginCollection(scope: RecomposeScope) {
+        sectionScope = scope
+        collectingInBody = true
+        bodyContentRan = false
+        bodyEntries.clear()
+    }
+
+    internal fun endCollection(): List<MeowPreferenceSectionEntry> {
+        collectingInBody = false
+        committedEntries = when {
+            // 主体这趟真正执行了 content（哪怕条目全部 visible = false）：以本趟收集为准。
+            bodyContentRan -> bodyEntries.toList()
+            // content 在单独重跑时已把最新条目放进 pending（主体这趟里 content 被跳过）。
+            invalidationRequested -> pendingEntries.toList()
+            // 主体因无关原因重组且 content 被跳过：沿用上一次的条目。
+            else -> committedEntries
+        }
+        invalidationRequested = false
+        pendingEntries.clear()
+        return committedEntries
+    }
 
     fun item(
         key: Any? = null,
         visible: Boolean = true,
         content: @Composable () -> Unit,
     ) {
-        if (!visible) return
-        entries += MeowPreferenceSectionEntry(
-            key = key ?: entries.size,
-            content = content,
-        )
+        if (collectingInBody) {
+            // 在 visible 判断之前记录“content 确实执行过”，
+            // 让全部隐藏时也能提交空列表，而不是沿用旧条目。
+            bodyContentRan = true
+            if (!visible) return
+            bodyEntries += MeowPreferenceSectionEntry(
+                key = key ?: bodyEntries.size,
+                content = content,
+            )
+        } else {
+            // 同理：即使条目全部隐藏也要请求主体重组，保证结构变化被渲染。
+            if (!invalidationRequested) {
+                invalidationRequested = true
+                pendingEntries.clear()
+                sectionScope?.invalidate()
+            }
+            if (!visible) return
+            pendingEntries += MeowPreferenceSectionEntry(
+                key = key ?: pendingEntries.size,
+                content = content,
+            )
+        }
     }
 
     fun MeowActionPreference(

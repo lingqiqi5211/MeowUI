@@ -44,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -194,6 +195,17 @@ fun MeowNavigationBar(
 
     val effect = LocalMeowScaffoldEffect.current
     val effectModifier = modifier.then(effect.bottomBarModifier)
+    val currentItems by rememberUpdatedState(items)
+    val currentSelectedIndex by rememberUpdatedState(selectedIndex)
+    val currentOnItemSelected by rememberUpdatedState(onItemSelected)
+    val selectItem = remember {
+        { index: Int ->
+            val item = currentItems.getOrNull(index)
+            if (item?.enabled == true && index != currentSelectedIndex) {
+                currentOnItemSelected(index)
+            }
+        }
+    }
 
     MeowStyleContent(
         materialExpressive = {
@@ -208,7 +220,7 @@ fun MeowNavigationBar(
                         items.forEachIndexed { index, item ->
                             MaterialShortNavigationBarItem(
                                 selected = index == selectedIndex,
-                                onClick = { onItemSelected(index) },
+                                onClick = { selectItem(index) },
                                 enabled = item.enabled,
                                 icon = { MaterialNavigationIcon(item) },
                                 label = { MaterialText(item.label) },
@@ -220,7 +232,7 @@ fun MeowNavigationBar(
                     MaterialFloatingNavigationBar(
                         items = items,
                         selectedIndex = selectedIndex,
-                        onItemSelected = onItemSelected,
+                        onItemSelected = selectItem,
                         modifier = modifier,
                         showLabels = showFloatingLabels,
                     )
@@ -238,7 +250,7 @@ fun MeowNavigationBar(
                         items.forEachIndexed { index, item ->
                             MiuixNavigationBarItem(
                                 selected = index == selectedIndex,
-                                onClick = { onItemSelected(index) },
+                                onClick = { selectItem(index) },
                                 icon = item.icon,
                                 label = item.label,
                                 enabled = item.enabled,
@@ -261,7 +273,7 @@ fun MeowNavigationBar(
                                 item = item,
                                 selected = index == selectedIndex,
                                 showLabel = showFloatingLabels,
-                                onClick = { onItemSelected(index) },
+                                onClick = { selectItem(index) },
                             )
                         }
                     }
@@ -284,8 +296,10 @@ private fun NavigationBarStyleSwitch(
     Box(contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(
             visible = style == MeowNavigationBarStyle.Standard,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+            // clip = false：Miuix 标准底栏向上绘制的阴影超出内容边界，
+            // 展开/收起动画默认的裁切会把顶部阴影切掉一块。
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top, clip = false),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top, clip = false),
         ) {
             standard()
         }
@@ -335,6 +349,7 @@ private fun MaterialFloatingNavigationBar(
         val animationScope = rememberCoroutineScope()
         val settleSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
         val indicatorProgress = remember { Animatable(selectedIndex.toFloat()) }
+        var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
         var dragging by remember { mutableStateOf(false) }
         val currentSelectedIndex by rememberUpdatedState(selectedIndex)
         val currentOnItemSelected by rememberUpdatedState(onItemSelected)
@@ -393,17 +408,24 @@ private fun MaterialFloatingNavigationBar(
             Box(
                 modifier = Modifier
                     .padding(horizontal = FloatingNavigationBarPadding)
+                    // 指示器位置只在 graphicsLayer 内读取：动画/拖动帧只重放该层，
+                    // 不会让整条底栏参与重组。
                     .graphicsLayer {
-                        val offset = indicatorProgress.value * tabWidthPx
+                        val position = if (dragging) dragProgress else indicatorProgress.value
+                        val offset = (position * tabWidthPx).roundToInt().toFloat()
                         translationX = if (isLtr) offset else -offset
                     }
                     // 胶囊支持手动拖动切页：跟手移动，抬手吸附到最近一项。
                     .pointerInput(items.size, tabWidthPx, isLtr) {
                         detectHorizontalDragGestures(
-                            onDragStart = { dragging = true },
+                            onDragStart = {
+                                dragProgress = indicatorProgress.value
+                                dragging = true
+                                animationScope.launch { indicatorProgress.stop() }
+                            },
                             onDragEnd = {
-                                dragging = false
-                                val target = indicatorProgress.value
+                                val releasedProgress = dragProgress
+                                val target = releasedProgress
                                     .roundToInt()
                                     .coerceIn(0, items.lastIndex)
                                 val resolved = if (items[target].enabled) {
@@ -412,6 +434,8 @@ private fun MaterialFloatingNavigationBar(
                                     currentSelectedIndex
                                 }
                                 animationScope.launch {
+                                    indicatorProgress.snapTo(releasedProgress)
+                                    dragging = false
                                     indicatorProgress.animateTo(resolved.toFloat(), settleSpec)
                                 }
                                 if (resolved != currentSelectedIndex) {
@@ -419,8 +443,9 @@ private fun MaterialFloatingNavigationBar(
                                 }
                             },
                             onDragCancel = {
-                                dragging = false
                                 animationScope.launch {
+                                    indicatorProgress.snapTo(dragProgress)
+                                    dragging = false
                                     indicatorProgress.animateTo(
                                         currentSelectedIndex.toFloat(),
                                         settleSpec,
@@ -430,9 +455,8 @@ private fun MaterialFloatingNavigationBar(
                         ) { change, dragAmount ->
                             change.consume()
                             val deltaTabs = dragAmount / tabWidthPx * if (isLtr) 1f else -1f
-                            val newValue = (indicatorProgress.value + deltaTabs)
+                            dragProgress = (dragProgress + deltaTabs)
                                 .coerceIn(0f, items.lastIndex.toFloat())
-                            animationScope.launch { indicatorProgress.snapTo(newValue) }
                         }
                     }
                     .clip(CircleShape)
@@ -447,7 +471,8 @@ private fun MaterialFloatingNavigationBar(
                         .requiredWidth(barWidth - FloatingNavigationBarPadding * 2)
                         .height(FloatingNavigationItemHeight)
                         .graphicsLayer {
-                            val offset = indicatorProgress.value * tabWidthPx
+                            val position = if (dragging) dragProgress else indicatorProgress.value
+                            val offset = (position * tabWidthPx).roundToInt().toFloat()
                             translationX = if (isLtr) -offset else offset
                         },
                     verticalAlignment = Alignment.CenterVertically,

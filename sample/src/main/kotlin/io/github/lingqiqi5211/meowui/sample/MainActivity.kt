@@ -3,6 +3,7 @@ package io.github.lingqiqi5211.meowui.sample
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -13,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +28,8 @@ import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.ViewAgenda
 import androidx.compose.runtime.Composable
@@ -34,8 +38,18 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.Easing
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.ui.NavDisplay
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import androidx.savedstate.serialization.SavedStateConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,15 +58,16 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.blur.rememberMeowBlurScaffoldEffect
 import io.github.lingqiqi5211.meowui.component.MeowActionPreference
+import io.github.lingqiqi5211.meowui.component.MeowAppearancePage
 import io.github.lingqiqi5211.meowui.component.MeowAlertDialog
 import io.github.lingqiqi5211.meowui.component.MeowAlertStyle
 import io.github.lingqiqi5211.meowui.component.MeowBottomSheet
 import io.github.lingqiqi5211.meowui.component.MeowButton
 import io.github.lingqiqi5211.meowui.component.MeowCheckboxPreference
-import io.github.lingqiqi5211.meowui.component.MeowColorPickerDialog
 import io.github.lingqiqi5211.meowui.component.MeowPopupPreference
 import io.github.lingqiqi5211.meowui.component.MeowLoadingDialog
 import io.github.lingqiqi5211.meowui.component.MeowMenuItem
@@ -82,28 +97,71 @@ import io.github.lingqiqi5211.meowui.preference.rememberMeowPreferenceValue
 import io.github.lingqiqi5211.meowui.preference.rememberMeowPreferenceWriter
 import io.github.lingqiqi5211.meowui.setMeowContent
 import io.github.lingqiqi5211.meowui.theme.MeowPaletteStyle
+import io.github.lingqiqi5211.meowui.theme.MeowAppearance
+import io.github.lingqiqi5211.meowui.theme.MeowColorSpec
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
+import io.github.lingqiqi5211.meowui.theme.MeowThemeMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
 private object SamplePreferences {
     const val MaterialStyle = "material3_expressive"
     const val MiuixStyle = "miuix"
 
     val Style = PreferenceKey("ui_style", MaterialStyle)
-    val DarkTheme = PreferenceKey("dark_theme", false)
+    val ThemeMode = PreferenceKey("theme_mode", MeowThemeMode.System.name)
     val DynamicColor = PreferenceKey("dynamic_color", true)
     val PaletteStyle = PreferenceKey("palette_style", MeowPaletteStyle.TonalSpot.name)
+    val ColorSpec = PreferenceKey("color_spec", MeowColorSpec.Spec2025.name)
     val SeedColor = PreferenceKey("seed_color", 0xFF7B4DFF.toInt())
+    val MiuixMonet = PreferenceKey("miuix_monet", true)
+    val PredictiveBack = PreferenceKey("predictive_back", true)
+    val InterfaceScale = PreferenceKey("interface_scale", 1f)
     val FloatingLabels = PreferenceKey("floating_labels", true)
     val Blur = PreferenceKey("background_blur", true)
     val FloatingNavigation = PreferenceKey("floating_navigation", true)
     val FeatureEnabled = PreferenceKey("feature_enabled", true)
+    val IconRowSwitch = PreferenceKey("icon_row_switch", true)
     val ShowDetails = PreferenceKey("show_details", false)
     val Intensity = PreferenceKey("intensity", 0.65f)
     val Mode = PreferenceKey("mode", "Balanced")
     val Nickname = PreferenceKey("nickname", "Meow")
 }
+
+@Serializable
+private sealed interface SampleRoute : NavKey {
+    @Serializable
+    data object Main : SampleRoute
+
+    @Serializable
+    data object Appearance : SampleRoute
+}
+
+// 页面推入/弹出转场，参考 miuix-nav 的 MiuixDefault:整宽滑入、下层 1/4 视差并轻微压暗,
+// 500ms 弹簧烘焙缓动(response 0.8 / damping 0.95),前段快、长缓尾。
+private const val NavTransitionDuration = 500
+
+// 欠阻尼弹簧的阶跃响应烘焙成 Easing,与 miuix-nav 的 NavSettleEasing 同式。
+private fun navSettleEasing(response: Float, damping: Float): Easing {
+    val omega = (2.0 * Math.PI / response).toFloat()
+    val c = (damping * 4.0 * Math.PI / response).toFloat()
+    val w = kotlin.math.sqrt(4f * omega * omega - c * c) / 2f
+    val r = -c / 2f
+    return Easing { fraction ->
+        when {
+            fraction <= 0f -> 0f
+            fraction >= 1f -> 1f
+            else -> kotlin.math.exp(r * fraction) *
+                (-kotlin.math.cos(w * fraction) + (r / w) * kotlin.math.sin(w * fraction)) + 1f
+        }
+    }
+}
+
+private val NavPageEasing = navSettleEasing(response = 0.8f, damping = 0.95f)
 
 private val navigationItems = listOf(
     MeowNavigationItem(
@@ -132,10 +190,14 @@ class MainActivity : ComponentActivity() {
 private fun SampleApp() {
     val store = remember { InMemoryPreferenceStore() }
     val styleName by rememberMeowPreferenceValue(SamplePreferences.Style, store)
-    val darkTheme by rememberMeowPreferenceValue(SamplePreferences.DarkTheme, store)
+    val themeModeName by rememberMeowPreferenceValue(SamplePreferences.ThemeMode, store)
     val dynamicColor by rememberMeowPreferenceValue(SamplePreferences.DynamicColor, store)
     val paletteStyleName by rememberMeowPreferenceValue(SamplePreferences.PaletteStyle, store)
+    val colorSpecName by rememberMeowPreferenceValue(SamplePreferences.ColorSpec, store)
     val seedColorValue by rememberMeowPreferenceValue(SamplePreferences.SeedColor, store)
+    val miuixMonet by rememberMeowPreferenceValue(SamplePreferences.MiuixMonet, store)
+    val predictiveBack by rememberMeowPreferenceValue(SamplePreferences.PredictiveBack, store)
+    val interfaceScale by rememberMeowPreferenceValue(SamplePreferences.InterfaceScale, store)
     val blurEnabled by rememberMeowPreferenceValue(SamplePreferences.Blur, store)
     val floatingNavigation by rememberMeowPreferenceValue(
         SamplePreferences.FloatingNavigation,
@@ -149,16 +211,26 @@ private fun SampleApp() {
     }
     val paletteStyle = MeowPaletteStyle.entries.firstOrNull { it.name == paletteStyleName }
         ?: MeowPaletteStyle.TonalSpot
+    val themeMode = MeowThemeMode.entries.firstOrNull { it.name == themeModeName }
+        ?: MeowThemeMode.System
+    val colorSpec = MeowColorSpec.entries.firstOrNull { it.name == colorSpecName }
+        ?: MeowColorSpec.Spec2025
+    val appearance = MeowAppearance(
+        style = style,
+        themeMode = themeMode,
+        dynamicColor = dynamicColor,
+        seedColor = Color(seedColorValue),
+        paletteStyle = paletteStyle,
+        colorSpec = colorSpec,
+        miuixMonetEnabled = miuixMonet,
+        predictiveBackEnabled = predictiveBack,
+        interfaceScale = interfaceScale,
+    )
 
     MeowPreferenceProvider(store) {
-        MeowTheme(
-            style = style,
-            darkTheme = darkTheme,
-            dynamicColor = dynamicColor,
-            seedColor = Color(seedColorValue),
-            paletteStyle = paletteStyle,
-        ) {
+        MeowTheme(appearance = appearance) {
             SampleSettings(
+                appearance = appearance,
                 blurEnabled = blurEnabled,
                 floatingNavigation = floatingNavigation,
                 floatingLabels = floatingLabels,
@@ -169,6 +241,7 @@ private fun SampleApp() {
 
 @Composable
 private fun SampleSettings(
+    appearance: MeowAppearance,
     blurEnabled: Boolean,
     floatingNavigation: Boolean,
     floatingLabels: Boolean,
@@ -188,7 +261,107 @@ private fun SampleSettings(
     val effect = rememberMeowBlurScaffoldEffect(enabled = blurEnabled)
     val snackbarState = rememberMeowSnackbarState()
 
-    MeowScaffold(
+    // NavDisplay 会缓存 entry 的内容 lambda，直接捕获的参数会停在旧快照上
+    //（表现为外观页开关点了不刷新）；经 rememberUpdatedState 中转后，
+    // 缓存的 lambda 每次重组都能读到最新值。
+    val currentAppearance by rememberUpdatedState(appearance)
+    val currentEffect by rememberUpdatedState(effect)
+    val currentFloatingNavigation by rememberUpdatedState(floatingNavigation)
+    val currentFloatingLabels by rememberUpdatedState(floatingLabels)
+    val writeStyle = rememberMeowPreferenceWriter(SamplePreferences.Style)
+    val writeThemeMode = rememberMeowPreferenceWriter(SamplePreferences.ThemeMode)
+    val writeDynamicColor = rememberMeowPreferenceWriter(SamplePreferences.DynamicColor)
+    val writeSeedColor = rememberMeowPreferenceWriter(SamplePreferences.SeedColor)
+    val writePaletteStyle = rememberMeowPreferenceWriter(SamplePreferences.PaletteStyle)
+    val writeColorSpec = rememberMeowPreferenceWriter(SamplePreferences.ColorSpec)
+    val writeMiuixMonet = rememberMeowPreferenceWriter(SamplePreferences.MiuixMonet)
+    val writePredictiveBack = rememberMeowPreferenceWriter(SamplePreferences.PredictiveBack)
+    val writeInterfaceScale = rememberMeowPreferenceWriter(SamplePreferences.InterfaceScale)
+    val serializersModule = remember {
+        SerializersModule {
+            polymorphic(NavKey::class) {
+                subclass(SampleRoute.Main::class)
+                subclass(SampleRoute.Appearance::class)
+            }
+        }
+    }
+    val savedStateConfiguration = remember(serializersModule) {
+        SavedStateConfiguration {
+            this.serializersModule = serializersModule
+        }
+    }
+    val backStack = rememberNavBackStack(
+        configuration = savedStateConfiguration,
+        SampleRoute.Main,
+    )
+    val closeAppearance = {
+        if (backStack.size > 1) backStack.removeLastOrNull()
+        Unit
+    }
+    val openAppearance = {
+        if (backStack.lastOrNull() != SampleRoute.Appearance) {
+            backStack.add(SampleRoute.Appearance)
+        }
+    }
+    // remember 保证 lambda 稳定；内部经 currentAppearance 读取最新状态做差量写入。
+    val updateAppearance: (MeowAppearance) -> Unit = remember {
+        { updated ->
+            val current = currentAppearance
+            if (updated.style != current.style) {
+                writeStyle(
+                    if (updated.style == MeowUiStyle.Miuix) {
+                        SamplePreferences.MiuixStyle
+                    } else {
+                        SamplePreferences.MaterialStyle
+                    },
+                )
+            }
+            if (updated.themeMode != current.themeMode) {
+                writeThemeMode(updated.themeMode.name)
+            }
+            if (updated.dynamicColor != current.dynamicColor) {
+                writeDynamicColor(updated.dynamicColor)
+            }
+            if (updated.seedColor != current.seedColor) {
+                writeSeedColor(updated.seedColor.toArgb())
+            }
+            if (updated.paletteStyle != current.paletteStyle) {
+                writePaletteStyle(updated.paletteStyle.name)
+            }
+            if (updated.colorSpec != current.colorSpec) {
+                writeColorSpec(updated.colorSpec.name)
+            }
+            if (updated.miuixMonetEnabled != current.miuixMonetEnabled) {
+                writeMiuixMonet(updated.miuixMonetEnabled)
+            }
+            if (updated.predictiveBackEnabled != current.predictiveBackEnabled) {
+                writePredictiveBack(updated.predictiveBackEnabled)
+            }
+            if (updated.interfaceScale != current.interfaceScale) {
+                writeInterfaceScale(updated.interfaceScale)
+            }
+        }
+    }
+
+    NavDisplay(
+        backStack = backStack,
+        modifier = Modifier.fillMaxSize(),
+        onBack = closeAppearance,
+        transitionSpec = {
+            val fade = tween<Float>(NavTransitionDuration, easing = NavPageEasing)
+            val slide = tween<IntOffset>(NavTransitionDuration, easing = NavPageEasing)
+            (slideInHorizontally(slide) { it }) togetherWith
+                (slideOutHorizontally(slide) { -it / 4 } + fadeOut(fade, targetAlpha = 0.9f))
+        },
+        popTransitionSpec = {
+            val fade = tween<Float>(NavTransitionDuration, easing = NavPageEasing)
+            val slide = tween<IntOffset>(NavTransitionDuration, easing = NavPageEasing)
+            (slideInHorizontally(slide) { -it / 4 } + fadeIn(fade, initialAlpha = 0.9f)) togetherWith
+                (slideOutHorizontally(slide) { it })
+        },
+        entryProvider = entryProvider<NavKey> {
+            entry<SampleRoute.Main> {
+                MeowScaffold(
         title = navigationItems[selectedPage].label,
         subtitle = "One page, two native styles",
         actionItems = listOf(
@@ -219,16 +392,16 @@ private fun SampleSettings(
                 items = navigationItems,
                 selectedIndex = selectedPage,
                 onItemSelected = { selectedPage = it },
-                style = if (floatingNavigation) {
+                style = if (currentFloatingNavigation) {
                     MeowNavigationBarStyle.Floating
                 } else {
                     MeowNavigationBarStyle.Standard
                 },
-                showFloatingLabels = floatingLabels,
+                showFloatingLabels = currentFloatingLabels,
             )
         },
         snackbarState = snackbarState,
-        effect = effect,
+        effect = currentEffect,
     ) { _ ->
         MeowPullToRefresh(
             isRefreshing = isRefreshing,
@@ -257,6 +430,7 @@ private fun SampleSettings(
                     0 -> SettingsPage(
                         selectedTab = selectedTab,
                         onTabSelected = { selectedTab = it },
+                        onOpenAppearance = openAppearance,
                     )
 
                     1 -> DialogsPage(
@@ -349,13 +523,34 @@ private fun SampleSettings(
                 onClick = { showBottomSheet = false },
             )
         }
-    }
+                }
+            }
+            entry<SampleRoute.Appearance> {
+                // 关闭预测式返回时在页面内部拦截系统预测手势（参考 InstallerX-Revived）：
+                // 拖动期间没有任何预览，松手确认后才以普通 pop 转场出栈，避免闪跳。
+                val backEventState = rememberNavigationEventState(NavigationEventInfo.None)
+                NavigationBackHandler(
+                    state = backEventState,
+                    isBackEnabled = !currentAppearance.predictiveBackEnabled,
+                    onBackCompleted = closeAppearance,
+                )
+                // 头图使用库内置的 MeowAppearancePreview（按手机/折叠/平板自适应），
+                // 不需要时传 showPreview = false，或用 previewContent 自定义。
+                MeowAppearancePage(
+                    appearance = currentAppearance,
+                    onAppearanceChange = updateAppearance,
+                    onBackClick = closeAppearance,
+                )
+            }
+        },
+    )
 }
 
 @Composable
 private fun SettingsPage(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
+    onOpenAppearance: () -> Unit,
 ) {
     MeowPreferenceScreen {
         MeowTip(
@@ -381,52 +576,94 @@ private fun SettingsPage(
         ) { tab ->
             if (tab == 0) {
                 Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                    AppearanceSections()
+                    AppearanceSections(onOpenAppearance = onOpenAppearance)
                 }
             } else {
-                MeowPreferenceSection(title = "Controls") {
-                    MeowSwitchPreference(
-                        title = "Enable feature",
-                        summary = "The same page code is used by both styles",
-                        key = SamplePreferences.FeatureEnabled,
-                    )
-                    MeowCheckboxPreference(
-                        title = "Show advanced details",
-                        key = SamplePreferences.ShowDetails,
-                    )
-                    MeowSliderPreference(
-                        title = "Intensity",
-                        key = SamplePreferences.Intensity,
-                        valueText = { "${(it * 100).toInt()}%" },
-                    )
-                    MeowPopupPreference(
-                        title = "Mode",
-                        key = SamplePreferences.Mode,
-                        options = listOf("Balanced", "Performance", "Battery saver"),
-                    )
-                    MeowTextInputPreference(
-                        title = "Nickname",
-                        key = SamplePreferences.Nickname,
-                        placeholder = "Enter a name",
-                        allowBlank = false,
-                        validator = { value ->
-                            if (value.trim().length < 2) "Enter at least 2 characters" else null
-                        },
-                    )
-                    item(key = "reset_controls") {
-                        val resetIntensity = rememberMeowPreferenceWriter(SamplePreferences.Intensity)
-                        val resetMode = rememberMeowPreferenceWriter(SamplePreferences.Mode)
-                        MeowButton(
-                            text = "Reset controls",
-                            onClick = {
-                                resetIntensity(SamplePreferences.Intensity.defaultValue)
-                                resetMode(SamplePreferences.Mode.defaultValue)
+                Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                    MeowPreferenceSection(title = "Controls") {
+                        MeowSwitchPreference(
+                            title = "Enable feature",
+                            summary = "The same page code is used by both styles",
+                            key = SamplePreferences.FeatureEnabled,
+                        )
+                        MeowCheckboxPreference(
+                            title = "Show advanced details",
+                            key = SamplePreferences.ShowDetails,
+                        )
+                        MeowSliderPreference(
+                            title = "Intensity",
+                            key = SamplePreferences.Intensity,
+                            valueText = { "${(it * 100).toInt()}%" },
+                        )
+                        MeowPopupPreference(
+                            title = "Mode",
+                            key = SamplePreferences.Mode,
+                            options = listOf("Balanced", "Performance", "Battery saver"),
+                        )
+                        MeowTextInputPreference(
+                            title = "Nickname",
+                            key = SamplePreferences.Nickname,
+                            placeholder = "Enter a name",
+                            allowBlank = false,
+                            validator = { value ->
+                                if (value.trim().length < 2) "Enter at least 2 characters" else null
                             },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
+
+                    // HyperCeiler 首页式应用列表：大图标 + 应用名/包名，图标可为空。
+                    MeowPreferenceSection(title = "App list") {
+                        MeowActionPreference(
+                            title = "Meow Music",
+                            summary = "com.meow.music",
+                            leading = { SampleAppIcon(Color(0xFF7B4DFF), "M") },
+                            onClick = {},
+                        )
+                        MeowActionPreference(
+                            title = "Paw Gallery",
+                            summary = "com.meow.gallery",
+                            leading = { SampleAppIcon(Color(0xFF006D39), "P") },
+                            onClick = {},
+                        )
+                        MeowActionPreference(
+                            title = "No icon app",
+                            summary = "com.meow.plain",
+                            onClick = {},
+                        )
+                    }
+
+                    // KernelSU 设置式选项列表：小图标 + 常规列表项，图标可为空。
+                    MeowPreferenceSection(title = "Options") {
+                        MeowActionPreference(
+                            title = "Theme palette",
+                            summary = "Seed color and palette style",
+                            leading = { SampleOptionIcon(Icons.Rounded.Palette) },
+                            onClick = {},
+                        )
+                        MeowSwitchPreference(
+                            title = "Notifications",
+                            summary = "Row with a leading icon and a switch",
+                            leading = { SampleOptionIcon(Icons.Rounded.Notifications) },
+                            key = SamplePreferences.IconRowSwitch,
+                        )
+                        MeowActionPreference(
+                            title = "Without icon",
+                            summary = "The leading slot is optional",
+                            onClick = {},
+                        )
+                    }
+
+                    // 按钮不属于列表分组，放在分组外面。
+                    val resetIntensity = rememberMeowPreferenceWriter(SamplePreferences.Intensity)
+                    val resetMode = rememberMeowPreferenceWriter(SamplePreferences.Mode)
+                    MeowButton(
+                        text = "Reset controls",
+                        onClick = {
+                            resetIntensity(SamplePreferences.Intensity.defaultValue)
+                            resetMode(SamplePreferences.Mode.defaultValue)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
@@ -434,35 +671,13 @@ private fun SettingsPage(
 }
 
 @Composable
-private fun AppearanceSections() {
+private fun AppearanceSections(onOpenAppearance: () -> Unit) {
     MeowPreferenceSection(title = "Appearance") {
-        MeowPopupPreference(
-            title = "UI style",
-            key = SamplePreferences.Style,
-            options = listOf(
-                SamplePreferences.MaterialStyle,
-                SamplePreferences.MiuixStyle,
-            ),
-            optionLabel = {
-                if (it == SamplePreferences.MiuixStyle) {
-                    "Miuix"
-                } else {
-                    "Material 3 Expressive"
-                }
-            },
-        )
-        MeowSwitchPreference(
-            title = "Dark theme",
-            key = SamplePreferences.DarkTheme,
-        )
-        item(key = "theme_color") {
-            ThemeColorPreference()
-        }
-        MeowPopupPreference(
-            title = "Palette style",
-            summary = "How the seed color expands into the Material scheme",
-            key = SamplePreferences.PaletteStyle,
-            options = MeowPaletteStyle.entries.map { it.name },
+        MeowActionPreference(
+            title = "Theme color",
+            summary = "Colors, theme mode, interface style, gestures, and scale",
+            value = "Open",
+            onClick = onOpenAppearance,
         )
         MeowSwitchPreference(
             title = "Background blur",
@@ -482,27 +697,31 @@ private fun AppearanceSections() {
     }
 }
 
+/** 示例用的“应用图标”：40dp 圆形色块加首字母，实际应用应换成真实应用图标。 */
 @Composable
-private fun ThemeColorPreference() {
-    var showPicker by rememberSaveable { mutableStateOf(false) }
-    val dynamicColor = rememberMeowPreferenceValue(SamplePreferences.DynamicColor).value
-    val seedColorValue = rememberMeowPreferenceValue(SamplePreferences.SeedColor).value
-    val writeDynamic = rememberMeowPreferenceWriter(SamplePreferences.DynamicColor)
-    val writeSeed = rememberMeowPreferenceWriter(SamplePreferences.SeedColor)
+private fun SampleAppIcon(color: Color, letter: String) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(color),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(
+            text = letter,
+            style = MeowTheme.typography.title.copy(color = Color.White),
+        )
+    }
+}
 
-    MeowActionPreference(
-        title = "Theme color",
-        summary = "Follow wallpaper or pick a custom seed color",
-        value = if (dynamicColor) "Wallpaper" else "Custom",
-        onClick = { showPicker = true },
-    )
-    MeowColorPickerDialog(
-        show = showPicker,
-        dynamicColor = dynamicColor,
-        seedColor = Color(seedColorValue),
-        onDynamicColorChange = { writeDynamic(it) },
-        onSeedColorChange = { writeSeed(it.toArgb()) },
-        onDismissRequest = { showPicker = false },
+/** 示例用的选项图标：24dp 矢量图标，跟随主题的次级前景色。 */
+@Composable
+private fun SampleOptionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Image(
+        imageVector = icon,
+        contentDescription = null,
+        modifier = Modifier.size(24.dp),
+        colorFilter = ColorFilter.tint(MeowTheme.colors.onSurfaceVariant),
     )
 }
 
@@ -663,13 +882,15 @@ private fun AboutHero() {
 @Composable
 private fun MaterialPreview() {
     val store = remember { InMemoryPreferenceStore() }
+    val appearance = MeowAppearance(
+        style = MeowUiStyle.MaterialExpressive,
+        themeMode = MeowThemeMode.Light,
+        dynamicColor = false,
+    )
     MeowPreferenceProvider(store) {
-        MeowTheme(
-            style = MeowUiStyle.MaterialExpressive,
-            darkTheme = false,
-            dynamicColor = false,
-        ) {
+        MeowTheme(appearance = appearance) {
             SampleSettings(
+                appearance = appearance,
                 blurEnabled = false,
                 floatingNavigation = true,
                 floatingLabels = true,
@@ -682,13 +903,15 @@ private fun MaterialPreview() {
 @Composable
 private fun MiuixPreview() {
     val store = remember { InMemoryPreferenceStore() }
+    val appearance = MeowAppearance(
+        style = MeowUiStyle.Miuix,
+        themeMode = MeowThemeMode.Light,
+        dynamicColor = false,
+    )
     MeowPreferenceProvider(store) {
-        MeowTheme(
-            style = MeowUiStyle.Miuix,
-            darkTheme = false,
-            dynamicColor = false,
-        ) {
+        MeowTheme(appearance = appearance) {
             SampleSettings(
+                appearance = appearance,
                 blurEnabled = false,
                 floatingNavigation = true,
                 floatingLabels = true,

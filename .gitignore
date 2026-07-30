@@ -9,3 +9,7 @@ captures/
 **/build/
 *.jks
 *.keystore
+.kotlin/
+
+# 本地流程文档,不进入提交
+docs/代码审查.md

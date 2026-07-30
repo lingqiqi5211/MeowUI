@@ -1,0 +1,4 @@
+# libxposed API 以 compileOnly 引入(运行时由 Xposed 框架提供),
+# 下游开启 R8 收缩时会对缺失的 API 定义告警,统一在此抑制,
+# 下游导入本库后不需要再写这条规则。
+-dontwarn io.github.libxposed.api.**

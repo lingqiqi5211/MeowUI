@@ -5,28 +5,23 @@ MeowUI **只支持 libxposed API**，本文所有示例均采用 libxposed API �
 ## 模块关系
 
 ```text
-共享 PreferenceKey
+共享 PreferenceKey（io.github.lingqiqi5211.meowui.core.preference）
 ├─ 设置进程：meowui-xposed → XposedServicePreferenceStore → libxposed service
-└─ Hook 进程：meowui-libxposed → XposedModulePreferenceStore → remote preferences
+└─ Hook 进程：meowui-xposed（libxposed 包） → XposedModulePreferenceStore → remote preferences
 ```
 
-- `meowui-core`：定义 key、连接状态、写入结果与存储接口。
-- `meowui-libxposed`：连接 libxposed 远程设置，不包含 Compose UI。
-- `meowui-xposed`：提供设置 Activity/Compose 入口，并自动管理设置进程的存储生命周期。
+`meowui-xposed` 同时承载两侧能力：`io.github.lingqiqi5211.meowui.xposed` 包提供设置 Activity/Compose 入口并自动管理设置进程的存储生命周期；`io.github.lingqiqi5211.meowui.libxposed` 包连接 libxposed 远程设置，供 Hook 进程使用（不涉及 Compose）。
 
 ## 依赖
 
-本项目尚未发布，以下坐标只用于本地 composite build：
-
 ```kotlin
-// 设置页模块
+// 设置页与 Hook 模块使用同一构件
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.0-SNAPSHOT")
-}
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.0")
 
-// Hook 模块
-dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-libxposed:0.1.0-SNAPSHOT")
+    // libxposed API 在本库中是 compileOnly（运行时由框架提供，不进 POM），
+    // Hook 模块需要自行声明——Xposed 模块工程通常本来就有这一行：
+    compileOnly("io.github.libxposed:api:<version>")
 }
 ```
 
