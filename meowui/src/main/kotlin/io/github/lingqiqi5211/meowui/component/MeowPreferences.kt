@@ -34,6 +34,7 @@ import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SegmentedListItem as MaterialSegmentedListItem
 import androidx.compose.material3.Slider as MaterialSlider
@@ -213,11 +214,24 @@ private fun MaterialPreferenceSection(
         ) {
             entries.forEachIndexed { index, entry ->
                 key(entry.key) {
+                    val shapes = meowSegmentedItemShapes(index, entries.size)
                     CompositionLocalProvider(
-                        LocalMaterialPreferenceItemShapes provides
-                            meowSegmentedItemShapes(index, entries.size),
+                        LocalMaterialPreferenceItemShapes provides shapes,
                     ) {
-                        entry.content()
+                        if (entry.container) {
+                            // Material 分支的每个条目各自画容器,所以自定义条目要由分区
+                            // 补上一层同色同圆角的卡片,否则它在分组里是一个透明缺口。
+                            MaterialSurface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = shapes.shape,
+                                color = MaterialTheme.colorScheme.surfaceBright,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ) {
+                                entry.content()
+                            }
+                        } else {
+                            entry.content()
+                        }
                     }
                 }
             }

@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import io.github.lingqiqi5211.meowui.theme.LocalMeowDarkTheme
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -56,6 +57,7 @@ fun MeowTip(
     icon: ImageVector? = null,
     actionText: String? = null,
     onAction: (() -> Unit)? = null,
+    actionModifier: Modifier = Modifier,
 ) {
     require(actionText == null || onAction != null) {
         "onAction is required when actionText is provided"
@@ -75,10 +77,15 @@ fun MeowTip(
                     title = title,
                     message = message,
                     icon = resolvedIcon,
-                    contentColor = contentColor,
+                    iconTint = contentColor,
+                    titleColor = contentColor,
+                    bodyColor = contentColor,
                     action = actionText?.let { text ->
                         {
-                            MaterialTextButton(onClick = onAction!!) {
+                            MaterialTextButton(
+                                onClick = onAction!!,
+                                modifier = actionModifier,
+                            ) {
                                 MaterialText(text)
                             }
                         }
@@ -87,26 +94,31 @@ fun MeowTip(
             }
         },
         miuix = {
-            val (containerColor, contentColor) = miuixTipColors(style)
+            // KernelSU 的 Miuix 告警卡形态:警告/错误用淡色容器整卡着色,
+            // 一般信息保持普通卡面、只用图标点出语义。
+            val colors = miuixTipColors(style)
             MiuixCard(
                 modifier = modifier.fillMaxWidth(),
                 cornerRadius = 16.dp,
                 insideMargin = PaddingValues(0.dp),
                 colors = MiuixCardColors(
-                    color = containerColor,
-                    contentColor = contentColor,
+                    color = colors.container,
+                    contentColor = colors.content,
                 ),
             ) {
                 TipContent(
                     title = title,
                     message = message,
                     icon = resolvedIcon,
-                    contentColor = contentColor,
+                    iconTint = colors.accent,
+                    titleColor = colors.content,
+                    bodyColor = colors.body,
                     action = actionText?.let { text ->
                         {
                             MiuixTextButton(
                                 text = text,
                                 onClick = onAction!!,
+                                modifier = actionModifier,
                             )
                         }
                     },
@@ -123,12 +135,26 @@ fun MeowPullToRefresh(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    /**
+     * Miuix 指示器下方的四条状态文案:下拉/到位/刷新中/完成。
+     *
+     * 默认为空(不显示文字)。miuix 的内置文案是英文,库里也没有本地化设施,
+     * 需要文字的调用侧自己传本地化好的四条。Material 分支的指示器无文字,忽略。
+     */
+    refreshTexts: List<String> = emptyList(),
+    /**
+     * 所在 MeowScaffold 给内容区的内边距,用于把刷新指示器压到顶栏下方。
+     *
+     * 默认自动取当前 scaffold 的值。若调用侧已经自己把这份内边距应用到了内容上
+     * （内容并不伸到顶栏底下），必须传 `PaddingValues(0.dp)`,否则顶栏高度会被
+     * 叠加两次,指示器出现的位置明显偏低。
+     */
+    scaffoldPadding: PaddingValues = LocalMeowScaffoldContentPadding.current,
     content: @Composable () -> Unit,
 ) {
     // 刷新指示器从顶栏下方出现，而不是盖在顶栏上。
     val indicatorTopPadding =
-        LocalMeowScaffoldContentPadding.current.calculateTopPadding() +
-            contentPadding.calculateTopPadding()
+        scaffoldPadding.calculateTopPadding() + contentPadding.calculateTopPadding()
 
     MeowStyleContent(
         materialExpressive = {
@@ -161,6 +187,7 @@ fun MeowPullToRefresh(
                 onRefresh = onRefresh,
                 modifier = modifier,
                 contentPadding = PaddingValues(top = indicatorTopPadding),
+                refreshTexts = refreshTexts,
                 topAppBarScrollBehavior = LocalMeowScrollContext.current.miuixTopBar,
                 content = {
                     Box(modifier = Modifier.padding(contentPadding)) {
@@ -177,7 +204,9 @@ private fun TipContent(
     title: String?,
     message: String,
     icon: ImageVector,
-    contentColor: Color,
+    iconTint: Color,
+    titleColor: Color,
+    bodyColor: Color,
     action: (@Composable () -> Unit)?,
 ) {
     Row(
@@ -190,7 +219,7 @@ private fun TipContent(
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
-                    tint = contentColor,
+                    tint = iconTint,
                 )
             },
             miuix = {
@@ -198,7 +227,7 @@ private fun TipContent(
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
-                    tint = contentColor,
+                    tint = iconTint,
                 )
             },
         )
@@ -207,13 +236,13 @@ private fun TipContent(
             title?.takeIf(String::isNotBlank)?.let { text ->
                 MeowText(
                     text = text,
-                    color = contentColor,
+                    color = titleColor,
                     style = MeowTheme.typography.title,
                 )
             }
             MeowText(
                 text = message,
-                color = contentColor,
+                color = bodyColor,
                 style = MeowTheme.typography.summary,
             )
         }
@@ -236,16 +265,61 @@ private fun materialTipColors(style: MeowTipStyle): Pair<Color, Color> = when (s
         MaterialTheme.colorScheme.onErrorContainer
 }
 
+private data class MiuixTipColors(
+    val container: Color,
+    val content: Color,
+    val body: Color,
+    val accent: Color,
+)
+
+/**
+ * Miuix 提示卡配色,参考 KernelSU 的告警卡:警告/错误整卡淡色容器,信息类保持
+ * 普通卡面。miuix 色板没有 tertiary/secondaryContainer,警告色调用固定淡色,
+ * 深浅各一套。
+ */
 @Composable
-private fun miuixTipColors(style: MeowTipStyle): Pair<Color, Color> = when (style) {
-    MeowTipStyle.Info -> MiuixTheme.colorScheme.tertiaryContainer to
-        MiuixTheme.colorScheme.onTertiaryContainer
-    MeowTipStyle.Success -> MiuixTheme.colorScheme.primaryContainer to
-        MiuixTheme.colorScheme.onPrimaryContainer
-    MeowTipStyle.Warning -> MiuixTheme.colorScheme.secondaryContainer to
-        MiuixTheme.colorScheme.onSecondaryContainer
-    MeowTipStyle.Error -> MiuixTheme.colorScheme.errorContainer to
-        MiuixTheme.colorScheme.onErrorContainer
+private fun miuixTipColors(style: MeowTipStyle): MiuixTipColors {
+    val dark = LocalMeowDarkTheme.current
+    return when (style) {
+        MeowTipStyle.Info, MeowTipStyle.Success -> MiuixTipColors(
+            container = MiuixTheme.colorScheme.surfaceContainer,
+            content = MiuixTheme.colorScheme.onSurface,
+            body = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            accent = MiuixTheme.colorScheme.primary,
+        )
+        MeowTipStyle.Warning -> if (dark) {
+            MiuixTipColors(
+                container = Color(0xFF3B301A),
+                content = Color(0xFFEBD6A0),
+                body = Color(0xFFD9C083),
+                accent = Color(0xFFEBD6A0),
+            )
+        } else {
+            MiuixTipColors(
+                container = Color(0xFFFBF0D9),
+                content = Color(0xFF6E5410),
+                body = Color(0xFF83671F),
+                accent = Color(0xFF8A6D1D),
+            )
+        }
+        // miuix 自带的 errorContainer 淡得几乎看不出是错误;错误也用固定色调,
+        // 深浅各一套,饱和度对齐 KernelSU 的告警红。
+        MeowTipStyle.Error -> if (dark) {
+            MiuixTipColors(
+                container = Color(0xFF4A211D),
+                content = Color(0xFFF6B9B2),
+                body = Color(0xFFE8A49D),
+                accent = Color(0xFFF6B9B2),
+            )
+        } else {
+            MiuixTipColors(
+                container = Color(0xFFF6D2CD),
+                content = Color(0xFF7F1D14),
+                body = Color(0xFF933227),
+                accent = Color(0xFF9C271B),
+            )
+        }
+    }
 }
 
 private fun MeowTipStyle.defaultIcon(): ImageVector = when (this) {

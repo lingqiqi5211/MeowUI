@@ -59,6 +59,15 @@ enum class MeowAlertStyle {
  *
  * [onConfirm] does not hide the dialog automatically. Update [show] from the caller after handling
  * the action. Set [cancelText] to `null` for a one-button alert.
+ *
+ * The cancel button reports [onDismissRequest] by default, which is right when
+ * cancelling and dismissing mean the same thing. Supply [onCancel] when they differ
+ * — an unsaved-changes prompt where the button discards but a back press or an
+ * outside tap keeps the user on the page.
+ *
+ * The dialog builds its own buttons in the active style, so [confirmModifier] and
+ * [cancelModifier] are how the call site reaches them — to tag them for tests, or
+ * to constrain them.
  */
 @Composable
 fun MeowAlertDialog(
@@ -70,7 +79,12 @@ fun MeowAlertDialog(
     confirmText: String = "OK",
     cancelText: String? = "Cancel",
     style: MeowAlertStyle = MeowAlertStyle.Standard,
+    confirmEnabled: Boolean = true,
+    onCancel: (() -> Unit)? = null,
+    confirmModifier: Modifier = Modifier,
+    cancelModifier: Modifier = Modifier,
 ) {
+    val cancelAction = onCancel ?: onDismissRequest
     MeowStyleContent(
         materialExpressive = {
             if (show) {
@@ -80,7 +94,11 @@ fun MeowAlertDialog(
                     confirmText = confirmText,
                     cancelText = cancelText,
                     style = style,
+                    confirmEnabled = confirmEnabled,
+                    confirmModifier = confirmModifier,
+                    cancelModifier = cancelModifier,
                     onConfirm = onConfirm,
+                    onCancel = cancelAction,
                     onDismissRequest = onDismissRequest,
                 )
             }
@@ -93,7 +111,11 @@ fun MeowAlertDialog(
                 confirmText = confirmText,
                 cancelText = cancelText,
                 style = style,
+                confirmEnabled = confirmEnabled,
+                confirmModifier = confirmModifier,
+                cancelModifier = cancelModifier,
                 onConfirm = onConfirm,
+                onCancel = cancelAction,
                 onDismissRequest = onDismissRequest,
             )
         },
@@ -117,6 +139,8 @@ fun <T> MeowSingleChoiceDialog(
     optionLabel: (T) -> String = { it.toString() },
     cancelText: String = "Cancel",
     confirmText: String = "OK",
+    confirmModifier: Modifier = Modifier,
+    cancelModifier: Modifier = Modifier,
 ) {
     // 只按 show 重置：dialog 打开期间外部值（如远程设置回推）变化不清掉用户的临时选择。
     var draft by remember(show) { mutableStateOf(selected) }
@@ -133,6 +157,8 @@ fun <T> MeowSingleChoiceDialog(
                     confirmText = confirmText,
                     cancelText = cancelText,
                     confirmEnabled = confirmEnabled,
+                    confirmModifier = confirmModifier,
+                    cancelModifier = cancelModifier,
                     onSelected = { draft = it },
                     onConfirm = { if (confirmEnabled) onSelected(draft) },
                     onDismissRequest = onDismissRequest,
@@ -149,6 +175,8 @@ fun <T> MeowSingleChoiceDialog(
                 confirmText = confirmText,
                 cancelText = cancelText,
                 confirmEnabled = confirmEnabled,
+                confirmModifier = confirmModifier,
+                cancelModifier = cancelModifier,
                 onSelected = { draft = it },
                 onConfirm = { if (confirmEnabled) onSelected(draft) },
                 onDismissRequest = onDismissRequest,
@@ -180,6 +208,9 @@ fun MeowTextInputDialog(
     allowBlank: Boolean = true,
     blankErrorText: String = MeowDefaultBlankErrorText,
     validator: (String) -> String? = { null },
+    confirmModifier: Modifier = Modifier,
+    cancelModifier: Modifier = Modifier,
+    fieldModifier: Modifier = Modifier,
 ) {
     // 只按 show 重置：打开期间 initialValue 变化不丢弃正在输入的内容。
     var draft by remember(show) { mutableStateOf(initialValue) }
@@ -207,6 +238,9 @@ fun MeowTextInputDialog(
                     minLines = resolvedMinLines,
                     maxLines = resolvedMaxLines,
                     confirmEnabled = confirmEnabled,
+                    confirmModifier = confirmModifier,
+                    cancelModifier = cancelModifier,
+                    fieldModifier = fieldModifier,
                     onValueChange = { draft = it },
                     onConfirm = { if (confirmEnabled) onConfirm(draft) },
                     onDismissRequest = onDismissRequest,
@@ -226,6 +260,9 @@ fun MeowTextInputDialog(
                 minLines = resolvedMinLines,
                 maxLines = resolvedMaxLines,
                 confirmEnabled = confirmEnabled,
+                confirmModifier = confirmModifier,
+                cancelModifier = cancelModifier,
+                fieldModifier = fieldModifier,
                 onValueChange = { draft = it },
                 onConfirm = { if (confirmEnabled) onConfirm(draft) },
                 onDismissRequest = onDismissRequest,
@@ -273,7 +310,11 @@ private fun MaterialAlertDialog(
     confirmText: String,
     cancelText: String?,
     style: MeowAlertStyle,
+    confirmEnabled: Boolean,
+    confirmModifier: Modifier,
+    cancelModifier: Modifier,
     onConfirm: () -> Unit,
+    onCancel: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
     val isWarning = style == MeowAlertStyle.Warning
@@ -296,6 +337,8 @@ private fun MaterialAlertDialog(
         confirmButton = {
             MaterialButton(
                 onClick = onConfirm,
+                modifier = confirmModifier,
+                enabled = confirmEnabled,
                 colors = if (isWarning) {
                     MaterialButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
@@ -310,7 +353,7 @@ private fun MaterialAlertDialog(
         },
         dismissButton = {
             cancelText?.let {
-                MaterialTextButton(onClick = onDismissRequest) {
+                MaterialTextButton(onClick = onCancel, modifier = cancelModifier) {
                     MaterialText(it)
                 }
             }
@@ -326,7 +369,11 @@ private fun MiuixAlertDialog(
     confirmText: String,
     cancelText: String?,
     style: MeowAlertStyle,
+    confirmEnabled: Boolean,
+    confirmModifier: Modifier,
+    cancelModifier: Modifier,
     onConfirm: () -> Unit,
+    onCancel: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
     WindowDialog(
@@ -344,7 +391,10 @@ private fun MiuixAlertDialog(
             confirmText = confirmText,
             cancelText = cancelText,
             onConfirm = onConfirm,
-            onCancel = onDismissRequest,
+            onCancel = onCancel,
+            confirmEnabled = confirmEnabled,
+            confirmModifier = confirmModifier,
+            cancelModifier = cancelModifier,
         )
     }
 }
@@ -358,6 +408,8 @@ private fun <T> MaterialSingleChoiceDialog(
     confirmText: String,
     cancelText: String,
     confirmEnabled: Boolean,
+    confirmModifier: Modifier,
+    cancelModifier: Modifier,
     onSelected: (T) -> Unit,
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
@@ -376,13 +428,14 @@ private fun <T> MaterialSingleChoiceDialog(
         confirmButton = {
             MaterialButton(
                 onClick = onConfirm,
+                modifier = confirmModifier,
                 enabled = confirmEnabled,
             ) {
                 MaterialText(confirmText)
             }
         },
         dismissButton = {
-            MaterialTextButton(onClick = onDismissRequest) {
+            MaterialTextButton(onClick = onDismissRequest, modifier = cancelModifier) {
                 MaterialText(cancelText)
             }
         },
@@ -399,6 +452,8 @@ private fun <T> MiuixSingleChoiceDialog(
     confirmText: String,
     cancelText: String,
     confirmEnabled: Boolean,
+    confirmModifier: Modifier,
+    cancelModifier: Modifier,
     onSelected: (T) -> Unit,
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
@@ -424,6 +479,8 @@ private fun <T> MiuixSingleChoiceDialog(
                 onConfirm = onConfirm,
                 onCancel = onDismissRequest,
                 modifier = Modifier.padding(horizontal = 24.dp),
+                confirmModifier = confirmModifier,
+                cancelModifier = cancelModifier,
             )
         }
     }
@@ -441,6 +498,9 @@ private fun MaterialTextInputDialog(
     minLines: Int,
     maxLines: Int,
     confirmEnabled: Boolean,
+    confirmModifier: Modifier,
+    cancelModifier: Modifier,
+    fieldModifier: Modifier,
     onValueChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
@@ -452,7 +512,9 @@ private fun MaterialTextInputDialog(
             MaterialTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(fieldModifier),
                 placeholder = placeholder.takeIf { it.isNotBlank() }?.let { hint ->
                     { MaterialText(hint) }
                 },
@@ -468,13 +530,14 @@ private fun MaterialTextInputDialog(
         confirmButton = {
             MaterialButton(
                 onClick = onConfirm,
+                modifier = confirmModifier,
                 enabled = confirmEnabled,
             ) {
                 MaterialText(confirmText)
             }
         },
         dismissButton = {
-            MaterialTextButton(onClick = onDismissRequest) {
+            MaterialTextButton(onClick = onDismissRequest, modifier = cancelModifier) {
                 MaterialText(cancelText)
             }
         },
@@ -494,6 +557,9 @@ private fun MiuixTextInputDialog(
     minLines: Int,
     maxLines: Int,
     confirmEnabled: Boolean,
+    confirmModifier: Modifier,
+    cancelModifier: Modifier,
+    fieldModifier: Modifier,
     onValueChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
@@ -507,7 +573,9 @@ private fun MiuixTextInputDialog(
             MiuixTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(fieldModifier),
                 colors = MiuixTextFieldDefaults.textFieldColors(
                     labelColor = if (validationError == null) {
                         MeowTheme.colors.onSurfaceVariant
@@ -542,6 +610,8 @@ private fun MiuixTextInputDialog(
                 confirmEnabled = confirmEnabled,
                 onConfirm = onConfirm,
                 onCancel = onDismissRequest,
+                confirmModifier = confirmModifier,
+                cancelModifier = cancelModifier,
             )
         }
     }
@@ -675,7 +745,8 @@ private fun <T> MiuixChoiceList(
                     title = optionLabel(option),
                     selected = option == selected,
                     onClick = { onSelected(option) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
                 )
             }
         }
@@ -690,6 +761,8 @@ internal fun MiuixDialogButtons(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     confirmEnabled: Boolean = true,
+    confirmModifier: Modifier = Modifier,
+    cancelModifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -699,7 +772,9 @@ internal fun MiuixDialogButtons(
         cancelText?.let {
             MiuixButton(
                 onClick = onCancel,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(cancelModifier),
             ) {
                 MiuixText(
                     text = it,
@@ -709,7 +784,9 @@ internal fun MiuixDialogButtons(
         }
         MiuixButton(
             onClick = onConfirm,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .then(confirmModifier),
             enabled = confirmEnabled,
             colors = MiuixButtonDefaults.buttonColorsPrimary(),
         ) {

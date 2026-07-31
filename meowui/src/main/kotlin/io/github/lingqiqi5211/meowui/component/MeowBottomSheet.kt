@@ -32,10 +32,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
+import io.github.lingqiqi5211.meowui.theme.MeowTheme
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet as MiuixOverlayBottomSheet
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import top.yukonga.miuix.kmp.window.WindowBottomSheet as MiuixWindowBottomSheet
 
+/**
+ * 底部抽屉。Material 分支为 ModalBottomSheet，Miuix 分支为应用内 OverlayBottomSheet。
+ *
+ * Miuix 分支必须在某个 [MeowScaffold]（或 miuix Scaffold）的组合子树内调用：抽屉经由
+ * Scaffold 提供的 popup host 渲染，放在 Scaffold 之外（例如与 Scaffold 平级的导航层）
+ * 时不会显示。Material 分支无此限制，但为两风格行为一致，请统一放进 Scaffold 内容里。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeowBottomSheet(
@@ -71,19 +79,34 @@ fun MeowBottomSheet(
                         startAction = startAction,
                         endAction = endAction,
                     )
-                    content()
+                    // ModalBottomSheet 的内容槽位没有任何内边距,分组卡片会顶到抽屉
+                    // 左右边缘。miuix 的 insideMargin 默认已经留了边距,这里补齐。
+                    Column(
+                        modifier = Modifier.padding(
+                            start = MeowTheme.dimensions.pageHorizontalPadding,
+                            end = MeowTheme.dimensions.pageHorizontalPadding,
+                            bottom = MeowTheme.dimensions.pageHorizontalPadding,
+                        ),
+                        content = content,
+                    )
                 }
             }
         },
         miuix = {
-            // 与 miuix 官方 example 对齐：空标题/空动作传 null（避免占位），
-            // 内容可滚动并带 overscroll 与滚动到底触感，底部补导航栏安全区。
-            MiuixWindowBottomSheet(
+            // 与 miuix 官方 example 对齐：使用应用内 OverlayBottomSheet（而不是开新窗口的
+            // WindowBottomSheet），空标题/空动作传 null；安全区由组件自身处理，
+            // 内容可滚动并带 overscroll 与滚动到底触感。
+            MiuixOverlayBottomSheet(
                 show = show,
                 modifier = modifier,
                 title = title.takeIf(String::isNotBlank),
                 startAction = startAction?.let { action -> { action() } },
                 endAction = endAction?.let { action -> { action() } },
+                // 在根 Scaffold 中渲染,抽屉才会覆盖全屏而不是被限制在当前 Scaffold 的
+                // 范围内。注意 OverlayBottomSheet 无论如何都需要一个 miuix Scaffold 祖先
+                // 提供 MiuixPopupHost —— 没有的话抽屉不会出现,renderInRootScaffold 改成
+                // false 也救不了。
+                renderInRootScaffold = true,
                 onDismissRequest = onDismissRequest,
                 content = {
                     Column(
@@ -91,17 +114,11 @@ fun MeowBottomSheet(
                             .fillMaxWidth()
                             .scrollEndHaptic()
                             .overScrollVertical()
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(rememberScrollState())
+                            // 抽屉内容与底部边缘之间的垫高,与 Material 分支一致。
+                            .padding(bottom = 16.dp),
                     ) {
                         content()
-                        Spacer(
-                            Modifier.height(
-                                WindowInsets.navigationBars.asPaddingValues()
-                                    .calculateBottomPadding() +
-                                    WindowInsets.captionBar.asPaddingValues()
-                                        .calculateBottomPadding(),
-                            ),
-                        )
                     }
                 },
             )

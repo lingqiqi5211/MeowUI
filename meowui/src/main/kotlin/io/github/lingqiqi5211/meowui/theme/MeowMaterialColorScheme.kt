@@ -22,6 +22,7 @@ internal fun meowMaterialColorScheme(
     isDark: Boolean,
     paletteStyle: MeowPaletteStyle,
     colorSpec: MeowColorSpec? = null,
+    isAmoled: Boolean = false,
 ): ColorScheme {
     val style = when (paletteStyle) {
         MeowPaletteStyle.TonalSpot -> MaterialKolorPaletteStyle.TonalSpot
@@ -51,10 +52,34 @@ internal fun meowMaterialColorScheme(
     return materialKolorDynamicColorScheme(
         seedColor = seedColor,
         isDark = isDark,
+        isAmoled = isAmoled,
         style = style,
         specVersion = specVersion,
-    )
+    ).amoledBackground(isAmoled && isDark)
 }
+
+/**
+ * AMOLED 纯黑深色（参考 KernelSU）。
+ *
+ * 只把"页面底"这一层的 role 压成纯黑：背景、surface,以及 surfaceContainer 及以下
+ * ——MeowScaffold 用 surfaceContainer 作页面色,所以这一层必须黑。
+ *
+ * surfaceContainerHigh / Highest 与 surfaceBright 保持生成值不动：搜索框、卡片和分组
+ * 列表项都取自这几个 role,一起压黑会让它们与纯黑页面完全融为一体,控件等于消失。
+ */
+private fun ColorScheme.amoledBackground(amoled: Boolean): ColorScheme =
+    if (!amoled) {
+        this
+    } else {
+        copy(
+            background = Color.Black,
+            surface = Color.Black,
+            surfaceDim = Color.Black,
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color.Black,
+            surfaceContainer = Color.Black,
+        )
+    }
 
 // 2025 color spec 仅覆盖这四种风格，其余风格回退 2021 spec。
 internal val MeowPaletteStyle.supportsSpec2025: Boolean

@@ -10,6 +10,7 @@ annotation class MeowPreferenceSectionDsl
 
 internal data class MeowPreferenceSectionEntry(
     val key: Any,
+    val container: Boolean,
     val content: @Composable () -> Unit,
 )
 
@@ -52,8 +53,18 @@ class MeowPreferenceSectionScope internal constructor() {
         committedEntries = when {
             // 主体这趟真正执行了 content（哪怕条目全部 visible = false）：以本趟收集为准。
             bodyContentRan -> bodyEntries.toList()
-            // content 在单独重跑时已把最新条目放进 pending（主体这趟里 content 被跳过）。
-            invalidationRequested -> pendingEntries.toList()
+            // content（或其中某个嵌套作用域）单独重跑过,而主体这趟里 content 被跳过。
+            // 单独重跑可能只执行了 content 的一部分（强跳过下嵌套作用域可以独立重启）,
+            // pending 不能当成全量整表替换——那会把没重跑到的条目全部丢掉。按 key 并入:
+            // 已有条目原位更新,新条目追加。结构性删除要等 content 真正在主体里重跑。
+            invalidationRequested -> {
+                val pendingByKey = pendingEntries.associateBy { it.key }
+                val knownKeys = committedEntries.mapTo(mutableSetOf()) { it.key }
+                buildList {
+                    committedEntries.forEach { add(pendingByKey[it.key] ?: it) }
+                    pendingEntries.forEach { if (it.key !in knownKeys) add(it) }
+                }
+            }
             // 主体因无关原因重组且 content 被跳过：沿用上一次的条目。
             else -> committedEntries
         }
@@ -62,9 +73,18 @@ class MeowPreferenceSectionScope internal constructor() {
         return committedEntries
     }
 
+    /**
+     * 自定义条目。
+     *
+     * [container] 为 true（默认）时由分区负责绘制该条目的容器：Material 分支给它一层
+     * 与相邻条目一致的分组卡片（分段圆角 + 卡片色），Miuix 分支不需要额外处理——整个
+     * 分区本来就是一张卡片。库内的 MeowXxxPreference 自己就是带容器的 ListItem，
+     * 因此都传 false。自绘容器的内容（例如自带选中态色块的选项卡）也应传 false。
+     */
     fun item(
         key: Any? = null,
         visible: Boolean = true,
+        container: Boolean = true,
         content: @Composable () -> Unit,
     ) {
         if (collectingInBody) {
@@ -74,6 +94,7 @@ class MeowPreferenceSectionScope internal constructor() {
             if (!visible) return
             bodyEntries += MeowPreferenceSectionEntry(
                 key = key ?: bodyEntries.size,
+                container = container,
                 content = content,
             )
         } else {
@@ -86,6 +107,7 @@ class MeowPreferenceSectionScope internal constructor() {
             if (!visible) return
             pendingEntries += MeowPreferenceSectionEntry(
                 key = key ?: pendingEntries.size,
+                container = container,
                 content = content,
             )
         }
@@ -100,7 +122,7 @@ class MeowPreferenceSectionScope internal constructor() {
         leading: (@Composable () -> Unit)? = null,
         trailing: (@Composable () -> Unit)? = null,
         onClick: () -> Unit,
-    ) = item(key = title) {
+    ) = item(key = title, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowActionPreference(
             title = title,
             modifier = modifier,
@@ -121,7 +143,7 @@ class MeowPreferenceSectionScope internal constructor() {
         summary: String? = null,
         enabled: Boolean = true,
         leading: (@Composable () -> Unit)? = null,
-    ) = item(key = title) {
+    ) = item(key = title, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowSwitchPreference(
             title = title,
             checked = checked,
@@ -141,7 +163,7 @@ class MeowPreferenceSectionScope internal constructor() {
         enabled: Boolean = true,
         leading: (@Composable () -> Unit)? = null,
         onCheckedChange: (Boolean) -> Unit = {},
-    ) = item(key = key.name) {
+    ) = item(key = key.name, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowSwitchPreference(
             key = key,
             title = title,
@@ -161,7 +183,7 @@ class MeowPreferenceSectionScope internal constructor() {
         summary: String? = null,
         enabled: Boolean = true,
         leading: (@Composable () -> Unit)? = null,
-    ) = item(key = title) {
+    ) = item(key = title, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowCheckboxPreference(
             title = title,
             checked = checked,
@@ -181,7 +203,7 @@ class MeowPreferenceSectionScope internal constructor() {
         enabled: Boolean = true,
         leading: (@Composable () -> Unit)? = null,
         onCheckedChange: (Boolean) -> Unit = {},
-    ) = item(key = key.name) {
+    ) = item(key = key.name, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowCheckboxPreference(
             key = key,
             title = title,
@@ -204,7 +226,7 @@ class MeowPreferenceSectionScope internal constructor() {
         enabled: Boolean = true,
         valueText: (Float) -> String = { it.toString() },
         onValueChangeFinished: (() -> Unit)? = null,
-    ) = item(key = title) {
+    ) = item(key = title, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowSliderPreference(
             title = title,
             value = value,
@@ -229,7 +251,7 @@ class MeowPreferenceSectionScope internal constructor() {
         enabled: Boolean = true,
         valueText: (Float) -> String = { it.toString() },
         onValueChange: (Float) -> Unit = {},
-    ) = item(key = key.name) {
+    ) = item(key = key.name, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowSliderPreference(
             key = key,
             title = title,
@@ -252,7 +274,7 @@ class MeowPreferenceSectionScope internal constructor() {
         summary: String? = null,
         enabled: Boolean = true,
         optionLabel: (T) -> String = { it.toString() },
-    ) = item(key = title) {
+    ) = item(key = title, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowPopupPreference(
             title = title,
             value = value,
@@ -274,7 +296,7 @@ class MeowPreferenceSectionScope internal constructor() {
         enabled: Boolean = true,
         optionLabel: (T) -> String = { it.toString() },
         onValueChange: (T) -> Unit = {},
-    ) = item(key = key.name) {
+    ) = item(key = key.name, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowPopupPreference(
             key = key,
             title = title,
@@ -301,7 +323,7 @@ class MeowPreferenceSectionScope internal constructor() {
         allowBlank: Boolean = true,
         blankErrorText: String = MeowDefaultBlankErrorText,
         validator: (String) -> String? = { null },
-    ) = item(key = title) {
+    ) = item(key = title, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowTextInputPreference(
             title = title,
             value = value,
@@ -333,7 +355,7 @@ class MeowPreferenceSectionScope internal constructor() {
         blankErrorText: String = MeowDefaultBlankErrorText,
         validator: (String) -> String? = { null },
         onValueChange: (String) -> Unit = {},
-    ) = item(key = key.name) {
+    ) = item(key = key.name, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowTextInputPreference(
             key = key,
             title = title,

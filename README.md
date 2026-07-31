@@ -28,7 +28,7 @@ MeowUI 是一套 **双风格 Compose UI 样式库**：业务层只编写一份�
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.0")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.1")
 }
 ```
 
@@ -36,7 +36,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.0")
+    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.1")
 }
 ```
 

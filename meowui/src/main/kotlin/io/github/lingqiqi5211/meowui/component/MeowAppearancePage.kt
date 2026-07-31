@@ -45,6 +45,8 @@ data class MeowAppearanceLabels(
     val systemMode: String = "System",
     val lightMode: String = "Light",
     val darkMode: String = "Dark",
+    val amoledDark: String = "AMOLED dark",
+    val amoledDarkSummary: String = "Pure black backgrounds when dark theme is active",
     val colorSettings: String = "Colors",
     val paletteStyle: String = "Color style",
     val colorSpec: String = "Color standard",
@@ -73,6 +75,41 @@ fun MeowAppearancePage(
     onAppearanceChange: (MeowAppearance) -> Unit,
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
+    navigationModifier: Modifier = Modifier,
+    labels: MeowAppearanceLabels = MeowAppearanceLabels(),
+    showPreview: Boolean = true,
+    previewContent: (@Composable (MeowAppearance) -> Unit)? = null,
+    extraContent: @Composable ColumnScope.() -> Unit = {},
+) {
+    MeowPreferencePage(
+        title = labels.title,
+        modifier = modifier,
+        onBackClick = onBackClick,
+        navigationModifier = navigationModifier,
+    ) {
+        MeowAppearanceContent(
+            appearance = appearance,
+            onAppearanceChange = onAppearanceChange,
+            labels = labels,
+            showPreview = showPreview,
+            previewContent = previewContent,
+            extraContent = extraContent,
+        )
+    }
+}
+
+/**
+ * 外觀設定的內容本體，不含頁面外殼。
+ *
+ * 供已經自己持有頂欄的宿主使用：把外觀設定放進宿主已有的頁面裡，而不是再套一層帶頂欄
+ * 的 [MeowPreferencePage]。參數含義與 [MeowAppearancePage] 相同。
+ *
+ * 需要放在能提供滾動容器的地方，例如 [MeowPreferenceScreen] 的內容槽位。
+ */
+@Composable
+fun ColumnScope.MeowAppearanceContent(
+    appearance: MeowAppearance,
+    onAppearanceChange: (MeowAppearance) -> Unit,
     labels: MeowAppearanceLabels = MeowAppearanceLabels(),
     showPreview: Boolean = true,
     previewContent: (@Composable (MeowAppearance) -> Unit)? = null,
@@ -91,150 +128,155 @@ fun MeowAppearancePage(
     // Miuix 关闭 Monet 后使用原生配色，种子色与调色板设置不再生效，相关选项一并隐藏。
     val colorCustomizable = appearance.style != MeowUiStyle.Miuix || appearance.miuixMonetEnabled
 
-    MeowPreferencePage(
-        title = labels.title,
-        modifier = modifier,
-        onBackClick = onBackClick,
+    if (showPreview) {
+        previewContent?.invoke(appearance) ?: MeowAppearancePreview()
+    }
+
+    AnimatedVisibility(
+        visible = colorCustomizable,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
     ) {
-        if (showPreview) {
-            previewContent?.invoke(appearance) ?: MeowAppearancePreview()
-        }
-
-        AnimatedVisibility(
-            visible = colorCustomizable,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
-        ) {
-            AppearanceColorCard(title = labels.themeColor) {
-                MeowColorPicker(
-                    dynamicColor = appearance.dynamicColor,
-                    seedColor = appearance.seedColor,
-                    paletteStyle = appearance.paletteStyle,
-                    colorSpec = appearance.colorSpec,
-                    onDynamicColorChange = { enabled ->
-                        onAppearanceChange(appearance.copy(dynamicColor = enabled))
-                    },
-                    onSeedColorChange = { color ->
-                        onAppearanceChange(
-                            appearance.copy(
-                                dynamicColor = false,
-                                seedColor = color,
-                            ),
-                        )
-                    },
-                )
-            }
-        }
-
-        Column {
-            AppearanceSectionTitle(labels.themeMode)
-            val modes = MeowThemeMode.entries
-            MeowTabRow(
-                tabs = listOf(labels.systemMode, labels.lightMode, labels.darkMode),
-                selectedIndex = modes.indexOf(appearance.themeMode),
-                onTabSelected = { index ->
-                    onAppearanceChange(appearance.copy(themeMode = modes[index]))
+        AppearanceColorCard(title = labels.themeColor) {
+            MeowColorPicker(
+                dynamicColor = appearance.dynamicColor,
+                seedColor = appearance.seedColor,
+                paletteStyle = appearance.paletteStyle,
+                colorSpec = appearance.colorSpec,
+                onDynamicColorChange = { enabled ->
+                    onAppearanceChange(appearance.copy(dynamicColor = enabled))
                 },
-                modifier = Modifier.fillMaxWidth(),
-                style = MeowTabRowStyle.Contour,
+                onSeedColorChange = { color ->
+                    onAppearanceChange(
+                        appearance.copy(
+                            dynamicColor = false,
+                            seedColor = color,
+                        ),
+                    )
+                },
             )
         }
+    }
 
-        MeowPreferenceSection(title = labels.colorSettings) {
-            if (appearance.style == MeowUiStyle.Miuix) {
-                MeowSwitchPreference(
-                    title = labels.miuixMonet,
-                    summary = labels.miuixMonetSummary,
-                    checked = appearance.miuixMonetEnabled,
-                    onCheckedChange = { enabled ->
-                        onAppearanceChange(appearance.copy(miuixMonetEnabled = enabled))
-                    },
-                )
-            }
-            if (colorCustomizable) {
-                MeowPopupPreference(
-                    title = labels.paletteStyle,
-                    value = appearance.paletteStyle,
-                    options = MeowPaletteStyle.entries,
-                    optionLabel = MeowPaletteStyle::displayName,
-                    onValueChange = { style ->
-                        onAppearanceChange(
-                            appearance.copy(
-                                paletteStyle = style,
-                                colorSpec = if (style.supportsSpec2025) {
-                                    appearance.colorSpec
-                                } else {
-                                    MeowColorSpec.Spec2021
-                                },
-                            ),
-                        )
-                    },
-                )
-                val availableColorSpecs = if (appearance.paletteStyle.supportsSpec2025) {
-                    MeowColorSpec.entries
-                } else {
-                    listOf(MeowColorSpec.Spec2021)
-                }
-                MeowPopupPreference(
-                    title = labels.colorSpec,
-                    value = appearance.colorSpec.takeIf(availableColorSpecs::contains)
-                        ?: MeowColorSpec.Spec2021,
-                    options = availableColorSpecs,
-                    optionLabel = { spec ->
-                        when (spec) {
-                            MeowColorSpec.Spec2021 -> "2021"
-                            MeowColorSpec.Spec2025 -> "2025"
-                        }
-                    },
-                    onValueChange = { spec ->
-                        onAppearanceChange(appearance.copy(colorSpec = spec))
-                    },
-                )
-            }
+    Column {
+        AppearanceSectionTitle(labels.themeMode)
+        val modes = MeowThemeMode.entries
+        MeowTabRow(
+            tabs = listOf(labels.systemMode, labels.lightMode, labels.darkMode),
+            selectedIndex = modes.indexOf(appearance.themeMode),
+            onTabSelected = { index ->
+                onAppearanceChange(appearance.copy(themeMode = modes[index]))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            style = MeowTabRowStyle.Contour,
+        )
+    }
+
+    MeowPreferenceSection(title = labels.colorSettings) {
+        if (appearance.style == MeowUiStyle.Miuix) {
+            MeowSwitchPreference(
+                title = labels.miuixMonet,
+                summary = labels.miuixMonetSummary,
+                checked = appearance.miuixMonetEnabled,
+                onCheckedChange = { enabled ->
+                    onAppearanceChange(appearance.copy(miuixMonetEnabled = enabled))
+                },
+            )
         }
-
-        MeowPreferenceSection(title = labels.interfaceSettings) {
+        // AMOLED 纯黑深色仅 Material 分支生效,作为深色模式的叠加开关。
+        if (appearance.style == MeowUiStyle.MaterialExpressive) {
+            MeowSwitchPreference(
+                title = labels.amoledDark,
+                summary = labels.amoledDarkSummary,
+                checked = appearance.amoledDarkEnabled,
+                onCheckedChange = { enabled ->
+                    onAppearanceChange(appearance.copy(amoledDarkEnabled = enabled))
+                },
+            )
+        }
+        if (colorCustomizable) {
             MeowPopupPreference(
-                title = labels.interfaceStyle,
-                value = appearance.style,
-                options = MeowUiStyle.entries,
-                optionLabel = { style ->
-                    when (style) {
-                        MeowUiStyle.MaterialExpressive -> "Material 3 Expressive"
-                        MeowUiStyle.Miuix -> "Miuix"
+                title = labels.paletteStyle,
+                value = appearance.paletteStyle,
+                options = MeowPaletteStyle.entries,
+                optionLabel = MeowPaletteStyle::displayName,
+                onValueChange = { style ->
+                    onAppearanceChange(
+                        appearance.copy(
+                            paletteStyle = style,
+                            colorSpec = if (style.supportsSpec2025) {
+                                appearance.colorSpec
+                            } else {
+                                MeowColorSpec.Spec2021
+                            },
+                        ),
+                    )
+                },
+            )
+            val availableColorSpecs = if (appearance.paletteStyle.supportsSpec2025) {
+                MeowColorSpec.entries
+            } else {
+                listOf(MeowColorSpec.Spec2021)
+            }
+            MeowPopupPreference(
+                title = labels.colorSpec,
+                value = appearance.colorSpec.takeIf(availableColorSpecs::contains)
+                    ?: MeowColorSpec.Spec2021,
+                options = availableColorSpecs,
+                optionLabel = { spec ->
+                    when (spec) {
+                        MeowColorSpec.Spec2021 -> "2021"
+                        MeowColorSpec.Spec2025 -> "2025"
                     }
                 },
-                onValueChange = { style ->
-                    onAppearanceChange(appearance.copy(style = style))
+                onValueChange = { spec ->
+                    onAppearanceChange(appearance.copy(colorSpec = spec))
                 },
-            )
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                MeowSwitchPreference(
-                    title = labels.predictiveBack,
-                    summary = labels.predictiveBackSummary,
-                    checked = appearance.predictiveBackEnabled,
-                    onCheckedChange = { enabled ->
-                        onAppearanceChange(appearance.copy(predictiveBackEnabled = enabled))
-                    },
-                )
-            }
-            MeowSliderPreference(
-                title = labels.interfaceScale,
-                summary = labels.interfaceScaleSummary,
-                value = draftScale,
-                // 拖动期间只更新本地草稿并量化到 1%，不显示档位点；松手后才提交生效。
-                onValueChange = { draftScale = (it * 100).roundToInt() / 100f },
-                onValueChangeFinished = {
-                    onAppearanceChange(appearance.copy(interfaceScale = draftScale))
-                },
-                valueRange = MeowAppearanceDefaults.MinInterfaceScale..MeowAppearanceDefaults.MaxInterfaceScale,
-                valueText = { "${(it * 100).roundToInt()}%" },
             )
         }
-
-        extraContent()
-        Spacer(Modifier.height(4.dp))
     }
+
+    MeowPreferenceSection(title = labels.interfaceSettings) {
+        MeowPopupPreference(
+            title = labels.interfaceStyle,
+            value = appearance.style,
+            options = MeowUiStyle.entries,
+            optionLabel = { style ->
+                when (style) {
+                    MeowUiStyle.MaterialExpressive -> "Material 3 Expressive"
+                    MeowUiStyle.Miuix -> "Miuix"
+                }
+            },
+            onValueChange = { style ->
+                onAppearanceChange(appearance.copy(style = style))
+            },
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            MeowSwitchPreference(
+                title = labels.predictiveBack,
+                summary = labels.predictiveBackSummary,
+                checked = appearance.predictiveBackEnabled,
+                onCheckedChange = { enabled ->
+                    onAppearanceChange(appearance.copy(predictiveBackEnabled = enabled))
+                },
+            )
+        }
+        MeowSliderPreference(
+            title = labels.interfaceScale,
+            summary = labels.interfaceScaleSummary,
+            value = draftScale,
+            // 拖动期间只更新本地草稿并量化到 1%，不显示档位点；松手后才提交生效。
+            onValueChange = { draftScale = (it * 100).roundToInt() / 100f },
+            onValueChangeFinished = {
+                onAppearanceChange(appearance.copy(interfaceScale = draftScale))
+            },
+            valueRange = MeowAppearanceDefaults.MinInterfaceScale..MeowAppearanceDefaults.MaxInterfaceScale,
+            valueText = { "${(it * 100).roundToInt()}%" },
+        )
+    }
+
+    extraContent()
+    Spacer(Modifier.height(4.dp))
 }
 
 @Composable

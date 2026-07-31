@@ -42,10 +42,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.semantics.Role
@@ -57,6 +59,7 @@ import io.github.lingqiqi5211.meowui.theme.LocalMeowDarkTheme
 import io.github.lingqiqi5211.meowui.theme.MeowColorSpec
 import io.github.lingqiqi5211.meowui.theme.MeowPaletteStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
+import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import io.github.lingqiqi5211.meowui.theme.meowMaterialColorScheme
 import io.github.lingqiqi5211.meowui.theme.supportsSpec2025
 import java.util.concurrent.ConcurrentHashMap
@@ -207,10 +210,26 @@ private fun ColorPickerContent(
     modifier: Modifier = Modifier,
 ) {
     val supportsDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val distinctPresets = presetColors.distinct()
     val cells = buildList {
         if (supportsDynamic) add(ColorPickerCell.FollowWallpaper)
-        presetColors.distinct().forEach { add(ColorPickerCell.Preset(it)) }
+        distinctPresets.forEach { add(ColorPickerCell.Preset(it)) }
+        // 调色盘:自选任意种子色(参考 miuix 官方示例的 ColorPicker)。
+        add(ColorPickerCell.Custom)
     }
+    val customSelected = !dynamicColor && distinctPresets.none { it == seedColor }
+    var showCustomDialog by remember { mutableStateOf(false) }
+
+    MeowColorPaletteDialog(
+        show = showCustomDialog,
+        initialColor = seedColor,
+        onConfirm = { color ->
+            showCustomDialog = false
+            onDynamicColorChange(false)
+            onSeedColorChange(color)
+        },
+        onDismissRequest = { showCustomDialog = false },
+    )
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // 色块尺寸按可用宽度反推：恰好显示 4 个半，露出的半个提示可以左右滑动。
@@ -231,10 +250,18 @@ private fun ColorPickerContent(
                     when (cell) {
                         ColorPickerCell.FollowWallpaper -> "wallpaper"
                         is ColorPickerCell.Preset -> "preset-${cell.color.value}"
+                        ColorPickerCell.Custom -> "custom"
                     }
                 },
             ) { cell ->
                 when (cell) {
+                    ColorPickerCell.Custom -> CustomColorSwatch(
+                        selected = customSelected,
+                        currentColor = seedColor,
+                        size = swatchSize,
+                        onClick = { showCustomDialog = true },
+                    )
+
                     ColorPickerCell.FollowWallpaper -> {
                         val systemSeed = colorResource(id = android.R.color.system_accent1_500)
                         SchemeSwatch(
@@ -275,6 +302,8 @@ private sealed interface ColorPickerCell {
     data object FollowWallpaper : ColorPickerCell
 
     data class Preset(val color: Color) : ColorPickerCell
+
+    data object Custom : ColorPickerCell
 }
 
 /** KernelSU 式配色色块，外层卡片与选中反馈均参与动画；内部图形随 [size] 等比缩放。 */
@@ -383,6 +412,91 @@ private fun SchemeSwatch(
                             .clip(CircleShape)
                             .background(scheme.primary),
                     )
+                }
+            }
+        }
+    }
+}
+
+/** 调色盘色块：彩虹渐变圆表示“自选任意颜色”，选中时用当前种子色描边确认。 */
+@Composable
+private fun CustomColorSwatch(
+    selected: Boolean,
+    currentColor: Color,
+    size: Dp,
+    onClick: () -> Unit,
+) {
+    val selectionScale by animateFloatAsState(
+        targetValue = if (selected) 1.1f else 1f,
+        label = "meow_color_swatch_scale",
+    )
+    val rainbow = remember {
+        Brush.sweepGradient(
+            listOf(
+                Color(0xFFE57373),
+                Color(0xFFFFD54F),
+                Color(0xFF81C784),
+                Color(0xFF4DD0E1),
+                Color(0xFF7986CB),
+                Color(0xFFBA68C8),
+                Color(0xFFE57373),
+            ),
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.28f))
+            .background(MeowTheme.colors.surfaceVariant)
+            .semantics { this.contentDescription = "Custom color" }
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size * 2f / 3f)
+                .clip(CircleShape)
+                .background(rainbow),
+        )
+        Box(
+            modifier = Modifier.graphicsLayer {
+                scaleX = selectionScale
+                scaleY = selectionScale
+            },
+            contentAlignment = Alignment.Center,
+        ) {
+            AnimatedVisibility(
+                visible = selected,
+                enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                exit = fadeOut() + scaleOut(targetScale = 0.8f),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(size * 0.78f)
+                        .border(2.dp, MeowTheme.colors.onSurface, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(size / 3f)
+                            .clip(CircleShape)
+                            .background(currentColor),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(size * 0.22f),
+                            colorFilter = ColorFilter.tint(
+                                if (currentColor.luminance() > 0.5f) Color.Black else Color.White,
+                            ),
+                        )
+                    }
                 }
             }
         }

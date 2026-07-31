@@ -51,6 +51,7 @@ data class MeowColorScheme(
     val outline: Color,
     val divider: Color,
     val error: Color,
+    val onError: Color,
 )
 
 @Immutable
@@ -96,6 +97,9 @@ private val LocalMeowDimensions = staticCompositionLocalOf { MeowDimensions() }
 
 /** 当前主题是否为深色，供库内组件做深浅色差异化（如阴影浓度）。 */
 internal val LocalMeowDarkTheme = compositionLocalOf { false }
+
+/** 悬浮控件是否启用背景模糊,由统一外观入口写入。 */
+internal val LocalMeowBlurEnabled = staticCompositionLocalOf { true }
 
 object MeowTheme {
     val style: MeowUiStyle
@@ -148,6 +152,7 @@ object MeowTheme {
         MeowThemeContent(
             style = style,
             darkTheme = darkTheme,
+            amoledDark = false,
             dynamicColor = dynamicColor,
             seedColor = seedColor,
             paletteStyle = paletteStyle,
@@ -188,10 +193,14 @@ object MeowTheme {
             )
         }
 
-        CompositionLocalProvider(LocalDensity provides scaledDensity) {
+        CompositionLocalProvider(
+            LocalDensity provides scaledDensity,
+            LocalMeowBlurEnabled provides appearance.blurEnabled,
+        ) {
             MeowThemeContent(
                 style = appearance.style,
                 darkTheme = darkTheme,
+                amoledDark = appearance.amoledDarkEnabled && darkTheme,
                 dynamicColor = appearance.dynamicColor,
                 seedColor = appearance.seedColor,
                 paletteStyle = appearance.paletteStyle,
@@ -208,6 +217,7 @@ object MeowTheme {
 private fun MeowThemeContent(
     style: MeowUiStyle,
     darkTheme: Boolean,
+    amoledDark: Boolean,
     dynamicColor: Boolean,
     seedColor: Color,
     paletteStyle: MeowPaletteStyle,
@@ -227,6 +237,7 @@ private fun MeowThemeContent(
         when (style) {
             MeowUiStyle.MaterialExpressive -> MaterialExpressiveContent(
                 darkTheme = darkTheme,
+                amoledDark = amoledDark,
                 dynamicColor = dynamicColor,
                 seedColor = seedColor,
                 paletteStyle = paletteStyle,
@@ -253,6 +264,7 @@ private fun MeowThemeContent(
 @Composable
 private fun MaterialExpressiveContent(
     darkTheme: Boolean,
+    amoledDark: Boolean,
     dynamicColor: Boolean,
     seedColor: Color,
     paletteStyle: MeowPaletteStyle,
@@ -267,12 +279,13 @@ private fun MaterialExpressiveContent(
     } else {
         seedColor
     }
-    val baseColorScheme = remember(keyColor, darkTheme, paletteStyle, colorSpec) {
+    val baseColorScheme = remember(keyColor, darkTheme, amoledDark, paletteStyle, colorSpec) {
         meowMaterialColorScheme(
             seedColor = keyColor,
             isDark = darkTheme,
             paletteStyle = paletteStyle,
             colorSpec = colorSpec,
+            isAmoled = amoledDark,
         )
     }
     val colorScheme = baseColorScheme.animateAsState()
@@ -297,6 +310,7 @@ private fun MaterialExpressiveContent(
                 outline = colors.outline,
                 divider = colors.outlineVariant,
                 error = colors.error,
+                onError = colors.onError,
             ),
             LocalMeowTypography provides MeowTypography(
                 pageTitle = typography.headlineMedium,
@@ -399,6 +413,7 @@ private fun MiuixContentInner(
                 outline = colors.outline,
                 divider = colors.dividerLine,
                 error = colors.error,
+                onError = colors.onError,
             ),
             LocalMeowTypography provides MeowTypography(
                 pageTitle = typography.title2,

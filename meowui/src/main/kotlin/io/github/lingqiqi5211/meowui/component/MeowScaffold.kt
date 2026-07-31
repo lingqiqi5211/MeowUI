@@ -20,7 +20,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.foundation.background
+import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
+import io.github.lingqiqi5211.meowui.theme.MeowTheme
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.ScrollBehavior as MiuixTopAppBarScrollBehavior
@@ -44,6 +51,23 @@ internal data class MeowScrollContext(
 )
 
 internal val LocalMeowScaffoldEffect = staticCompositionLocalOf { MeowScaffoldEffect() }
+
+/**
+ * 内容区的图层快照,供悬浮底栏等浮层做背景模糊。
+ *
+ * 只有 MeowScaffold 的内容会被捕获;不在 scaffold 里的浮层拿到 null,自动退回
+ * 不透明底色。
+ */
+internal val LocalMeowBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
+
+/**
+ * 顶栏与悬浮底栏共用的磨砂参数。
+ *
+ * 大半径 + 较高的底色不透明度呈现的是 iOS 式磨砂:内容被充分糊开,再被底色压住,
+ * 不会有透镜式的边缘拖影,也不会漏出清晰的色块。
+ */
+internal const val MeowBlurSurfaceAlpha = 0.65f
+internal val MeowBlurRadius = 25.dp
 internal val LocalMeowScrollContext = staticCompositionLocalOf { MeowScrollContext() }
 
 /** MeowScaffold 提供给内容区的 PaddingValues，MeowPreferenceScreen 默认自动消费。 */
@@ -56,6 +80,13 @@ fun MeowScaffold(
     modifier: Modifier = Modifier,
     subtitle: String = "",
     onBackClick: (() -> Unit)? = null,
+    /**
+     * Applied to the back button built from [onBackClick].
+     *
+     * Ignored when [navigationIcon] is supplied, since that content brings its own
+     * modifier.
+     */
+    navigationModifier: Modifier = Modifier,
     navigationIcon: (@Composable () -> Unit)? = null,
     actionItems: List<MeowTopBarAction> = emptyList(),
     bottomBar: @Composable () -> Unit = {},
@@ -63,7 +94,11 @@ fun MeowScaffold(
     effect: MeowScaffoldEffect = MeowScaffoldEffect(),
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    CompositionLocalProvider(LocalMeowScaffoldEffect provides effect) {
+    val backdrop = rememberLayerBackdrop()
+    CompositionLocalProvider(
+        LocalMeowScaffoldEffect provides effect,
+        LocalMeowBackdrop provides backdrop,
+    ) {
         MeowStyleContent(
             materialExpressive = {
                 val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -84,6 +119,7 @@ fun MeowScaffold(
                                 title = title,
                                 subtitle = subtitle,
                                 onBackClick = onBackClick,
+                                navigationModifier = navigationModifier,
                                 navigationIcon = navigationIcon,
                                 actionItems = actionItems,
                             )
@@ -117,6 +153,7 @@ fun MeowScaffold(
                                 title = title,
                                 subtitle = subtitle,
                                 onBackClick = onBackClick,
+                                navigationModifier = navigationModifier,
                                 navigationIcon = navigationIcon,
                                 actionItems = actionItems,
                             )
@@ -145,9 +182,21 @@ private fun MeowScaffoldContent(
     effect: MeowScaffoldEffect,
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    // 页面底色必须画进被捕获的图层:scaffold 自己刷的背景不在快照里,只采内容
+    // 会让模糊混入透明底,磨砂出来发灰发暗、和页面色不搭。
+    // 颜色必须与两个分支 scaffold 实际的 containerColor 一致:Material 分支上面
+    // 传的是 surfaceContainer,Miuix 分支用 MiuixScaffold 的默认值 surface。刷错
+    // role 会盖掉页面本来的底色(比如 Miuix 浅色下 background 更白,整页发白)。
+    val pageColor = when (MeowTheme.style) {
+        MeowUiStyle.MaterialExpressive -> MaterialTheme.colorScheme.surfaceContainer
+        MeowUiStyle.Miuix -> MiuixTheme.colorScheme.surface
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // 悬浮底栏与顶栏的背景模糊取自这份图层快照。
+            .layerBackdrop(LocalMeowBackdrop.current ?: rememberLayerBackdrop())
+            .background(pageColor)
             .then(effect.contentModifier),
     ) {
         CompositionLocalProvider(LocalMeowScaffoldContentPadding provides paddingValues) {

@@ -3,7 +3,6 @@ package io.github.lingqiqi5211.meowui.sample
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -41,15 +40,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.animation.core.Easing
-import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.ui.NavDisplay
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
-import androidx.savedstate.serialization.SavedStateConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,7 +48,6 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.blur.rememberMeowBlurScaffoldEffect
 import io.github.lingqiqi5211.meowui.component.MeowActionPreference
@@ -67,10 +56,14 @@ import io.github.lingqiqi5211.meowui.component.MeowAlertDialog
 import io.github.lingqiqi5211.meowui.component.MeowAlertStyle
 import io.github.lingqiqi5211.meowui.component.MeowBottomSheet
 import io.github.lingqiqi5211.meowui.component.MeowButton
+import io.github.lingqiqi5211.meowui.component.MeowCard
 import io.github.lingqiqi5211.meowui.component.MeowCheckboxPreference
+import io.github.lingqiqi5211.meowui.component.MeowColorPaletteDialog
+import io.github.lingqiqi5211.meowui.component.MeowColorPaletteMode
 import io.github.lingqiqi5211.meowui.component.MeowPopupPreference
 import io.github.lingqiqi5211.meowui.component.MeowLoadingDialog
 import io.github.lingqiqi5211.meowui.component.MeowMenuItem
+import io.github.lingqiqi5211.meowui.component.MeowNavHost
 import io.github.lingqiqi5211.meowui.component.MeowNavigationBar
 import io.github.lingqiqi5211.meowui.component.MeowNavigationBarStyle
 import io.github.lingqiqi5211.meowui.component.MeowNavigationItem
@@ -78,6 +71,7 @@ import io.github.lingqiqi5211.meowui.component.MeowPreferenceScreen
 import io.github.lingqiqi5211.meowui.component.MeowPreferenceSection
 import io.github.lingqiqi5211.meowui.component.MeowPullToRefresh
 import io.github.lingqiqi5211.meowui.component.MeowScaffold
+import io.github.lingqiqi5211.meowui.component.MeowSearchBar
 import io.github.lingqiqi5211.meowui.component.MeowSingleChoiceDialog
 import io.github.lingqiqi5211.meowui.component.MeowSliderPreference
 import io.github.lingqiqi5211.meowui.component.MeowSnackbarResult
@@ -103,10 +97,6 @@ import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import io.github.lingqiqi5211.meowui.theme.MeowThemeMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.modules.subclass
 
 private object SamplePreferences {
     const val MaterialStyle = "material3_expressive"
@@ -119,6 +109,7 @@ private object SamplePreferences {
     val ColorSpec = PreferenceKey("color_spec", MeowColorSpec.Spec2025.name)
     val SeedColor = PreferenceKey("seed_color", 0xFF7B4DFF.toInt())
     val MiuixMonet = PreferenceKey("miuix_monet", true)
+    val AmoledDark = PreferenceKey("amoled_dark", false)
     val PredictiveBack = PreferenceKey("predictive_back", true)
     val InterfaceScale = PreferenceKey("interface_scale", 1f)
     val FloatingLabels = PreferenceKey("floating_labels", true)
@@ -132,36 +123,8 @@ private object SamplePreferences {
     val Nickname = PreferenceKey("nickname", "Meow")
 }
 
-@Serializable
-private sealed interface SampleRoute : NavKey {
-    @Serializable
-    data object Main : SampleRoute
-
-    @Serializable
-    data object Appearance : SampleRoute
-}
-
-// 页面推入/弹出转场，参考 miuix-nav 的 MiuixDefault:整宽滑入、下层 1/4 视差并轻微压暗,
-// 500ms 弹簧烘焙缓动(response 0.8 / damping 0.95),前段快、长缓尾。
-private const val NavTransitionDuration = 500
-
-// 欠阻尼弹簧的阶跃响应烘焙成 Easing,与 miuix-nav 的 NavSettleEasing 同式。
-private fun navSettleEasing(response: Float, damping: Float): Easing {
-    val omega = (2.0 * Math.PI / response).toFloat()
-    val c = (damping * 4.0 * Math.PI / response).toFloat()
-    val w = kotlin.math.sqrt(4f * omega * omega - c * c) / 2f
-    val r = -c / 2f
-    return Easing { fraction ->
-        when {
-            fraction <= 0f -> 0f
-            fraction >= 1f -> 1f
-            else -> kotlin.math.exp(r * fraction) *
-                (-kotlin.math.cos(w * fraction) + (r / w) * kotlin.math.sin(w * fraction)) + 1f
-        }
-    }
-}
-
-private val NavPageEasing = navSettleEasing(response = 0.8f, damping = 0.95f)
+// MeowNavHost 的返回栈元素:枚举可以直接进 Bundle,rememberSaveable 无需自定义 saver。
+private enum class SampleRoute { Main, Appearance }
 
 private val navigationItems = listOf(
     MeowNavigationItem(
@@ -196,6 +159,7 @@ private fun SampleApp() {
     val colorSpecName by rememberMeowPreferenceValue(SamplePreferences.ColorSpec, store)
     val seedColorValue by rememberMeowPreferenceValue(SamplePreferences.SeedColor, store)
     val miuixMonet by rememberMeowPreferenceValue(SamplePreferences.MiuixMonet, store)
+    val amoledDark by rememberMeowPreferenceValue(SamplePreferences.AmoledDark, store)
     val predictiveBack by rememberMeowPreferenceValue(SamplePreferences.PredictiveBack, store)
     val interfaceScale by rememberMeowPreferenceValue(SamplePreferences.InterfaceScale, store)
     val blurEnabled by rememberMeowPreferenceValue(SamplePreferences.Blur, store)
@@ -223,6 +187,7 @@ private fun SampleApp() {
         paletteStyle = paletteStyle,
         colorSpec = colorSpec,
         miuixMonetEnabled = miuixMonet,
+        amoledDarkEnabled = amoledDark,
         predictiveBackEnabled = predictiveBack,
         interfaceScale = interfaceScale,
     )
@@ -275,32 +240,18 @@ private fun SampleSettings(
     val writePaletteStyle = rememberMeowPreferenceWriter(SamplePreferences.PaletteStyle)
     val writeColorSpec = rememberMeowPreferenceWriter(SamplePreferences.ColorSpec)
     val writeMiuixMonet = rememberMeowPreferenceWriter(SamplePreferences.MiuixMonet)
+    val writeAmoledDark = rememberMeowPreferenceWriter(SamplePreferences.AmoledDark)
     val writePredictiveBack = rememberMeowPreferenceWriter(SamplePreferences.PredictiveBack)
     val writeInterfaceScale = rememberMeowPreferenceWriter(SamplePreferences.InterfaceScale)
-    val serializersModule = remember {
-        SerializersModule {
-            polymorphic(NavKey::class) {
-                subclass(SampleRoute.Main::class)
-                subclass(SampleRoute.Appearance::class)
-            }
-        }
-    }
-    val savedStateConfiguration = remember(serializersModule) {
-        SavedStateConfiguration {
-            this.serializersModule = serializersModule
-        }
-    }
-    val backStack = rememberNavBackStack(
-        configuration = savedStateConfiguration,
-        SampleRoute.Main,
-    )
+    // MeowNavHost 的返回栈就是调用侧的一个普通列表:推入/弹出即换一个列表,
+    // 转场、预测式返回拖拽与页面层级全部由宿主接管。
+    var backStack by rememberSaveable { mutableStateOf(listOf(SampleRoute.Main)) }
     val closeAppearance = {
-        if (backStack.size > 1) backStack.removeLastOrNull()
-        Unit
+        if (backStack.size > 1) backStack = backStack.dropLast(1)
     }
     val openAppearance = {
-        if (backStack.lastOrNull() != SampleRoute.Appearance) {
-            backStack.add(SampleRoute.Appearance)
+        if (backStack.last() != SampleRoute.Appearance) {
+            backStack = backStack + SampleRoute.Appearance
         }
     }
     // remember 保证 lambda 稳定；内部经 currentAppearance 读取最新状态做差量写入。
@@ -334,6 +285,9 @@ private fun SampleSettings(
             if (updated.miuixMonetEnabled != current.miuixMonetEnabled) {
                 writeMiuixMonet(updated.miuixMonetEnabled)
             }
+            if (updated.amoledDarkEnabled != current.amoledDarkEnabled) {
+                writeAmoledDark(updated.amoledDarkEnabled)
+            }
             if (updated.predictiveBackEnabled != current.predictiveBackEnabled) {
                 writePredictiveBack(updated.predictiveBackEnabled)
             }
@@ -343,119 +297,152 @@ private fun SampleSettings(
         }
     }
 
-    NavDisplay(
+    // MeowNavHost:activity 式推入/弹出转场与预测式返回拖拽由宿主内置,
+    // 关闭预测式返回时自动退化为普通返回键出栈。
+    MeowNavHost(
         backStack = backStack,
         modifier = Modifier.fillMaxSize(),
         onBack = closeAppearance,
-        transitionSpec = {
-            val fade = tween<Float>(NavTransitionDuration, easing = NavPageEasing)
-            val slide = tween<IntOffset>(NavTransitionDuration, easing = NavPageEasing)
-            (slideInHorizontally(slide) { it }) togetherWith
-                (slideOutHorizontally(slide) { -it / 4 } + fadeOut(fade, targetAlpha = 0.9f))
-        },
-        popTransitionSpec = {
-            val fade = tween<Float>(NavTransitionDuration, easing = NavPageEasing)
-            val slide = tween<IntOffset>(NavTransitionDuration, easing = NavPageEasing)
-            (slideInHorizontally(slide) { -it / 4 } + fadeIn(fade, initialAlpha = 0.9f)) togetherWith
-                (slideOutHorizontally(slide) { it })
-        },
-        entryProvider = entryProvider<NavKey> {
-            entry<SampleRoute.Main> {
+        predictiveBackEnabled = currentAppearance.predictiveBackEnabled,
+    ) { route ->
+        when (route) {
+            SampleRoute.Main ->
                 MeowScaffold(
-        title = navigationItems[selectedPage].label,
-        subtitle = "One page, two native styles",
-        actionItems = listOf(
-            MeowTopBarAction.Icon(
-                icon = Icons.Rounded.Info,
-                contentDescription = "About MeowUI",
-                onClick = { showAlert = true },
-            ),
-            MeowTopBarAction.Menu(
-                icon = Icons.Rounded.MoreVert,
-                contentDescription = "More actions",
-                items = listOf(
-                    MeowMenuItem(
-                        text = "Open bottom sheet",
-                        icon = Icons.Rounded.ViewAgenda,
-                        onClick = { showBottomSheet = true },
+                    title = navigationItems[selectedPage].label,
+                    subtitle = "One page, two native styles",
+                    actionItems = listOf(
+                        MeowTopBarAction.Icon(
+                            icon = Icons.Rounded.Info,
+                            contentDescription = "About MeowUI",
+                            onClick = { showAlert = true },
+                        ),
+                        MeowTopBarAction.Menu(
+                            icon = Icons.Rounded.MoreVert,
+                            contentDescription = "More actions",
+                            items = listOf(
+                                MeowMenuItem(
+                                    text = "Open bottom sheet",
+                                    icon = Icons.Rounded.ViewAgenda,
+                                    onClick = { showBottomSheet = true },
+                                ),
+                                MeowMenuItem(
+                                    text = "About MeowUI",
+                                    icon = Icons.Rounded.Info,
+                                    onClick = { showAlert = true },
+                                ),
+                                // 级联子菜单示例:Miuix 原生堆叠弹窗,Material 同弹窗内下钻。
+                                MeowMenuItem(
+                                    text = "More",
+                                    children = listOf(
+                                        MeowMenuItem(
+                                            text = "Warning dialog",
+                                            onClick = { showWarning = true },
+                                        ),
+                                        MeowMenuItem(
+                                            text = "Loading dialog",
+                                            onClick = { showLoading = true },
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
                     ),
-                    MeowMenuItem(
-                        text = "About MeowUI",
-                        icon = Icons.Rounded.Info,
-                        onClick = { showAlert = true },
-                    ),
-                ),
-            ),
-        ),
-        bottomBar = {
-            MeowNavigationBar(
-                items = navigationItems,
-                selectedIndex = selectedPage,
-                onItemSelected = { selectedPage = it },
-                style = if (currentFloatingNavigation) {
-                    MeowNavigationBarStyle.Floating
-                } else {
-                    MeowNavigationBarStyle.Standard
-                },
-                showFloatingLabels = currentFloatingLabels,
-            )
-        },
-        snackbarState = snackbarState,
-        effect = currentEffect,
-    ) { _ ->
-        MeowPullToRefresh(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                if (!isRefreshing) {
-                    isRefreshing = true
-                    coroutineScope.launch {
-                        delay(900)
-                        isRefreshing = false
-                        snackbarState.show("Preferences refreshed")
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            AnimatedContent(
-                targetState = selectedPage,
-                transitionSpec = {
-                    val direction = if (targetState > initialState) 1 else -1
-                    (slideInHorizontally { it * direction / 5 } + fadeIn()) togetherWith
-                        (slideOutHorizontally { -it * direction / 5 } + fadeOut())
-                },
-                label = "sample-page",
-            ) { page ->
-                when (page) {
-                    0 -> SettingsPage(
-                        selectedTab = selectedTab,
-                        onTabSelected = { selectedTab = it },
-                        onOpenAppearance = openAppearance,
-                    )
-
-                    1 -> DialogsPage(
-                        onAlert = { showAlert = true },
-                        onWarning = { showWarning = true },
-                        onChoice = { showChoice = true },
-                        onInput = { showInput = true },
-                        onLoading = { showLoading = true },
-                        onBottomSheet = { showBottomSheet = true },
-                        onSnackbar = {
-                            coroutineScope.launch {
-                                val result = snackbarState.show(
-                                    message = "Mode saved",
-                                    actionLabel = "Undo",
-                                )
-                                if (result == MeowSnackbarResult.ActionPerformed) {
-                                    snackbarState.show("Change undone")
+                    bottomBar = {
+                        MeowNavigationBar(
+                            items = navigationItems,
+                            selectedIndex = selectedPage,
+                            onItemSelected = { selectedPage = it },
+                            style = if (currentFloatingNavigation) {
+                                MeowNavigationBarStyle.Floating
+                            } else {
+                                MeowNavigationBarStyle.Standard
+                            },
+                            showFloatingLabels = currentFloatingLabels,
+                        )
+                    },
+                    snackbarState = snackbarState,
+                    effect = currentEffect,
+                ) { _ ->
+                    MeowPullToRefresh(
+                        isRefreshing = isRefreshing,
+                        onRefresh = {
+                            if (!isRefreshing) {
+                                isRefreshing = true
+                                coroutineScope.launch {
+                                    delay(900)
+                                    isRefreshing = false
+                                    snackbarState.show("Preferences refreshed")
                                 }
                             }
                         },
-                    )
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        AnimatedContent(
+                            targetState = selectedPage,
+                            transitionSpec = {
+                                val direction = if (targetState > initialState) 1 else -1
+                                (slideInHorizontally { it * direction / 5 } + fadeIn()) togetherWith
+                                    (slideOutHorizontally { -it * direction / 5 } + fadeOut())
+                            },
+                            label = "sample-page",
+                        ) { page ->
+                            when (page) {
+                                0 -> SettingsPage(
+                                    selectedTab = selectedTab,
+                                    onTabSelected = { selectedTab = it },
+                                    onOpenAppearance = openAppearance,
+                                )
 
-                    else -> AboutPage()
+                                1 -> DialogsPage(
+                                    onAlert = { showAlert = true },
+                                    onWarning = { showWarning = true },
+                                    onChoice = { showChoice = true },
+                                    onInput = { showInput = true },
+                                    onLoading = { showLoading = true },
+                                    onBottomSheet = { showBottomSheet = true },
+                                    onSnackbar = {
+                                        coroutineScope.launch {
+                                            val result = snackbarState.show(
+                                                message = "Mode saved",
+                                                actionLabel = "Undo",
+                                            )
+                                            if (result == MeowSnackbarResult.ActionPerformed) {
+                                                snackbarState.show("Change undone")
+                                            }
+                                        }
+                                    },
+                                )
+
+                                else -> AboutPage()
+                            }
+                        }
+                    }
+                    // 底部抽屉:Miuix 分支经 Scaffold 的 popup host 渲染,必须放在 Scaffold 组合
+                    // 子树内——与 Scaffold 平级时 Miuix 风格下不会显示。
+                    MeowBottomSheet(
+                        show = showBottomSheet,
+                        title = "Bottom Sheet",
+                        onDismissRequest = { showBottomSheet = false },
+                    ) {
+                        // 抽屉内容的左右与底部边距由组件自身提供,这里不再叠加。
+                        MeowPreferenceSection(title = "Shared content") {
+                            MeowActionPreference(
+                                title = "Close sheet",
+                                summary = "Material and Miuix render this container separately.",
+                                onClick = { showBottomSheet = false },
+                            )
+                        }
+                    }
                 }
-            }
+
+            SampleRoute.Appearance ->
+                // 头图使用库内置的 MeowAppearancePreview（按手机/折叠/平板自适应），
+                // 不需要时传 showPreview = false，或用 previewContent 自定义。
+                MeowAppearancePage(
+                    appearance = currentAppearance,
+                    onAppearanceChange = updateAppearance,
+                    onBackClick = closeAppearance,
+                )
         }
     }
 
@@ -508,42 +495,6 @@ private fun SampleSettings(
         message = "Press back or tap outside to close this sample.",
         onDismissRequest = { showLoading = false },
     )
-    MeowBottomSheet(
-        show = showBottomSheet,
-        title = "Bottom Sheet",
-        onDismissRequest = { showBottomSheet = false },
-    ) {
-        MeowPreferenceSection(
-            title = "Shared content",
-            modifier = Modifier.padding(16.dp),
-        ) {
-            MeowActionPreference(
-                title = "Close sheet",
-                summary = "Material and Miuix render this container separately.",
-                onClick = { showBottomSheet = false },
-            )
-        }
-                }
-            }
-            entry<SampleRoute.Appearance> {
-                // 关闭预测式返回时在页面内部拦截系统预测手势（参考 InstallerX-Revived）：
-                // 拖动期间没有任何预览，松手确认后才以普通 pop 转场出栈，避免闪跳。
-                val backEventState = rememberNavigationEventState(NavigationEventInfo.None)
-                NavigationBackHandler(
-                    state = backEventState,
-                    isBackEnabled = !currentAppearance.predictiveBackEnabled,
-                    onBackCompleted = closeAppearance,
-                )
-                // 头图使用库内置的 MeowAppearancePreview（按手机/折叠/平板自适应），
-                // 不需要时传 showPreview = false，或用 previewContent 自定义。
-                MeowAppearancePage(
-                    appearance = currentAppearance,
-                    onAppearanceChange = updateAppearance,
-                    onBackClick = closeAppearance,
-                )
-            }
-        },
-    )
 }
 
 @Composable
@@ -576,10 +527,91 @@ private fun SettingsPage(
         ) { tab ->
             if (tab == 0) {
                 Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                    // KernelSU 首页式状态卡:容器色由运行状态决定,内容色一并传入,
+                    // 卡内文字与图标默认就是可读的对比色。
+                    MeowCard(
+                        containerColor = MeowTheme.colors.primary,
+                        contentColor = MeowTheme.colors.onPrimary,
+                        onClick = {},
+                    ) {
+                        BasicText(
+                            text = "Working",
+                            style = MeowTheme.typography.title
+                                .copy(color = MeowTheme.colors.onPrimary),
+                        )
+                        BasicText(
+                            text = "MeowUI sample · two native styles",
+                            style = MeowTheme.typography.summary
+                                .copy(color = MeowTheme.colors.onPrimary),
+                        )
+                    }
+                    // 警告色调状态卡:同一张卡换 error 语义色即是 KernelSU 的警告卡。
+                    MeowCard(
+                        containerColor = MeowTheme.colors.error,
+                        contentColor = MeowTheme.colors.onError,
+                    ) {
+                        BasicText(
+                            text = "Update required",
+                            style = MeowTheme.typography.title
+                                .copy(color = MeowTheme.colors.onError),
+                        )
+                        BasicText(
+                            text = "Warning tone via container and content colors",
+                            style = MeowTheme.typography.summary
+                                .copy(color = MeowTheme.colors.onError),
+                        )
+                    }
+                    // 分段拼卡:index/count 让相邻卡片在 Material 下拼成一张分组卡片
+                    // （首尾大圆角、中间小圆角），Miuix 下保持独立卡片。适合条目数由
+                    // 数据决定的列表卡。外面包一层 Column,避免外层 spacedBy 插进组内。
+                    Column {
+                        val modules = listOf(
+                            "Meow theme engine" to "Enabled",
+                            "Paw gesture pack" to "Enabled",
+                            "Whisker debug bridge" to "Disabled",
+                        )
+                        modules.forEachIndexed { index, (name, state) ->
+                            MeowCard(index = index, count = modules.size) {
+                                BasicText(
+                                    text = name,
+                                    style = MeowTheme.typography.title
+                                        .copy(color = MeowTheme.colors.onSurface),
+                                )
+                                BasicText(
+                                    text = state,
+                                    style = MeowTheme.typography.summary
+                                        .copy(color = MeowTheme.colors.onSurfaceVariant),
+                                )
+                            }
+                        }
+                    }
                     AppearanceSections(onOpenAppearance = onOpenAppearance)
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
+                    // 搜索框示例:展开后在下方过滤显示条目。
+                    var searchQuery by rememberSaveable { mutableStateOf("") }
+                    var searchExpanded by rememberSaveable { mutableStateOf(false) }
+                    MeowSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        expanded = searchExpanded,
+                        onExpandedChange = { searchExpanded = it },
+                        placeholder = "Search controls",
+                    ) {
+                        listOf("Enable feature", "Show advanced details", "Intensity", "Mode", "Nickname")
+                            .filter { it.contains(searchQuery, ignoreCase = true) }
+                            .forEach { name ->
+                                MeowActionPreference(
+                                    title = name,
+                                    onClick = {
+                                        searchQuery = name
+                                        searchExpanded = false
+                                    },
+                                )
+                            }
+                    }
+
                     MeowPreferenceSection(title = "Controls") {
                         MeowSwitchPreference(
                             title = "Enable feature",
@@ -697,6 +729,17 @@ private fun AppearanceSections(onOpenAppearance: () -> Unit) {
     }
 }
 
+/** 调色盘示例行尾的当前颜色圆点。 */
+@Composable
+private fun SamplePaletteDot(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(20.dp)
+            .clip(CircleShape)
+            .background(color),
+    )
+}
+
 /** 示例用的“应用图标”：40dp 圆形色块加首字母，实际应用应换成真实应用图标。 */
 @Composable
 private fun SampleAppIcon(color: Color, letter: String) {
@@ -735,6 +778,30 @@ private fun DialogsPage(
     onBottomSheet: () -> Unit,
     onSnackbar: () -> Unit,
 ) {
+    var showSliderPalette by rememberSaveable { mutableStateOf(false) }
+    var showGridPalette by rememberSaveable { mutableStateOf(false) }
+    var paletteColor by rememberSaveable { mutableIntStateOf(0xFF7B4DFF.toInt()) }
+
+    MeowColorPaletteDialog(
+        show = showSliderPalette,
+        initialColor = Color(paletteColor),
+        onConfirm = { color ->
+            paletteColor = color.toArgb()
+            showSliderPalette = false
+        },
+        onDismissRequest = { showSliderPalette = false },
+    )
+    MeowColorPaletteDialog(
+        show = showGridPalette,
+        initialColor = Color(paletteColor),
+        mode = MeowColorPaletteMode.Grid,
+        onConfirm = { color ->
+            paletteColor = color.toArgb()
+            showGridPalette = false
+        },
+        onDismissRequest = { showGridPalette = false },
+    )
+
     MeowPreferenceScreen {
         MeowPreferenceSection(title = "Dialogs") {
             MeowActionPreference(
@@ -761,6 +828,18 @@ private fun DialogsPage(
                 title = "Loading dialog",
                 summary = "Optional dismissal behavior",
                 onClick = onLoading,
+            )
+            MeowActionPreference(
+                title = "Color palette (sliders)",
+                summary = "Pick any color with HSV sliders",
+                trailing = { SamplePaletteDot(Color(paletteColor)) },
+                onClick = { showSliderPalette = true },
+            )
+            MeowActionPreference(
+                title = "Color palette (grid)",
+                summary = "Pick from the HSV color grid",
+                trailing = { SamplePaletteDot(Color(paletteColor)) },
+                onClick = { showGridPalette = true },
             )
         }
         MeowPreferenceSection(title = "Window") {
@@ -823,10 +902,11 @@ private fun AboutPage() {
         title = "Get updates",
         onDismissRequest = { showUpdateSheet = false },
     ) {
+        // 左右与底部边距由 MeowBottomSheet 自身提供,这里只留上下留白。
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
+                .padding(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             MeowButton(
@@ -872,7 +952,7 @@ private fun AboutHero() {
         )
         Spacer(Modifier.height(4.dp))
         BasicText(
-            text = "0.1.0 · Android 8+ · Material 3 Expressive · Miuix",
+            text = "0.1.1 · Android 8+ · Material 3 Expressive · Miuix",
             style = MeowTheme.typography.summary.copy(color = MeowTheme.colors.onSurfaceVariant),
         )
     }

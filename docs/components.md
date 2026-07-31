@@ -11,9 +11,11 @@ MeowUI 的公共组件只暴露一套业务 API。`MeowTheme` 根据 `MeowUiStyl
 | Dialog | `MeowAlertDialog`、`MeowSingleChoiceDialog`、`MeowTextInputDialog`、`MeowLoadingDialog` |
 | 顶栏 | `MeowTopBar`、`MeowTopBarAction`、`MeowMenuItem` |
 | 导航 | `MeowTabRow`、`MeowNavigationBar`、`MeowNavigationItem` |
-| 容器 | `MeowBottomSheet`、`MeowAdaptiveLayout` |
+| 搜索 | `MeowSearchBar` |
+| 页面栈 | `MeowNavHost`（调用侧持有返回栈 `List`；宿主负责推入/弹出转场、预测式返回拖拽与页面层级） |
+| 容器 | `MeowBottomSheet`、`MeowAdaptiveLayout`、`MeowCard`（KernelSU 首页式状态卡/信息卡；`containerColor` 给状态色调，`index`/`count` 让相邻卡片在 Material 下拼成分组卡片） |
 | 提示与刷新 | `MeowTip`、`MeowPullToRefresh`、`rememberMeowSnackbarState` |
-| 取色 | `MeowColorPicker`、`MeowColorPickerDialog`、`MeowColorPickerDefaults` |
+| 取色 | `MeowColorPicker`、`MeowColorPickerDialog`、`MeowColorPickerDefaults`、`MeowColorPalette`、`MeowColorPaletteDialog` |
 | 效果 | `MeowScaffoldEffect`、`rememberMeowBlurScaffoldEffect` |
 
 ## 设置分组
@@ -289,6 +291,49 @@ MeowPreferencePage(
 
 Material 分支使用 Material Popup，Miuix 分支使用 Miuix Popup。所有图标操作都必须提供可读的 `contentDescription`。
 
+`MeowMenuItem.children` 非空时该项成为子菜单入口（点击展开下一级，`onClick` 被忽略）：Miuix 用原生级联弹窗向外堆叠展开，Material 在同一弹窗内下钻并在顶部提供返回上级的行。
+
+## 搜索框
+
+```kotlin
+var query by rememberSaveable { mutableStateOf("") }
+var expanded by rememberSaveable { mutableStateOf(false) }
+
+MeowSearchBar(
+    query = query,
+    onQueryChange = { query = it },
+    expanded = expanded,
+    onExpandedChange = { expanded = it },
+    placeholder = "搜索设置",
+) {
+    // 展开时显示的搜索结果（自行过滤）
+    results.forEach { item ->
+        MeowActionPreference(title = item.title, onClick = { onPick(item) })
+    }
+}
+```
+
+折叠时是一条输入框，聚焦后展开显示结果区。展开状态由调用侧持有；提交搜索或取消时组件回调 `onExpandedChange(false)`。Material 分支为 M3 DockedSearchBar——结果区在输入框下方有界展开，可以安全放进 `MeowPreferenceScreen` 这类滚动页面（全屏形态的 SearchBar 在高度无限的滚动容器里会因约束溢出而崩溃）；Miuix 分支为原生 SearchBar（展开时显示可本地化的取消按钮，`cancelText` 可替换）。
+
+## 页面栈
+
+```kotlin
+var backStack by rememberSaveable { mutableStateOf(listOf(Route.Home)) }
+
+MeowNavHost(
+    backStack = backStack,
+    onBack = { backStack = backStack.dropLast(1) },
+    predictiveBackEnabled = appearance.predictiveBackEnabled,
+) { route ->
+    when (route) {
+        Route.Home -> HomePage(onOpenDetail = { backStack = backStack + Route.Detail })
+        Route.Detail -> DetailPage(onBack = { backStack = backStack.dropLast(1) })
+    }
+}
+```
+
+返回栈由调用侧持有——一个普通 `List`，入栈/出栈就是换一个列表传进来。宿主负责经典 activity 式推入/弹出转场（新页全宽滑入、旧页约 1/4 视差并轻微压暗）、预测式返回手势直接拖拽弹出转场进度（`predictiveBackEnabled = false` 时退化为普通返回键），以及由栈深度决定的方向与层级。`onBack` 为 null 时完全不注册返回处理，只做转场。被盖住页面的 `rememberSaveable` 状态（滚动位置、pager 页等）在弹回时原样恢复；页面对象需要稳定且互不相同的 `toString`（枚举、data object/data class 天然满足）。
+
 ## Scaffold 与滚动顶栏
 
 ### Preference page
@@ -368,7 +413,26 @@ MeowBottomSheet(
 }
 ```
 
-`startAction` 与 `endAction` 可放置关闭、确认等操作。Bottom Sheet 适合承载与当前页面相关的补充内容，不应代替顶栏的常用图标菜单。Miuix 分支内容自带滚动、overscroll 与底部安全区间距；空标题与空动作不会占位。
+`startAction` 与 `endAction` 可放置关闭、确认等操作。Bottom Sheet 适合承载与当前页面相关的补充内容，不应代替顶栏的常用图标菜单。Miuix 分支内容自带滚动、overscroll 与底部安全区间距；空标题与空动作不会占位。内容槽位的左右与底部边距由组件自身提供，调用侧不需要再加。
+
+Miuix 分支为应用内 `OverlayBottomSheet`，经由 miuix Scaffold 的 popup host 渲染：`MeowBottomSheet` 必须放在某个 `MeowScaffold` 的组合子树内（内容槽位即可），与 Scaffold 平级（例如直接挂在导航层）时 Miuix 风格下不会显示。
+
+## 内容卡片
+
+```kotlin
+// 状态卡：容器色由运行状态决定，内容色一并传入。
+MeowCard(
+    containerColor = MeowTheme.colors.error,
+    contentColor = MeowTheme.colors.onError,
+) { /* 卡片内容 */ }
+
+// 分段拼卡：相邻卡片在 Material 下拼成一张分组卡片，Miuix 下保持独立卡片。
+items.forEachIndexed { index, item ->
+    MeowCard(index = index, count = items.size) { /* 条目内容 */ }
+}
+```
+
+KernelSU 首页式状态卡/信息卡。默认是当前风格的普通卡面；`containerColor`/`contentColor` 给状态色调（内容色会作为 `LocalContentColor` 提供）；`onClick` 让整卡可点。`index`/`count` 适合条目数由数据决定、放进 `LazyColumn` 的列表卡——走不了 `MeowPreferenceSection` 编译期收集 DSL 的场景；组内间距由组件自动补齐。
 
 ## Snackbar
 
@@ -417,7 +481,32 @@ MeowColorPickerDialog(
 )
 ```
 
-统一的取色窗口：第一个色块表示跟随壁纸（系统动态取色，Android 12+ 显示），其余为自定义种子色，可用 `presetColors` 替换；每个色块以该种子展开后的配色绘制双色预览。选择即时通过回调生效，适合与 `MeowTheme` 的 `dynamicColor` / `seedColor` 直接绑定。
+统一的取色窗口：第一个色块表示跟随壁纸（系统动态取色，Android 12+ 显示），其余为自定义种子色，可用 `presetColors` 替换；每个色块以该种子展开后的配色绘制双色预览，行末的彩虹色块打开调色盘自选任意颜色。选择即时通过回调生效，适合与 `MeowTheme` 的 `dynamicColor` / `seedColor` 直接绑定。
+
+## 调色盘
+
+```kotlin
+// 内嵌控件：放在任意页面/自定义对话框里
+MeowColorPalette(
+    color = color,
+    onColorChanged = { color = it },
+    mode = MeowColorPaletteMode.Sliders, // 或 Grid（HSV 网格）
+    colorSpace = MeowColorPaletteSpace.Hsv, // Sliders 模式可选 Hsv/OkHsv/OkLab/OkLch
+)
+
+// 弹窗形态：确认后一次性提交
+MeowColorPaletteDialog(
+    show = showPalette,
+    initialColor = color,
+    onConfirm = {
+        color = it
+        showPalette = false
+    },
+    onDismissRequest = { showPalette = false },
+)
+```
+
+自选任意颜色的调色盘控件，两种风格共用同一实现（底层为 miuix 的取色组件，纯 Canvas 绘制、无风格专属视觉），公共 API 不暴露底层类型。`Sliders` 为滑条式（支持 4 种色彩空间），`Grid` 为网格式取色盘。弹窗按风格使用原生容器；`keepAlpha` 默认 false，确认时透明度强制为 1，适合直接作种子色。主题色色票行末尾的调色盘入口就是基于它实现的。
 
 ## 外观设置页
 
@@ -437,8 +526,10 @@ MeowTheme(appearance = appearance) {
 - `extraContent` 可在标准选项之后加入模块自己的外观设置。
 - 界面缩放范围为 80%–110%，松开 Slider 后提交；系统字体缩放比例保持不变。
 - 不支持 2025 色彩标准的色彩风格只显示并使用 2021，避免无效组合。
+- `amoledDarkEnabled` 为 AMOLED 纯黑深色开关（背景与 surface 容器压成纯黑，保留 surfaceBright 卡片层次），叠加在深色模式上——深色生效时（含跟随系统进入深色）即应用；仅 Material 3 Expressive 分支生效并显示该开关，Miuix 分支忽略。
+- 色票行末尾附带调色盘（miuix ColorPicker），可自选任意种子色；选中态显示当前自选颜色。
 - Miuix 风格下可通过 Monet 开关关闭取色，改用 Miuix 原生配色；关闭后取色卡与调色板、色彩标准选项一并隐藏。Material 分支忽略该开关。
-- 预测性返回只保存使用者偏好，导航层需要自行读取 `predictiveBackEnabled` 决定返回行为。参考 sample 的做法（借鉴 InstallerX-Revived）：在页面 entry 内部用 `androidx.navigationevent.compose.NavigationBackHandler` 在关闭时拦截系统预测手势，拖动期间不出预览，松手确认后再调用出栈，由 `NavDisplay` 播放普通 pop 转场，不会闪跳；Android 14 以下不会显示该选项。
+- 预测性返回只保存使用者偏好，导航层需要自行读取 `predictiveBackEnabled` 决定返回行为。使用 `MeowNavHost` 时直接把该值传给同名参数即可（sample 即如此）：开启时手势拖拽弹出转场进度，关闭时退化为普通返回键出栈；Android 14 以下不会显示该选项。自带导航层的应用可参考 InstallerX-Revived 的做法，用 `NavigationBackHandler` 在关闭时拦截系统预测手势。
 
 ### 自定义外观页
 
@@ -537,6 +628,26 @@ MeowPreferencePage(
 - `Modifier.meowBlurSource`
 - `Modifier.meowBlurSurface`
 - `isMeowBlurSupported`
+
+## 库内渲染控件的 modifier
+
+MeowUI 自己渲染的控件，调用侧通过对应的 modifier 参数触达——用于打 testTag、约束尺寸，而不必把控件搬回业务层重写。
+
+| 组件 | 参数 | 作用于 |
+| --- | --- | --- |
+| `MeowTopBarAction.Icon` / `.Text` / `.Menu` | `modifier` | 该操作渲染出的按钮本体（点击与语义同一节点） |
+| `MeowNavigationItem` | `modifier` | 承载点击与选中状态的导航项。Material 悬浮底栏在胶囊指示器内还会绘制一份装饰性副本，该副本不套用此 modifier，避免语义重复 |
+| `MeowTopBar` / `MeowScaffold` / `MeowPreferencePage` / `MeowAppearancePage` | `navigationModifier` | 由 `onBackClick` 生成的内置返回按钮；传了自定义 `navigationIcon` 时不生效（自定义内容自带 modifier） |
+| `MeowAlertDialog` / `MeowSingleChoiceDialog` / `MeowTextInputDialog` | `confirmModifier`、`cancelModifier` | 对话框自己构建的确认/取消按钮 |
+| `MeowTextInputDialog` | `fieldModifier` | 对话框内的输入框 |
+| `MeowTip` | `actionModifier` | Tip 右侧的操作按钮 |
+
+`MeowAlertDialog` 另外提供两个行为参数：
+
+- `confirmEnabled`：草稿非法时禁用确认按钮，和 `MeowTextInputDialog` 的校验行为一致。
+- `onCancel`：取消按钮默认上报 `onDismissRequest`（两者语义相同时正确）。需要区分时传 `onCancel`——例如「未保存更改」提示里按钮表示放弃，而返回键或点击外部表示留在当前页。
+
+顶栏菜单项 `MeowMenuItem` 没有 `modifier`：Miuix 原生 dropdown 不接受逐项 modifier，加一个在 Miuix 分支被静默丢弃的参数会破坏「同一组件在两种风格下行为一致」的约定。需要逐项定位时改用 `MeowPopupPreference`。
 
 ## 自适应布局
 

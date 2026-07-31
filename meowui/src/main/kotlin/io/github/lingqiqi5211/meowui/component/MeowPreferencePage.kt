@@ -16,6 +16,13 @@ fun MeowPreferencePage(
     modifier: Modifier = Modifier,
     subtitle: String = "",
     onBackClick: (() -> Unit)? = null,
+    /**
+     * Applied to the back button built from [onBackClick].
+     *
+     * Ignored when [navigationIcon] is supplied, since that content brings its own
+     * modifier.
+     */
+    navigationModifier: Modifier = Modifier,
     navigationIcon: (@Composable () -> Unit)? = null,
     actionItems: List<MeowTopBarAction> = emptyList(),
     bottomBar: @Composable () -> Unit = {},
@@ -28,6 +35,7 @@ fun MeowPreferencePage(
         modifier = modifier,
         subtitle = subtitle,
         onBackClick = onBackClick,
+        navigationModifier = navigationModifier,
         navigationIcon = navigationIcon,
         actionItems = actionItems,
         bottomBar = bottomBar,

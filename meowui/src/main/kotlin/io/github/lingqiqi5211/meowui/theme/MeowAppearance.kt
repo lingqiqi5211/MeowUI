@@ -22,6 +22,8 @@ enum class MeowColorSpec {
  *
  * 可同时传给 `MeowTheme` 与 `MeowAppearancePage`，让主题应用和设置页面共用一份状态。
  * `miuixMonetEnabled` 关闭时使用 Miuix 原生默认配色；Material 分支忽略该值。
+ * `amoledDarkEnabled` 开启时深色主题（含跟随系统进入深色）使用 AMOLED 纯黑背景，
+ * 仅 Material 3 Expressive 分支生效；Miuix 分支忽略该值。
  * `predictiveBackEnabled` 由应用的导航层读取并决定是否注册预测式返回处理。
  */
 @Immutable
@@ -33,6 +35,13 @@ data class MeowAppearance(
     val paletteStyle: MeowPaletteStyle = MeowPaletteStyle.TonalSpot,
     val colorSpec: MeowColorSpec = MeowColorSpec.Spec2025,
     val miuixMonetEnabled: Boolean = true,
+    val amoledDarkEnabled: Boolean = false,
+    /**
+     * 悬浮控件（如悬浮底栏）是否对身后内容做背景模糊。
+     *
+     * 模糊基于 RuntimeShader,只在支持的设备上生效;不支持时自动退回不透明底色。
+     */
+    val blurEnabled: Boolean = true,
     val predictiveBackEnabled: Boolean = true,
     val interfaceScale: Float = 1f,
 )
