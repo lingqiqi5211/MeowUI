@@ -16,6 +16,7 @@ import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -113,7 +114,9 @@ fun MeowBottomSheet(
                             // 抽屉内容与底部边缘之间的垫高,与 Material 分支一致。
                             .padding(bottom = 16.dp),
                     ) {
-                        content()
+                        CompositionLocalProvider(LocalMeowOnSheet provides true) {
+                            content()
+                        }
                     }
                 },
             )

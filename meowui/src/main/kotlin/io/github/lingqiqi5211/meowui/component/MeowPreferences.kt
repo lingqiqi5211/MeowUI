@@ -71,6 +71,7 @@ import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.SmallTitle as MiuixSmallTitle
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
@@ -257,11 +258,18 @@ private fun MiuixPreferenceSection(
                 ),
             )
         }
+        // 抽屉底色与卡片默认底色同档,贴在一起看不出边界,所以抽屉里的分组抬高一档。
+        val cardColors = if (LocalMeowOnSheet.current) {
+            MiuixCardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainerHigh)
+        } else {
+            MiuixCardDefaults.defaultColors()
+        }
         MiuixCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .animateContentSize(),
             insideMargin = PaddingValues(0.dp),
+            colors = cardColors,
         ) {
             entries.forEach { entry ->
                 key(entry.key) { entry.content() }

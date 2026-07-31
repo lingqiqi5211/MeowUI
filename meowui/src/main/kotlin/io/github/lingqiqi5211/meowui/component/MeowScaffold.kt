@@ -70,6 +70,14 @@ internal const val MeowBlurSurfaceAlpha = 0.65f
 internal val MeowBlurRadius = 25.dp
 internal val LocalMeowScrollContext = staticCompositionLocalOf { MeowScrollContext() }
 
+/**
+ * 内容当前是否画在底部抽屉里。
+ *
+ * Miuix 抽屉的底色与页面里的分组卡底色是同一档,卡片贴在抽屉上几乎看不出边界。
+ * 抽屉据此把分组卡抬高一档,页面里则保持原样。
+ */
+internal val LocalMeowOnSheet = compositionLocalOf { false }
+
 /** MeowScaffold 提供给内容区的 PaddingValues，MeowPreferenceScreen 默认自动消费。 */
 internal val LocalMeowScaffoldContentPadding = compositionLocalOf { PaddingValues(0.dp) }
 
