@@ -114,6 +114,20 @@ MeowPopupPreference(
 )
 ```
 
+选项可以更丰富：`optionLeading`（选项图标）、`optionSummary`（副文本）、`optionEnabled`（单项禁用）；`groups` 非空时每个子列表为一个视觉分组（组间分隔，`options` 被忽略）；`collapseOnSelection = false` 时选中不收起弹窗，适合连续调整或对比选项。
+
+```kotlin
+MeowPopupPreference(
+    title = "分组选择器",
+    value = current,
+    options = emptyList(),
+    groups = listOf(listOf("快速", "均衡"), listOf("慢速", "手动", "关闭")),
+    onValueChange = onPick,
+    collapseOnSelection = false,
+    optionEnabled = { it != "手动" },
+)
+```
+
 只有需要先暂存选择、再由确认按钮提交，或选项说明较多、内容较复杂时，才使用 `MeowSingleChoiceDialog`。普通设置选项不要改成确认式 Dialog。
 
 ### Text input
@@ -144,6 +158,8 @@ MeowActionPreference(
     onClick = onCheckUpdate,
 )
 ```
+
+动作是打开另一个页面时置 `navigation = true`：Material 分支在行尾（`value` 之后）追加 > 箭头；Miuix 分支的行本来就带原生右箭头，不受该参数影响。
 
 ### 带图标的列表项
 
@@ -291,7 +307,43 @@ MeowPreferencePage(
 
 Material 分支使用 Material Popup，Miuix 分支使用 Miuix Popup。所有图标操作都必须提供可读的 `contentDescription`。
 
-`MeowMenuItem.children` 非空时该项成为子菜单入口（点击展开下一级，`onClick` 被忽略）：Miuix 用原生级联弹窗向外堆叠展开，Material 在同一弹窗内下钻并在顶部提供返回上级的行。
+`MeowMenuItem.children` 非空时该项成为子菜单入口（点击展开下一级，`onClick` 被忽略）：Miuix 用原生级联弹窗向外堆叠展开，Material 在同一弹窗内下钻并在顶部提供返回上级的行（下钻期间弹窗宽度锁定为主菜单宽度，不会跳位；Material 端只支持一层下钻）。
+
+菜单还支持分组与选中态，对应 miuix 的 `DropdownEntry`/`DropdownItem` 模型：
+
+- `Menu.groups`：每个子列表一个视觉分组（组间有分隔），非空时 `items` 被忽略；
+- `MeowMenuItem.selected`：非 null 即可选中项，true 时行尾显示选中标记（两端都固定贴行右缘，槽位恒定，切换选中不会让弹窗重排）；`summary` 为副文本行，常用于父行显示当前值；
+- `Menu.collapseOnSelection = false`：点选不收起弹窗，用于单选/多选式菜单；子菜单场景通常也应设为 false——选一下就把整栈收掉会丢掉用户导航进来的层级。
+
+```kotlin
+MeowTopBarAction.Menu(
+    icon = Icons.Rounded.Tune,
+    contentDescription = "显示选项",
+    collapseOnSelection = false,
+    groups = listOf(
+        listOf(
+            MeowMenuItem(
+                text = "筛选",
+                summary = currentFilterLabel,
+                children = filters.map { filter ->
+                    MeowMenuItem(
+                        text = filter.label,
+                        selected = filter == current,
+                        onClick = { onFilter(filter) },
+                    )
+                },
+            ),
+        ),
+        listOf(
+            MeowMenuItem(
+                text = "已启用优先",
+                selected = redirectedFirst,
+                onClick = { onRedirectedFirst(!redirectedFirst) },
+            ),
+        ),
+    ),
+)
+```
 
 ## 搜索框
 
@@ -305,15 +357,32 @@ MeowSearchBar(
     expanded = expanded,
     onExpandedChange = { expanded = it },
     placeholder = "搜索设置",
+    cancelText = "取消",
 ) {
-    // 展开时显示的搜索结果（自行过滤）
-    results.forEach { item ->
-        MeowActionPreference(title = item.title, onClick = { onPick(item) })
+    // 展开后的搜索结果；空查询建议什么都不画（全量列表不是搜索结果）。
+    // content 自带容器：列表项用 MeowPreferenceSection / MeowCard 就是
+    // 库里一致的一块一块形态，组件只负责边距与系统栏/键盘让位。
+    if (query.isNotBlank()) {
+        MeowPreferenceSection {
+            results.forEach { item ->
+                MeowActionPreference(title = item.title, onClick = { onPick(item) })
+            }
+        }
     }
 }
 ```
 
-折叠时是一条输入框，聚焦后展开显示结果区。展开状态由调用侧持有；提交搜索或取消时组件回调 `onExpandedChange(false)`。Material 分支为 M3 DockedSearchBar——结果区在输入框下方有界展开，可以安全放进 `MeowPreferenceScreen` 这类滚动页面（全屏形态的 SearchBar 在高度无限的滚动容器里会因约束溢出而崩溃）；Miuix 分支为原生 SearchBar（展开时显示可本地化的取消按钮，`cancelText` 可替换）。
+动画照 KernelSU：折叠时是页面里的一条药丸输入条，点按后输入条从原位飞到状态栏下方，底面淡入盖住整页（含顶栏与底栏），结果随后铺满整屏；取消/系统返回时输入条飞回原位。**必须用在 `MeowScaffold` 内**——展开态画在 scaffold 的浮层插槽里，inset 与页面同一套；同一 scaffold 下多个搜索框（常驻 pager 的多页面）互不干扰，折叠中的实例不会打掉别人正展开的搜索面。
+
+交互约定（两端相同）：
+
+- 折叠时整条输入条可点，点按回调 `onExpandedChange(true)`，随后组件自动抢焦点、弹键盘；
+- 展开时的「取消」：Material 是输入条内前导位淡出换成的返回按钮，Miuix 是从右侧滑入的 `cancelText` 文字按钮；两者与系统返回键等效——清空查询词并回调 `onExpandedChange(false)`；
+- 查询词非空且已展开时，行内出现清空按钮（缩放淡入），只清词不收起，焦点保留；
+- 键盘上的搜索键回调 `onSearch(query)` 后**只收键盘、不收起**（结果就在下方，收起反而看不到）。需要提交即收起，在 `onSearch` 里自己置 `expanded = false`；
+- 调用侧程序化把 `expanded` 置回 `false`（例如点中某条结果）不会清词，收起后输入条里仍留着这次的查询词——与组件自己的「取消」是两条不同的路径。
+
+两端差异只在视觉：Material 为 `surfaceContainerHigh` 药丸容器、56dp 高、前导槽位在放大镜与返回按钮间淡入淡出；Miuix 为 45dp 圆角输入条、miuix 原生放大镜与清空图标，取消文字按钮从右侧挤进来。
 
 ## 页面栈
 
@@ -358,6 +427,8 @@ MeowPreferencePage(
 ```
 
 页面内容滚动时，Material 3 Expressive 与 Miuix 会分别使用各自的顶栏滚动行为。顶栏展开、过渡和收起期间，背景应始终与正文表面连续。
+
+`MeowPreferenceScreen`、`MeowPullToRefresh` 等库内容器自动接入顶栏滚动行为，调用侧不必重复接。自建滚动容器（`LazyColumn` / `verticalScroll`）想让顶栏跟随折叠时，在其祖先上加 `Modifier.meowScaffoldScroll()`（不在 `MeowScaffold` 内时为空操作）。`MeowPullToRefresh` 还会在顶栏折叠着时把下拉增量先喂给顶栏展开，展开完毕剩余才进入下拉刷新。
 
 ### Scaffold
 

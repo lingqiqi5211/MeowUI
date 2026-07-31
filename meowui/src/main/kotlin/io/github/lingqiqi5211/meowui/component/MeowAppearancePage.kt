@@ -58,6 +58,9 @@ data class MeowAppearanceLabels(
     val predictiveBackSummary: String = "Preview the destination while swiping back",
     val interfaceScale: String = "Interface scale",
     val interfaceScaleSummary: String = "Adjust the size of the entire interface",
+    val customColor: String = "Custom color",
+    val dialogConfirm: String = "Done",
+    val dialogCancel: String = "Cancel",
 )
 
 /**
@@ -143,6 +146,9 @@ fun ColumnScope.MeowAppearanceContent(
                 seedColor = appearance.seedColor,
                 paletteStyle = appearance.paletteStyle,
                 colorSpec = appearance.colorSpec,
+                customColorTitle = labels.customColor,
+                confirmText = labels.dialogConfirm,
+                cancelText = labels.dialogCancel,
                 onDynamicColorChange = { enabled ->
                     onAppearanceChange(appearance.copy(dynamicColor = enabled))
                 },

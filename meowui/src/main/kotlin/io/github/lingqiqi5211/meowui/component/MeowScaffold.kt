@@ -14,10 +14,15 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.foundation.background
@@ -68,6 +73,20 @@ internal val LocalMeowBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null
  */
 internal const val MeowBlurSurfaceAlpha = 0.65f
 internal val MeowBlurRadius = 25.dp
+/**
+ * scaffold 内的浮层插槽。
+ *
+ * 给需要盖住整个页面（含顶栏、底栏与系统栏）的展开态用，例如搜索框展开后
+ * 的搜索面。画在 scaffold 自己的窗口里而不是开一个 Popup：inset 与页面完全一致，
+ * 不会出现额外窗口被系统栏裁掉、或反过来越过屏幕边界时的各种怪象。
+ */
+@Stable
+internal class MeowOverlayHostState {
+    var content: (@Composable () -> Unit)? by mutableStateOf(null)
+}
+
+internal val LocalMeowOverlayHost = staticCompositionLocalOf<MeowOverlayHostState?> { null }
+
 internal val LocalMeowScrollContext = staticCompositionLocalOf { MeowScrollContext() }
 
 /**
@@ -80,6 +99,19 @@ internal val LocalMeowOnSheet = compositionLocalOf { false }
 
 /** MeowScaffold 提供给内容区的 PaddingValues，MeowPreferenceScreen 默认自动消费。 */
 internal val LocalMeowScaffoldContentPadding = compositionLocalOf { PaddingValues(0.dp) }
+
+/**
+ * 把页面自己的滚动容器接到 MeowScaffold 顶栏的折叠行为上。
+ *
+ * MeowPreferenceScreen、MeowPullToRefresh 等库内容器自动接入；调用侧自建的
+ * 滚动容器（LazyColumn / verticalScroll）在其祖先上加这个 modifier，向上
+ * 滚动时顶栏才会跟着收起。不在 MeowScaffold 内时为空操作。
+ */
+@Composable
+fun Modifier.meowScaffoldScroll(): Modifier {
+    val connection = LocalMeowScrollContext.current.nestedScrollConnection ?: return this
+    return this.nestedScroll(connection)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,10 +135,13 @@ fun MeowScaffold(
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val backdrop = rememberLayerBackdrop()
+    val overlayHost = remember { MeowOverlayHostState() }
     CompositionLocalProvider(
         LocalMeowScaffoldEffect provides effect,
         LocalMeowBackdrop provides backdrop,
+        LocalMeowOverlayHost provides overlayHost,
     ) {
+      Box(modifier = Modifier.fillMaxSize()) {
         MeowStyleContent(
             materialExpressive = {
                 val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -181,6 +216,9 @@ fun MeowScaffold(
                 }
             },
         )
+        // 浮层最后画，因此盖在顶栏、底栏与内容之上。
+        overlayHost.content?.invoke()
+      }
     }
 }
 

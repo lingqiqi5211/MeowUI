@@ -175,7 +175,13 @@ fun MeowPullToRefresh(
                     )
                 },
             ) {
-                Box(modifier = Modifier.padding(contentPadding)) {
+                // 连接挂在内侧（比刷新逻辑更靠近列表）：顶栏折叠着时下拉，
+                // 增量先喂给顶栏展开，展开完毕剩余才进入下拉刷新。
+                Box(
+                    modifier = Modifier
+                        .padding(contentPadding)
+                        .meowScaffoldScroll(),
+                ) {
                     content()
                 }
             }
@@ -190,7 +196,12 @@ fun MeowPullToRefresh(
                 refreshTexts = refreshTexts,
                 topAppBarScrollBehavior = LocalMeowScrollContext.current.miuixTopBar,
                 content = {
-                    Box(modifier = Modifier.padding(contentPadding)) {
+                    // 同 Material 分支：下拉先展开折叠着的顶栏，再进入刷新。
+                    Box(
+                        modifier = Modifier
+                            .padding(contentPadding)
+                            .meowScaffoldScroll(),
+                    ) {
                         content()
                     }
                 },

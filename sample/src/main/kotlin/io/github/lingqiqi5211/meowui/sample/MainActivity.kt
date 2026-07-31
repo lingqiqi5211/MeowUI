@@ -21,15 +21,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.ViewAgenda
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -241,6 +245,14 @@ private fun SampleSettings(
     val writeInterfaceScale = rememberMeowPreferenceWriter(SamplePreferences.InterfaceScale)
     // MeowNavHost 的返回栈就是调用侧的一个普通列表:推入/弹出即换一个列表,
     // 转场、预测式返回拖拽与页面层级全部由宿主接管。
+    // 顶栏菜单三形态（照 miuix 官方示例首页）：级联 / 分组单选 / 多选。
+    var cascadeSort by rememberSaveable { mutableIntStateOf(0) }
+    var cascadeView by rememberSaveable { mutableIntStateOf(0) }
+    var cascadeFilter by rememberSaveable { mutableIntStateOf(0) }
+    var groupPickA by rememberSaveable { mutableIntStateOf(0) }
+    var groupPickB by rememberSaveable { mutableIntStateOf(1) }
+    var groupPickC by rememberSaveable { mutableIntStateOf(2) }
+    var multiPicks by rememberSaveable { mutableStateOf(setOf("Alpha", "Gamma")) }
     var backStack by rememberSaveable { mutableStateOf(listOf(SampleRoute.Main)) }
     val closeAppearance = {
         if (backStack.size > 1) backStack = backStack.dropLast(1)
@@ -311,6 +323,104 @@ private fun SampleSettings(
                             icon = Icons.Rounded.Info,
                             contentDescription = "About MeowUI",
                             onClick = { showAlert = true },
+                        ),
+                        // 级联菜单：选完即收，子菜单里的选项带选中标记。
+                        MeowTopBarAction.Menu(
+                            icon = Icons.Rounded.Tune,
+                            contentDescription = "Cascading options",
+                            collapseOnSelection = true,
+                            groups = listOf(
+                                listOf("Sort by capture date", "Sort by date added")
+                                    .mapIndexed { index, label ->
+                                        MeowMenuItem(
+                                            text = label,
+                                            selected = cascadeSort == index,
+                                            onClick = { cascadeSort = index },
+                                        )
+                                    },
+                                listOf(
+                                    MeowMenuItem(
+                                        text = "View mode",
+                                        children = listOf("Group by date", "Compact")
+                                            .mapIndexed { index, label ->
+                                                MeowMenuItem(
+                                                    text = label,
+                                                    selected = cascadeView == index,
+                                                    onClick = { cascadeView = index },
+                                                )
+                                            },
+                                    ),
+                                    MeowMenuItem(
+                                        text = "Filter",
+                                        children = listOf("All items", "Camera album")
+                                            .mapIndexed { index, label ->
+                                                MeowMenuItem(
+                                                    text = label,
+                                                    selected = cascadeFilter == index,
+                                                    onClick = { cascadeFilter = index },
+                                                )
+                                            },
+                                    ),
+                                ),
+                            ),
+                        ),
+                        // 分组单选：三组各自单选，选完不收起，可连续改几组。
+                        MeowTopBarAction.Menu(
+                            icon = Icons.AutoMirrored.Rounded.Sort,
+                            contentDescription = "Sort options",
+                            collapseOnSelection = false,
+                            groups = listOf(
+                                listOf("Selection A-1", "Selection A-2")
+                                    .mapIndexed { index, label ->
+                                        MeowMenuItem(
+                                            text = label,
+                                            selected = groupPickA == index,
+                                            onClick = { groupPickA = index },
+                                        )
+                                    },
+                                listOf("Selection B-1", "Selection B-2", "Selection B-3")
+                                    .mapIndexed { index, label ->
+                                        MeowMenuItem(
+                                            text = label,
+                                            selected = groupPickB == index,
+                                            onClick = { groupPickB = index },
+                                        )
+                                    },
+                                listOf("C-1", "C-2", "C-3", "C-4")
+                                    .mapIndexed { index, label ->
+                                        MeowMenuItem(
+                                            text = label,
+                                            // 奇数项禁用，展示单项 enabled。
+                                            enabled = index % 2 == 0,
+                                            selected = groupPickC == index,
+                                            onClick = { groupPickC = index },
+                                        )
+                                    },
+                            ),
+                        ),
+                        // 多选：✓ 可多个，选完不收起。
+                        MeowTopBarAction.Menu(
+                            icon = Icons.Rounded.Checklist,
+                            contentDescription = "Multi selection",
+                            collapseOnSelection = false,
+                            groups = listOf(
+                                listOf("Alpha", "Beta"),
+                                listOf("Gamma", "Delta", "Epsilon"),
+                            ).map { group ->
+                                group.map { label ->
+                                    MeowMenuItem(
+                                        text = label,
+                                        selected = label in multiPicks,
+                                        onClick = {
+                                            multiPicks = if (label in multiPicks) {
+                                                multiPicks - label
+                                            } else {
+                                                multiPicks + label
+                                            }
+                                        },
+                                    )
+                                }
+                            },
                         ),
                         MeowTopBarAction.Menu(
                             icon = Icons.Rounded.MoreVert,
@@ -584,7 +694,9 @@ private fun SettingsPage(
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                    // 搜索框示例:展开后在下方过滤显示条目。
+                    // 搜索框示例:点一下输入条即展开(自动抢焦点弹键盘),结果就地在下方
+                    // 展开;取消/系统返回由组件自己清词收起,这里只持有状态并做过滤。
+                    // 查询词为空时照 KernelSU 的做法给一份默认结果,而不是空白一片。
                     var searchQuery by rememberSaveable { mutableStateOf("") }
                     var searchExpanded by rememberSaveable { mutableStateOf(false) }
                     MeowSearchBar(
@@ -594,17 +706,93 @@ private fun SettingsPage(
                         onExpandedChange = { searchExpanded = it },
                         placeholder = "Search controls",
                     ) {
-                        listOf("Enable feature", "Show advanced details", "Intensity", "Mode", "Nickname")
-                            .filter { it.contains(searchQuery, ignoreCase = true) }
-                            .forEach { name ->
+                        // 空查询词不铺结果：真实接入里候选集可能是全部已安装应用，
+                        // 一展开就把它们全画出来既浪费一次列表构建，也把“输什么”这件事埋了。
+                        val matches = if (searchQuery.isBlank()) {
+                            emptyList()
+                        } else {
+                            listOf(
+                                "Enable feature",
+                                "Show advanced details",
+                                "Intensity",
+                                "Mode",
+                                "Nickname",
+                            ).filter { it.contains(searchQuery, ignoreCase = true) }
+                        }
+                        if (matches.isEmpty()) {
+                            BasicText(
+                                text = if (searchQuery.isBlank()) {
+                                    "Type to search controls"
+                                } else {
+                                    "No matching control"
+                                },
+                                style = MeowTheme.typography.summary
+                                    .copy(color = MeowTheme.colors.onSurfaceVariant),
+                                modifier = Modifier.padding(
+                                    horizontal = 8.dp,
+                                    vertical = 12.dp,
+                                ),
+                            )
+                        } else {
+                            // 结果用普通分组：Material 下每行自己一块分段卡片，
+                            // Miuix 下是一张原生分组卡，和页面里的列表长得一样。
+                            MeowPreferenceSection {
+                            matches.forEach { name ->
                                 MeowActionPreference(
                                     title = name,
+                                    // 选中某项:留下查询词并收起,演示「调用侧程序化收起」
+                                    // 与组件自己的取消(会清词)是两条不同的路径。
                                     onClick = {
                                         searchQuery = name
                                         searchExpanded = false
                                     },
                                 )
                             }
+                            }
+                        }
+                    }
+
+                    // Spinner 形态（照 miuix 示例 Spinner 区）：带图标+副文本的选项、
+                    // 分组不收起、单项禁用。
+                    var spinnerColor by rememberSaveable { mutableStateOf("Red") }
+                    var spinnerGrouped by rememberSaveable { mutableStateOf("Fast") }
+                    MeowPreferenceSection(title = "Spinner") {
+                        MeowPopupPreference(
+                            title = "Accent swatch",
+                            value = spinnerColor,
+                            options = listOf("Red", "Green", "Blue", "Yellow"),
+                            onValueChange = { spinnerColor = it },
+                            optionSummary = { "The $it swatch" },
+                            optionLeading = { option ->
+                                Box(
+                                    modifier = Modifier
+                                        .padding(end = 12.dp)
+                                        .size(20.dp)
+                                        .background(
+                                            color = when (option) {
+                                                "Red" -> Color(0xFFFF5B29)
+                                                "Green" -> Color(0xFF36D167)
+                                                "Blue" -> Color(0xFF3482FF)
+                                                else -> Color(0xFFFFB21D)
+                                            },
+                                            shape = RoundedCornerShape(6.dp),
+                                        ),
+                                )
+                            },
+                        )
+                        MeowPopupPreference(
+                            title = "Grouped picker",
+                            value = spinnerGrouped,
+                            options = emptyList(),
+                            groups = listOf(
+                                listOf("Fast", "Balanced"),
+                                listOf("Slow", "Manual", "Off"),
+                            ),
+                            onValueChange = { spinnerGrouped = it },
+                            // 选完不收：可连着比较几个选项的效果。
+                            collapseOnSelection = false,
+                            optionEnabled = { it != "Manual" },
+                        )
                     }
 
                     MeowPreferenceSection(title = "Controls") {

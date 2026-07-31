@@ -185,6 +185,9 @@ fun MeowColorPicker(
     presetColors: List<Color> = MeowColorPickerDefaults.PresetColors,
     paletteStyle: MeowPaletteStyle = MeowPaletteStyle.TonalSpot,
     colorSpec: MeowColorSpec? = null,
+    customColorTitle: String = "Custom color",
+    confirmText: String = "Done",
+    cancelText: String = "Cancel",
 ) {
     ColorPickerContent(
         dynamicColor = dynamicColor,
@@ -195,6 +198,9 @@ fun MeowColorPicker(
         onDynamicColorChange = onDynamicColorChange,
         onSeedColorChange = onSeedColorChange,
         modifier = modifier,
+        customColorTitle = customColorTitle,
+        confirmText = confirmText,
+        cancelText = cancelText,
     )
 }
 
@@ -208,6 +214,9 @@ private fun ColorPickerContent(
     onDynamicColorChange: (Boolean) -> Unit,
     onSeedColorChange: (Color) -> Unit,
     modifier: Modifier = Modifier,
+    customColorTitle: String = "Custom color",
+    confirmText: String = "Done",
+    cancelText: String = "Cancel",
 ) {
     val supportsDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val distinctPresets = presetColors.distinct()
@@ -222,6 +231,9 @@ private fun ColorPickerContent(
 
     MeowColorPaletteDialog(
         show = showCustomDialog,
+        title = customColorTitle,
+        confirmText = confirmText,
+        cancelText = cancelText,
         initialColor = seedColor,
         onConfirm = { color ->
             showCustomDialog = false

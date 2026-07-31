@@ -4,6 +4,9 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -72,6 +75,7 @@ import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
+import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.SmallTitle as MiuixSmallTitle
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
@@ -285,6 +289,11 @@ fun MeowActionPreference(
     summary: String? = null,
     value: String? = null,
     enabled: Boolean = true,
+    /**
+     * 行的动作是打开另一个页面时置 true：Material 分支行尾追加 > 箭头。
+     * Miuix 分支的 ArrowPreference 本来就带箭头，不受此参数影响。
+     */
+    navigation: Boolean = false,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
@@ -297,6 +306,7 @@ fun MeowActionPreference(
                 summary = summary,
                 value = value,
                 enabled = enabled,
+                navigation = navigation,
                 leading = leading,
                 trailing = trailing,
                 onClick = onClick,
@@ -444,7 +454,13 @@ fun MeowSliderPreference(
     )
 }
 
-/** Style-native popup preference for choosing one value. */
+/**
+ * Style-native popup preference for choosing one value.
+ *
+ * 选项可附图标（[optionLeading]）、副文本（[optionSummary]）与单项禁用
+ * （[optionEnabled]）；[groups] 非空时每个子列表为一组（组间分隔，
+ * [options] 被忽略）；[collapseOnSelection] 为 false 时选择后弹窗不收起。
+ */
 @Composable
 fun <T> MeowPopupPreference(
     title: String,
@@ -455,32 +471,46 @@ fun <T> MeowPopupPreference(
     summary: String? = null,
     enabled: Boolean = true,
     optionLabel: (T) -> String = { it.toString() },
+    optionSummary: ((T) -> String?)? = null,
+    optionEnabled: ((T) -> Boolean)? = null,
+    optionLeading: (@Composable (T) -> Unit)? = null,
+    groups: List<List<T>> = emptyList(),
+    collapseOnSelection: Boolean = true,
 ) {
-    require(options.isNotEmpty()) { "options must not be empty" }
+    val resolvedGroups = groups.filter { it.isNotEmpty() }.ifEmpty { listOf(options) }
+    require(resolvedGroups.any { it.isNotEmpty() }) { "options must not be empty" }
 
     MeowStyleContent(
         materialExpressive = {
             MaterialChoicePreference(
                 title = title,
                 value = value,
-                options = options,
+                groups = resolvedGroups,
                 onValueChange = onValueChange,
                 modifier = modifier,
                 summary = summary,
                 enabled = enabled,
                 optionLabel = optionLabel,
+                optionSummary = optionSummary,
+                optionEnabled = optionEnabled,
+                optionLeading = optionLeading,
+                collapseOnSelection = collapseOnSelection,
             )
         },
         miuix = {
             MiuixChoicePreference(
                 title = title,
                 value = value,
-                options = options,
+                groups = resolvedGroups,
                 onValueChange = onValueChange,
                 modifier = modifier,
                 summary = summary,
                 enabled = enabled,
                 optionLabel = optionLabel,
+                optionSummary = optionSummary,
+                optionEnabled = optionEnabled,
+                optionLeading = optionLeading,
+                collapseOnSelection = collapseOnSelection,
             )
         },
     )
@@ -568,12 +598,16 @@ fun MeowButton(
 private fun <T> MaterialChoicePreference(
     title: String,
     value: T,
-    options: List<T>,
+    groups: List<List<T>>,
     onValueChange: (T) -> Unit,
     modifier: Modifier,
     summary: String?,
     enabled: Boolean,
     optionLabel: (T) -> String,
+    optionSummary: ((T) -> String?)?,
+    optionEnabled: ((T) -> Boolean)?,
+    optionLeading: (@Composable (T) -> Unit)?,
+    collapseOnSelection: Boolean,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val hapticFeedback = LocalHapticFeedback.current
@@ -592,31 +626,74 @@ private fun <T> MaterialChoicePreference(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                MaterialDropdownMenuPopup(
+                MeowMaterialMenuPopup(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                 ) {
-                    MaterialDropdownMenuGroup(
-                        shapes = MenuDefaults.groupShapes(),
-                    ) {
-                        options.forEachIndexed { index, option ->
-                            key(index, option) {
-                                MaterialDropdownMenuItem(
-                                    text = { MaterialText(optionLabel(option)) },
-                                    onClick = {
-                                        hapticFeedback.performHapticFeedback(
-                                            HapticFeedbackType.VirtualKey,
-                                        )
-                                        onValueChange(option)
-                                        expanded = false
-                                    },
-                                    enabled = enabled,
-                                    selected = option == value,
-                                    shapes = MenuDefaults.itemShape(
-                                        index = index,
-                                        count = options.size,
-                                    ),
-                                )
+                    // 每组一个大圆角容器，组间用官方间距，与 miuix 的 DropdownEntry 分组语义对齐。
+                    groups.forEachIndexed { groupIndex, groupOptions ->
+                        if (groupIndex > 0) {
+                            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                        }
+                        MaterialDropdownMenuGroup(
+                            shapes = MenuDefaults.groupShapes(),
+                        ) {
+                            groupOptions.forEachIndexed { index, option ->
+                                key(index, option) {
+                                    // 分段项间隙：相邻选中 pill 不再贴成一块。
+                                    if (index > 0) {
+                                        Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
+                                    }
+                                    MaterialDropdownMenuItem(
+                                        text = {
+                                            // ✓ 固定行右缘：trailing 槽会紧跟文字，短标题时浮在行中。
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f, fill = false)) {
+                                                    MaterialText(optionLabel(option))
+                                                    optionSummary?.invoke(option)
+                                                        ?.takeIf(String::isNotBlank)
+                                                        ?.let { text ->
+                                                            MaterialText(
+                                                                text = text,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            )
+                                                        }
+                                                }
+                                                MaterialIcon(
+                                                    imageVector = Icons.Rounded.Check,
+                                                    contentDescription = null,
+                                                    modifier = Modifier
+                                                        .padding(start = 12.dp)
+                                                        .graphicsLayer {
+                                                            alpha = if (option == value) 1f else 0f
+                                                        },
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            hapticFeedback.performHapticFeedback(
+                                                HapticFeedbackType.VirtualKey,
+                                            )
+                                            onValueChange(option)
+                                            if (collapseOnSelection) expanded = false
+                                        },
+                                        enabled = enabled &&
+                                            (optionEnabled?.invoke(option) ?: true),
+                                        selected = option == value,
+                                        leadingIcon = optionLeading?.let { leading ->
+                                            { leading(option) }
+                                        },
+                                        shapes = MenuDefaults.itemShape(
+                                            index = index,
+                                            count = groupOptions.size,
+                                        ),
+                                    )
+                                }
                             }
                         }
                     }
@@ -634,28 +711,55 @@ private fun <T> MaterialChoicePreference(
 private fun <T> MiuixChoicePreference(
     title: String,
     value: T,
-    options: List<T>,
+    groups: List<List<T>>,
     onValueChange: (T) -> Unit,
     modifier: Modifier,
     summary: String?,
     enabled: Boolean,
     optionLabel: (T) -> String,
+    optionSummary: ((T) -> String?)?,
+    optionEnabled: ((T) -> Boolean)?,
+    optionLeading: (@Composable (T) -> Unit)?,
+    collapseOnSelection: Boolean,
 ) {
-    val selectedIndex = options.indexOf(value)
-
-    MiuixWindowSpinnerPreference(
-        items = options.map { option ->
-            DropdownItem(text = optionLabel(option))
+    fun item(option: T): DropdownItem = DropdownItem(
+        text = optionLabel(option),
+        summary = optionSummary?.invoke(option),
+        enabled = optionEnabled?.invoke(option) ?: true,
+        selected = option == value,
+        onClick = { onValueChange(option) },
+        icon = optionLeading?.let { leading ->
+            { iconModifier -> Box(modifier = iconModifier) { leading(option) } }
         },
-        selectedIndex = selectedIndex,
+    )
+
+    if (groups.size == 1 && collapseOnSelection) {
+        // 单组且选完即收：经典 spinner 形态，行尾显示当前值。
+        val options = groups.first()
+        val selectedIndex = options.indexOf(value)
+        MiuixWindowSpinnerPreference(
+            items = options.map(::item),
+            selectedIndex = selectedIndex,
+            title = title,
+            modifier = modifier,
+            summary = summary,
+            enabled = enabled,
+            showValue = selectedIndex >= 0,
+            onSelectedIndexChange = { index ->
+                options.getOrNull(index)?.let(onValueChange)
+            },
+        )
+        return
+    }
+
+    // 分组 / 选完不收的形态：选中态由每项的 selected + onClick 自行表达。
+    MiuixWindowSpinnerPreference(
+        entries = groups.map { group -> DropdownEntry(items = group.map(::item)) },
         title = title,
         modifier = modifier,
         summary = summary,
         enabled = enabled,
-        showValue = selectedIndex >= 0,
-        onSelectedIndexChange = { index ->
-            options.getOrNull(index)?.let(onValueChange)
-        },
+        collapseOnSelection = collapseOnSelection,
     )
 }
 
@@ -667,6 +771,7 @@ private fun MaterialPreferenceRow(
     summary: String?,
     value: String? = null,
     enabled: Boolean,
+    navigation: Boolean = false,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
@@ -677,7 +782,7 @@ private fun MaterialPreferenceRow(
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         leadingContent = leading,
-        trailingContent = materialTrailingContent(value, trailing),
+        trailingContent = materialTrailingContent(value, trailing, navigation),
         supportingContent = summary?.takeIf(String::isNotBlank)?.let { text ->
             { MaterialPreferenceSupportingText(text) }
         },
@@ -920,8 +1025,9 @@ private fun miuixStartAction(
 private fun materialTrailingContent(
     value: String?,
     trailing: (@Composable () -> Unit)?,
+    navigation: Boolean = false,
 ): (@Composable () -> Unit)? {
-    if (value.isNullOrBlank() && trailing == null) return null
+    if (value.isNullOrBlank() && trailing == null && !navigation) return null
 
     return {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -936,6 +1042,14 @@ private fun materialTrailingContent(
                 Spacer(Modifier.width(12.dp))
             }
             trailing?.invoke()
+            if (navigation) {
+                // 导航行的 > 箭头：与 miuix ArrowPreference 的右侧箭头对齐。
+                MaterialIcon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
