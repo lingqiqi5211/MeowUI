@@ -16,7 +16,7 @@ MeowUI 的公共组件只暴露一套业务 API。`MeowTheme` 根据 `MeowUiStyl
 | 容器 | `MeowBottomSheet`、`MeowAdaptiveLayout`、`MeowCard`（KernelSU 首页式状态卡/信息卡；`containerColor` 给状态色调，`index`/`count` 让相邻卡片在 Material 下拼成分组卡片） |
 | 提示与刷新 | `MeowTip`、`MeowPullToRefresh`、`rememberMeowSnackbarState` |
 | 取色 | `MeowColorPicker`、`MeowColorPickerDialog`、`MeowColorPickerDefaults`、`MeowColorPalette`、`MeowColorPaletteDialog` |
-| 效果 | `MeowScaffoldEffect`、`rememberMeowBlurScaffoldEffect` |
+| 效果 | `MeowScaffoldEffect` |
 
 ## 设置分组
 
@@ -527,11 +527,14 @@ MeowTheme(appearance = appearance) {
 - 界面缩放范围为 80%–110%，松开 Slider 后提交；系统字体缩放比例保持不变。
 - 不支持 2025 色彩标准的色彩风格只显示并使用 2021，避免无效组合。
 - `amoledDarkEnabled` 为 AMOLED 纯黑深色开关（背景与 surface 容器压成纯黑，保留 surfaceBright 卡片层次），叠加在深色模式上——深色生效时（含跟随系统进入深色）即应用；仅 Material 3 Expressive 分支生效并显示该开关，Miuix 分支忽略。
+- `blurEnabled`（默认开）控制顶栏与悬浮底栏的内置背景磨砂：在 `MeowScaffold` 内且设备支持 RuntimeShader 时，栏体对身后内容做模糊并叠半透明底色；关闭或设备不支持时自动回退不透明底色。该开关经 `MeowTheme(appearance = …)` 统一入口生效，外观页不显示对应选项，由应用自行决定是否暴露（sample 在界面分组给了一个开关）。
 - 色票行末尾附带调色盘（miuix ColorPicker），可自选任意种子色；选中态显示当前自选颜色。
 - Miuix 风格下可通过 Monet 开关关闭取色，改用 Miuix 原生配色；关闭后取色卡与调色板、色彩标准选项一并隐藏。Material 分支忽略该开关。
 - 预测性返回只保存使用者偏好，导航层需要自行读取 `predictiveBackEnabled` 决定返回行为。使用 `MeowNavHost` 时直接把该值传给同名参数即可（sample 即如此）：开启时手势拖拽弹出转场进度，关闭时退化为普通返回键出栈；Android 14 以下不会显示该选项。自带导航层的应用可参考 InstallerX-Revived 的做法，用 `NavigationBackHandler` 在关闭时拦截系统预测手势。
 
 ### 自定义外观页
+
+宿主自带顶栏与滚动容器（例如页面本身就是 `MeowNavHost` 里的一屏）时，用 `MeowAppearanceContent` 只嵌入选项正文，参数与 `MeowAppearancePage` 一致，去掉了页面壳。
 
 `MeowAppearancePage` 只是把公开组件按固定顺序拼装。需要不同的布局、增删设置项或改文案结构时，直接用同一批积木搭自己的页面，状态仍然是一份 `MeowAppearance`：
 
@@ -607,27 +610,9 @@ MeowPullToRefresh(
 
 ## Blur
 
-Blur 内置在 `meowui` 的 `io.github.lingqiqi5211.meowui.blur` 包。注意其底层依赖声明 minSdk 33：**minSdk 低于 33 的应用（无论是否使用 Blur）都要在主 Manifest 加 `<uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />`**，低版本运行时自动回退为普通表面。设置页最简单的接法：
+顶栏与悬浮底栏在 `MeowScaffold` 内默认自带背景磨砂，由 `MeowAppearance.blurEnabled` 统一控制，无需任何额外接线；设备不支持 RuntimeShader（API < 33）时自动回退不透明底色，尺寸、间距和点击区域不变。悬浮底栏只在胶囊轮廓内取样和着色，不会出现底部矩形遮罩。
 
-```kotlin
-val effect = rememberMeowBlurScaffoldEffect(enabled = blurEnabled)
-
-MeowPreferencePage(
-    title = "模块设置",
-    effect = effect,
-) {
-    // 页面内容
-}
-```
-
-支持时，正文提供 Blur 来源，顶栏与普通底栏使用连续的矩形表面；悬浮底栏只在胶囊轮廓内取样和着色，不会出现底部矩形遮罩。Material 悬浮底栏默认使用较轻的半透明 `surfaceContainer` 覆层。不支持、关闭或预览环境不可用时，会回退为同样轮廓的普通表面，尺寸、间距和点击区域不变。
-
-需要自定义前景时可以组合：
-
-- `rememberMeowBlurBackdrop`
-- `Modifier.meowBlurSource`
-- `Modifier.meowBlurSurface`
-- `isMeowBlurSupported`
+注意底层依赖声明 minSdk 33：**minSdk 低于 33 的应用（无论是否开启 Blur）都要在主 Manifest 加 `<uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />`**。
 
 ## 库内渲染控件的 modifier
 

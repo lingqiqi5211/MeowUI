@@ -49,7 +49,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import io.github.lingqiqi5211.meowui.blur.rememberMeowBlurScaffoldEffect
 import io.github.lingqiqi5211.meowui.component.MeowActionPreference
 import io.github.lingqiqi5211.meowui.component.MeowAppearancePage
 import io.github.lingqiqi5211.meowui.component.MeowAlertDialog
@@ -188,6 +187,7 @@ private fun SampleApp() {
         colorSpec = colorSpec,
         miuixMonetEnabled = miuixMonet,
         amoledDarkEnabled = amoledDark,
+        blurEnabled = blurEnabled,
         predictiveBackEnabled = predictiveBack,
         interfaceScale = interfaceScale,
     )
@@ -196,7 +196,6 @@ private fun SampleApp() {
         MeowTheme(appearance = appearance) {
             SampleSettings(
                 appearance = appearance,
-                blurEnabled = blurEnabled,
                 floatingNavigation = floatingNavigation,
                 floatingLabels = floatingLabels,
             )
@@ -207,7 +206,6 @@ private fun SampleApp() {
 @Composable
 private fun SampleSettings(
     appearance: MeowAppearance,
-    blurEnabled: Boolean,
     floatingNavigation: Boolean,
     floatingLabels: Boolean,
 ) {
@@ -223,14 +221,12 @@ private fun SampleSettings(
     var dialogMode by rememberSaveable { mutableStateOf("Balanced") }
     var dialogText by rememberSaveable { mutableStateOf("Meow") }
     val coroutineScope = rememberCoroutineScope()
-    val effect = rememberMeowBlurScaffoldEffect(enabled = blurEnabled)
     val snackbarState = rememberMeowSnackbarState()
 
     // NavDisplay 会缓存 entry 的内容 lambda，直接捕获的参数会停在旧快照上
     //（表现为外观页开关点了不刷新）；经 rememberUpdatedState 中转后，
     // 缓存的 lambda 每次重组都能读到最新值。
     val currentAppearance by rememberUpdatedState(appearance)
-    val currentEffect by rememberUpdatedState(effect)
     val currentFloatingNavigation by rememberUpdatedState(floatingNavigation)
     val currentFloatingLabels by rememberUpdatedState(floatingLabels)
     val writeStyle = rememberMeowPreferenceWriter(SamplePreferences.Style)
@@ -361,7 +357,6 @@ private fun SampleSettings(
                         )
                     },
                     snackbarState = snackbarState,
-                    effect = currentEffect,
                 ) { _ ->
                     MeowPullToRefresh(
                         isRefreshing = isRefreshing,
@@ -966,12 +961,12 @@ private fun MaterialPreview() {
         style = MeowUiStyle.MaterialExpressive,
         themeMode = MeowThemeMode.Light,
         dynamicColor = false,
+        blurEnabled = false,
     )
     MeowPreferenceProvider(store) {
         MeowTheme(appearance = appearance) {
             SampleSettings(
                 appearance = appearance,
-                blurEnabled = false,
                 floatingNavigation = true,
                 floatingLabels = true,
             )
@@ -987,12 +982,12 @@ private fun MiuixPreview() {
         style = MeowUiStyle.Miuix,
         themeMode = MeowThemeMode.Light,
         dynamicColor = false,
+        blurEnabled = false,
     )
     MeowPreferenceProvider(store) {
         MeowTheme(appearance = appearance) {
             SampleSettings(
                 appearance = appearance,
-                blurEnabled = false,
                 floatingNavigation = true,
                 floatingLabels = true,
             )

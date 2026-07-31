@@ -745,8 +745,7 @@ private fun <T> MiuixChoiceList(
                     title = optionLabel(option),
                     selected = option == selected,
                     onClick = { onSelected(option) },
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }

@@ -35,7 +35,7 @@ dependencies {
 }
 ```
 
-Blur 能力已内置在 `meowui` 中（`io.github.lingqiqi5211.meowui.blur` 包），其底层依赖 `miuix-blur-android` 声明 minSdk 33。**只要应用的 minSdk 低于 33（无论是否使用 Blur），主 Manifest 都必须包含**下面的 override（运行时低版本会自动回退为不模糊，不会崩溃）：
+Blur 能力已内置在 `meowui` 的顶栏与悬浮底栏中（由 `MeowAppearance.blurEnabled` 统一控制），其底层依赖 `miuix-blur-android` 声明 minSdk 33。**只要应用的 minSdk 低于 33（无论是否开启 Blur），主 Manifest 都必须包含**下面的 override（运行时低版本会自动回退为不模糊，不会崩溃）：
 
 ```xml
 <manifest xmlns:tools="http://schemas.android.com/tools">

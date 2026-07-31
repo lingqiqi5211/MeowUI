@@ -136,7 +136,7 @@ Material 分支优先使用 `ListItemDefaults.segmentedShapes(index, count)`。�
 
 ### Blur
 
-Material 分支通过统一 `MeowScaffoldEffect` 接入 Blur。Blur 不可用时回退到 Material 正确表面色，顶栏滚动色与正文容器仍需连续。
+两个分支的顶栏与悬浮底栏在 `MeowScaffold` 内自带背景磨砂，由 `MeowAppearance.blurEnabled` 统一控制。Blur 不可用时回退到当前风格的正确表面色，顶栏滚动色与正文容器仍需连续。
 
 ## Miuix
 

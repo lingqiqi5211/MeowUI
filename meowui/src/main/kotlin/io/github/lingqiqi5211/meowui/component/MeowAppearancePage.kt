@@ -99,12 +99,12 @@ fun MeowAppearancePage(
 }
 
 /**
- * 外觀設定的內容本體，不含頁面外殼。
+ * 外观设置的内容本体，不含页面外壳。
  *
- * 供已經自己持有頂欄的宿主使用：把外觀設定放進宿主已有的頁面裡，而不是再套一層帶頂欄
- * 的 [MeowPreferencePage]。參數含義與 [MeowAppearancePage] 相同。
+ * 供已经自己持有顶栏的宿主使用：把外观设置放进宿主已有的页面里，而不是再套一层带顶栏
+ * 的 [MeowPreferencePage]。参数含义与 [MeowAppearancePage] 相同。
  *
- * 需要放在能提供滾動容器的地方，例如 [MeowPreferenceScreen] 的內容槽位。
+ * 需要放在能提供滚动容器的地方，例如 [MeowPreferenceScreen] 的内容槽位。
  */
 @Composable
 fun ColumnScope.MeowAppearanceContent(
