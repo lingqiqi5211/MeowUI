@@ -599,7 +599,7 @@ MeowTheme(appearance = appearance) {
 - 不支持 2025 色彩标准的色彩风格只显示并使用 2021，避免无效组合。
 - `amoledDarkEnabled` 为 AMOLED 纯黑深色开关（背景与 surface 容器压成纯黑，保留 surfaceBright 卡片层次），叠加在深色模式上——深色生效时（含跟随系统进入深色）即应用；仅 Material 3 Expressive 分支生效并显示该开关，Miuix 分支忽略。
 - `blurEnabled`（默认开）控制顶栏与悬浮底栏的内置背景磨砂：在 `MeowScaffold` 内且设备支持 RuntimeShader 时，栏体对身后内容做模糊并叠半透明底色；关闭或设备不支持时自动回退不透明底色。该开关经 `MeowTheme(appearance = …)` 统一入口生效，外观页不显示对应选项，由应用自行决定是否暴露（sample 在界面分组给了一个开关）。
-- 色票行末尾附带调色盘（miuix ColorPicker），可自选任意种子色；选中态显示当前自选颜色。
+- 色票行末尾附带调色盘（miuix ColorPicker），可自选任意种子色；选中态显示当前自选颜色。调色盘弹窗的标题/确认/取消文案经 `MeowAppearanceLabels.customColor/dialogConfirm/dialogCancel`（或 `MeowColorPicker` 的同名参数）本地化。
 - Miuix 风格下可通过 Monet 开关关闭取色，改用 Miuix 原生配色；关闭后取色卡与调色板、色彩标准选项一并隐藏。Material 分支忽略该开关。
 - 预测性返回只保存使用者偏好，导航层需要自行读取 `predictiveBackEnabled` 决定返回行为。使用 `MeowNavHost` 时直接把该值传给同名参数即可（sample 即如此）：开启时手势拖拽弹出转场进度，关闭时退化为普通返回键出栈；Android 14 以下不会显示该选项。自带导航层的应用可参考 InstallerX-Revived 的做法，用 `NavigationBackHandler` 在关闭时拦截系统预测手势。
 

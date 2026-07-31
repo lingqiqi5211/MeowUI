@@ -31,7 +31,6 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.DropdownMenuGroup as MaterialDropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem as MaterialDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup as MaterialDropdownMenuPopup
@@ -320,7 +319,7 @@ internal fun MeowMaterialMenuPopup(
 private fun MaterialTopBarMenu(action: MeowTopBarAction.Menu) {
     var expanded by remember { mutableStateOf(false) }
     // Material 无原生级联弹窗:子菜单在同一弹窗内下钻,顶部提供返回上级的行。
-    // 下钻状态存的是稳定键（条目文本）而不是条目对象：对象是下钻那一刻的数据
+    // 下钻状态存的是稳定键（组序:项序）而不是条目对象：对象是下钻那一刻的数据
     // 快照，选完后调用侧重建了带新勾选态的 groups，拿旧对象继续渲染子菜单
     // 勾选永远不会变；每轮重组用键从最新 groups 里解析。
     // 归位在打开时而不是关闭时：关闭时归位会让返回主菜单的下钻动画
@@ -417,8 +416,13 @@ private fun MaterialTopBarMenu(action: MeowTopBarAction.Menu) {
                                         index = index + headerCount,
                                         count = count,
                                     ),
+                                    // Material 只支持一层下钻：子菜单里的带 children 项
+                                    // 不再作为下钻入口（indexOf 在子视图里也拿不到组序）。
                                     onOpenSubmenu = {
-                                        submenuKey = "${groups.indexOf(groupItems)}:$index"
+                                        val groupIndex = groups.indexOf(groupItems)
+                                        if (groupIndex >= 0) {
+                                            submenuKey = "$groupIndex:$index"
+                                        }
                                     },
                                     onPicked = {
                                         if (action.collapseOnSelection) expanded = false

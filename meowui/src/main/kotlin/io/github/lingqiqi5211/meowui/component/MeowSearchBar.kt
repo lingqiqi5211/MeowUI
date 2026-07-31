@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -118,6 +117,7 @@ fun MeowSearchBar(
     modifier: Modifier = Modifier,
     placeholder: String = "Search",
     cancelText: String = "Cancel",
+    clearContentDescription: String = "Clear",
     onSearch: (String) -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -274,7 +274,7 @@ fun MeowSearchBar(
                                 MaterialIconButton(onClick = { onQueryChange("") }) {
                                     MaterialIcon(
                                         imageVector = Icons.Rounded.Close,
-                                        contentDescription = ClearContentDescription,
+                                        contentDescription = clearContentDescription,
                                     )
                                 }
                             }
@@ -331,7 +331,7 @@ fun MeowSearchBar(
                             ClearAction(visible = query.isNotEmpty()) {
                                 MiuixIcon(
                                     imageVector = MiuixIcons.Basic.MiuixSearchCleanupIcon,
-                                    contentDescription = ClearContentDescription,
+                                    contentDescription = clearContentDescription,
                                     tint = colorScheme.onSurface,
                                     modifier = Modifier
                                         .size(MiuixSlotSize)
@@ -573,7 +573,6 @@ private fun MeowSearchTextField(
     )
 }
 
-private const val ClearContentDescription = "Clear"
 private const val LeadingFadeMillis = 120
 private const val LiftMillis = 300
 private const val SurfaceFadeMillis = 200
