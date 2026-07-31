@@ -5,7 +5,7 @@
 - Android 8.0（API 26）及以上
 - Compose 项目
 - libxposed API/service（仅 Xposed 场景，版本见 `gradle/libs.versions.toml`）
-- MeowUI 当前版本：`0.1.1`
+- MeowUI 当前版本：`0.1.2`
 
 发布到 Maven Central 后可直接添加依赖；尚未发布前，也可以按下文用本地源码接入，依赖坐标一致。
 
@@ -31,7 +31,7 @@ includeBuild("../MeowUI")
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.1")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.2")
 }
 ```
 
@@ -49,7 +49,7 @@ Hook 进程的远程设置连接与 `PreferenceKey` 等定义也在 `meowui-xpos
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.1")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.2")
 }
 ```
 
@@ -57,7 +57,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.1")
+    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.2")
 }
 ```
 
