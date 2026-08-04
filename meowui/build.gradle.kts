@@ -32,6 +32,20 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric needs the library's own resources and themes to inflate a host
+            // activity for compose tests.
+            isIncludeAndroidResources = true
+            all {
+                // One instrumented android-all jar per sandbox does not fit in the default
+                // test-JVM heap; without this it fails while loading the jar rather than as
+                // a test failure.
+                it.maxHeapSize = "2g"
+            }
+        }
+    }
 }
 
 dependencies {
@@ -51,9 +65,17 @@ dependencies {
     implementation(libs.miuix.preference)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.blur.android)
+    implementation(libs.miuix.nav)
     implementation(libs.kotlinx.coroutines.android)
 
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    // The library's own UI is testable in the JVM: components whose behaviour is a
+    // recomposition rule (preference-group collection, sheet expansion, tip layout) are
+    // regression-tested here rather than in whichever app notices the breakage.
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
