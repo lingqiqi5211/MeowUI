@@ -42,6 +42,35 @@ dependencies {
 
 尚未发布到远程仓库前，可用源码接入：假设宿主项目与 MeowUI 是相邻目录，在宿主项目的 `settings.gradle.kts` 中加入 `includeBuild("../MeowUI")`，依赖坐标不变。
 
+### 依赖的 miuix 版本（`test` 分支）
+
+`test` 分支专门用来跟进 miuix 主线上还没进正式版的组件，版本号走 `0.1.x-rcNN`，
+**使用前请确认 miuix 钉的是最新可用的构建版本**。
+
+当前钉的是 `0.9.3-a370b370-SNAPSHOT`（2026-08-01）。本分支的 `MeowBreadcrumbBar`
+用到的 miuix `BreadcrumbBar` 在 2026-07-08 合入主线，尚未进入任何正式版（最新正式版
+v0.9.3 发布于 07-04）。
+
+换快照时注意两点：上游偶尔会有某次快照少发模块（例如 07-30 的 ec7b0c92 缺
+navigation3-ui，08-01 的 2b846529 关掉了快照发布的并行执行来修这个问题）；另外上游
+在 07-25 用 `miuix-nav` 取代了 `miuix-navigation3-ui`，坐标要跟着换。
+
+快照发在 GitHub Packages，公开包也需要 token，宿主项目要同时加仓库和凭据：
+
+```kotlin
+maven {
+    url = uri("https://maven.pkg.github.com/compose-miuix-ui/miuix")
+    credentials {
+        username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("GITHUB_ACTOR")
+        password = providers.gradleProperty("gpr.key").orNull ?: System.getenv("GITHUB_TOKEN")
+    }
+    mavenContent { includeGroupAndSubgroups("top.yukonga.miuix.kmp") }
+}
+```
+
+`gpr.key` 用一个带 `read:packages` 的 PAT。miuix 发出正式版之后，把版本号改回正式版、
+删掉这个仓库声明即可，组件实现和 API 都不用动。
+
 用 `MeowPreferenceProvider` 提供一个 `PreferenceStore` 实现（内存版 `InMemoryPreferenceStore` 可直接用；持久化版按需包装 SharedPreferences、DataStore 或你自己的配置通道，比如 Magisk 管理器的守护进程配置），其余用法与 Xposed 场景完全一致：
 
 ```kotlin
