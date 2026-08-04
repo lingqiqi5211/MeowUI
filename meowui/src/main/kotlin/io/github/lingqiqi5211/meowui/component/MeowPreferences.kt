@@ -46,7 +46,6 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.currentRecomposeScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -173,8 +172,11 @@ fun MeowPreferenceSection(
     content: @Composable MeowPreferenceSectionScope.() -> Unit,
 ) {
     val scope = remember { MeowPreferenceSectionScope() }
-    scope.beginCollection(currentRecomposeScope)
-    scope.content()
+    // 轮次读在这里、也用作 content 的 key：lambda 单独重跑过一趟后轮次 +1，这里重组，
+    // content 在新 key 下没有旧组可复用，必然完整重跑一遍（见 MeowPreferenceSectionScope）。
+    val epoch = scope.collectionEpoch
+    scope.beginCollection()
+    key(epoch) { scope.content() }
     val entries = scope.endCollection()
     if (entries.isEmpty()) return
 

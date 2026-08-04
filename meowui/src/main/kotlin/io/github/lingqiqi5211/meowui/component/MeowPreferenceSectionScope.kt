@@ -1,7 +1,9 @@
 package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.RecomposeScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.github.lingqiqi5211.meowui.core.preference.PreferenceKey
 
@@ -22,27 +24,36 @@ internal data class MeowPreferenceSectionEntry(
  * custom content that still belongs to the group. Typed helpers use the bound key name or the row
  * title as the stable identity; give [item] an explicit [item.key] when rows can appear or
  * disappear conditionally.
+ *
+ * A row that comes and goes should be declared with `item(visible = …)` rather than omitted:
+ * declaring it is how [content] announces that it re-ran. A [content] that ends up declaring no
+ * items at all says nothing, so a group cannot notice on its own that it has just become empty —
+ * something else about the section (its title, or the caller recomposing) has to change with it.
  */
 @MeowPreferenceSectionDsl
 @Suppress("FunctionName")
 class MeowPreferenceSectionScope internal constructor() {
     // 注意:本类必须保持 unstable(不要加 @Stable/@Immutable)。
-    // pending 路径假设 content lambda 作为整体重跑(receiver 不稳定使其不可被跳过);
-    // 若未来变为可跳过,嵌套作用域的局部重跑可能让 pending 只含部分条目并覆盖全量。
-    // 收集式 DSL 的陷阱：section 的 content 是 composable lambda，捕获值变化时它会在
-    // 自己的重启作用域里单独重跑，而持有 entries 的 section 主体不重组，导致渲染停在
-    // 旧条目上。因此收集分两条路：主体重组时正常收集（body）；lambda 单独重跑时先把
-    // 结果暂存（pending）并把 section 主体一并失效，让渲染在下一趟重组里取到新条目。
-    private var sectionScope: RecomposeScope? = null
+    //
+    // 收集式 DSL 的陷阱：section 的 content 是 composable lambda，捕获值变化时它会在自己的
+    // 重启作用域里单独重跑，而持有 entries 的 section 主体不重组——渲染就停在旧条目上。
+    //
+    // 单独重跑的结果一律不提交：它可能只跑了 content 的一部分（强跳过下嵌套作用域可以独立
+    // 重启），既不能整表替换，按 key 并入更糟——旧行留在原位、新行追加在后面，一个分组里
+    // 同时挂着两套内容。改为让主体重收一趟：收集轮次是状态，单独重跑把它 +1，主体读到新值
+    // 后在 [collectionEpoch] 这个新 key 下重组 content。新 key 下没有旧组可复用，content
+    // 必然完整重跑，于是提交的一定是当前该有的那一整份。
     private var collectingInBody = false
     private var bodyContentRan = false
-    private var invalidationRequested = false
+    private var recollectRequested = false
     private val bodyEntries = mutableListOf<MeowPreferenceSectionEntry>()
-    private val pendingEntries = mutableListOf<MeowPreferenceSectionEntry>()
     private var committedEntries: List<MeowPreferenceSectionEntry> = emptyList()
 
-    internal fun beginCollection(scope: RecomposeScope) {
-        sectionScope = scope
+    /** 收集轮次。主体必须在组合里读它（用作 content 的 key），否则重收不会发生。 */
+    internal var collectionEpoch by mutableIntStateOf(0)
+        private set
+
+    internal fun beginCollection() {
         collectingInBody = true
         bodyContentRan = false
         bodyEntries.clear()
@@ -50,26 +61,12 @@ class MeowPreferenceSectionScope internal constructor() {
 
     internal fun endCollection(): List<MeowPreferenceSectionEntry> {
         collectingInBody = false
-        committedEntries = when {
-            // 主体这趟真正执行了 content（哪怕条目全部 visible = false）：以本趟收集为准。
-            bodyContentRan -> bodyEntries.toList()
-            // content（或其中某个嵌套作用域）单独重跑过,而主体这趟里 content 被跳过。
-            // 单独重跑可能只执行了 content 的一部分（强跳过下嵌套作用域可以独立重启）,
-            // pending 不能当成全量整表替换——那会把没重跑到的条目全部丢掉。按 key 并入:
-            // 已有条目原位更新,新条目追加。结构性删除要等 content 真正在主体里重跑。
-            invalidationRequested -> {
-                val pendingByKey = pendingEntries.associateBy { it.key }
-                val knownKeys = committedEntries.mapTo(mutableSetOf()) { it.key }
-                buildList {
-                    committedEntries.forEach { add(pendingByKey[it.key] ?: it) }
-                    pendingEntries.forEach { if (it.key !in knownKeys) add(it) }
-                }
-            }
-            // 主体因无关原因重组且 content 被跳过：沿用上一次的条目。
-            else -> committedEntries
+        // 主体这趟真正执行了 content（哪怕条目全部 visible = false）：以本趟收集为准。
+        // 没执行（被跳过）就沿用上一份，等 epoch 换 key 后的那趟重收。
+        if (bodyContentRan) {
+            committedEntries = bodyEntries.toList()
+            recollectRequested = false
         }
-        invalidationRequested = false
-        pendingEntries.clear()
         return committedEntries
     }
 
@@ -97,19 +94,14 @@ class MeowPreferenceSectionScope internal constructor() {
                 container = container,
                 content = content,
             )
-        } else {
-            // 同理：即使条目全部隐藏也要请求主体重组，保证结构变化被渲染。
-            if (!invalidationRequested) {
-                invalidationRequested = true
-                pendingEntries.clear()
-                sectionScope?.invalidate()
-            }
-            if (!visible) return
-            pendingEntries += MeowPreferenceSectionEntry(
-                key = key ?: pendingEntries.size,
-                container = container,
-                content = content,
-            )
+            return
+        }
+        // lambda 在自己的作用域里单独重跑了。这一趟的条目一概不要（可能只是其中一部分），
+        // 只记下“要重收”：主体读到新的轮次后会在新 key 下把 content 整趟跑一遍。
+        // 条目全部隐藏时同样要重收，否则结构性删除永远渲染不出来。
+        if (!recollectRequested) {
+            recollectRequested = true
+            collectionEpoch++
         }
     }
 
