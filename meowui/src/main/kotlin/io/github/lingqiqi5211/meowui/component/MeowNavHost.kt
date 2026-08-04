@@ -1,38 +1,38 @@
 package io.github.lingqiqi5211.meowui.component
 
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.PredictiveBackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.SeekableTransitionState
-import androidx.compose.animation.core.rememberTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.runtime.DisposableEffect
+import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
-import androidx.compose.runtime.snapshotFlow
-import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
+import top.yukonga.miuix.kmp.nav.core.NavDisplay as MiuixNavDisplay
+import top.yukonga.miuix.kmp.nav.core.NavEntryBuilder as MiuixNavEntryBuilder
+import top.yukonga.miuix.kmp.nav.core.NavKey as MiuixNavKey
+import top.yukonga.miuix.kmp.nav.core.navBackStackOf as miuixNavBackStackOf
+import top.yukonga.miuix.kmp.nav.transition.NavMotion as MiuixNavMotion
+import top.yukonga.miuix.kmp.nav.transition.NavSettlePhase as MiuixNavSettlePhase
+import top.yukonga.miuix.kmp.nav.transition.NavSettleSpec as MiuixNavSettleSpec
+import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection as MiuixNavSwipeDirection
+import top.yukonga.miuix.kmp.nav.transition.NavTransition as MiuixNavTransition
+import top.yukonga.miuix.kmp.nav.transition.NavTransitionScope as MiuixNavTransitionScope
+import top.yukonga.miuix.kmp.nav.transition.NavTransitions as MiuixNavTransitions
+import top.yukonga.miuix.kmp.nav.transition.navDirectionalTransition as miuixNavDirectionalTransition
+import top.yukonga.miuix.kmp.nav.transition.navGraphicsTransition as miuixNavGraphicsTransition
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -42,16 +42,23 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 是下游最难自己做对的三件事：
  *
  * - **转场**：经典 activity 式推入/弹出（KernelSU / InstallerX 的观感）——新页面全宽
- *   滑入，旧页面向左视差约 1/4 宽并轻微压暗；弹出反向。没有尺寸动画，两页高度不同
- *   也不会斜着拉。每页自带当前风格的页面底色，层叠期间不会互相透出。
- * - **预测式返回**：手势直接拖拽弹出转场的进度（不是另做一套缩放预览），松手提交则
- *   顺势播完，取消则弹回。[predictiveBackEnabled] 为 false 时退化为普通返回键。
+ *   滑入，旧页面向左视差约 1/4 宽并轻微压暗；弹出反向。每页自带当前风格的页面底色，
+ *   层叠期间不会互相透出。
+ * - **预测式返回**：手势直接拖拽弹出转场的进度，松手提交则顺势播完，取消则弹回。
+ *   [predictiveBackEnabled] 为 false 时手势不再驱动画面，返回改为定时播完（见
+ *   [navNoPredictiveTransition]）。
  * - **方向与层级**：入栈时新页在上层滑入，出栈时旧页在上层滑走，由栈深度决定，
  *   调用侧不用再传 `isForward`。
  *
+ * 实现是 miuix-nav 的 `NavDisplay`——两套风格共用同一套导航，只是各带一条
+ * `NavTransition`。
+ *
  * [onBack] 为 null 时宿主完全不注册返回处理，只做转场——用于返回已由更外层统一处理
- * 的页面（例如编辑器有自己的脏状态确认逻辑），或该宿主当前不在前台（如寄宿在
- * pager 的后台页里）。
+ * 的页面（例如编辑器有自己的脏状态确认逻辑），或该宿主当前不在前台（如寄宿在 pager 的
+ * 后台页里）。
+ *
+ * **同一个页面对象不能在栈里出现两次**：`NavDisplay` 用它作为 saveable 状态与
+ * reconcile 的身份，重复会在 reconcile 时报错。
  */
 @Composable
 fun <T : Any> MeowNavHost(
@@ -62,133 +69,107 @@ fun <T : Any> MeowNavHost(
     content: @Composable (T) -> Unit,
 ) {
     require(backStack.isNotEmpty()) { "backStack must not be empty" }
-    val top = backStack.last()
-
-    // 方向：栈变短是弹出，其余（含同深度换栈顶）按推入处理。写在 remember 计算块里，
-    // 保证 transitionSpec 在同一趟组合里就能读到新方向。
-    var lastStack by remember { mutableStateOf(backStack) }
-    var popDirection by remember { mutableStateOf(false) }
-    if (lastStack != backStack) {
-        popDirection = backStack.size < lastStack.size
-        lastStack = backStack
-    }
-
-    val transitionState = remember { SeekableTransitionState(top) }
-    LaunchedEffect(top) {
-        if (transitionState.currentState != top || transitionState.targetState != top) {
-            transitionState.animateTo(top)
+    val routes = backStack.map { page -> MeowNavRoute(page) }
+    // 首帧就带上完整的栈，否则第一次组合会空一帧。
+    val navBackStack = remember { miuixNavBackStackOf(*routes.toTypedArray()) }
+    if (navBackStack != routes) {
+        // 同步放在 SideEffect 里而不是组合期直接写，避免同一趟组合里先写后读的回写；
+        // 代价是入栈/出栈的转场晚一帧开始。
+        SideEffect {
+            navBackStack.clear()
+            navBackStack.addAll(routes)
         }
     }
-
+    val pageColor = navPageColor()
+    val currentContent by rememberUpdatedState(content)
+    val currentPageColor by rememberUpdatedState(pageColor)
     val currentOnBack by rememberUpdatedState(onBack)
-    val currentStack by rememberUpdatedState(backStack)
-    val previous = backStack.getOrNull(backStack.lastIndex - 1)
-    val backAvailable = onBack != null && previous != null
-    if (predictiveBackEnabled) {
-        PredictiveBackHandler(enabled = backAvailable) { events ->
-            val target = previous ?: return@PredictiveBackHandler
-            try {
-                popDirection = true
-                events.collect { event ->
-                    transitionState.seekTo(event.progress.coerceIn(0f, 1f), target)
+    // NavDisplay 会按 content lambda 的身份 remember 出 entryProvider，所以这里必须给一个
+    // 稳定的 lambda：页面内容经由上面的 State 读取，不直接捕获本次组合的形参。
+    val entries: MiuixNavEntryBuilder.() -> Unit = remember {
+        {
+            entry<MeowNavRoute> { route ->
+                // 层叠期间上层页面必须不透明，否则视差中的下层页会透出来。
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(currentPageColor),
+                ) {
+                    @Suppress("UNCHECKED_CAST")
+                    currentContent(route.value as T)
                 }
-                val origin = currentStack.last()
-                currentOnBack?.invoke()
-                // 是否真正出栈由调用侧决定,而且出栈往往经由 ViewModel 异步落地。
-                // 在已拖满的位置稍候栈的变化——变了自然由上面的 effect 播完;超时
-                // 仍没变就视为返回被拦截（比如脏编辑器改弹确认框）,把页面弹回去。
-                // 不能提交后立刻核对:异步出栈的状态还没落地,会被误判成拦截,
-                // 页面先弹回再弹出,来回抽动。
-                val popped = withTimeoutOrNull(VetoSettleTimeoutMillis) {
-                    snapshotFlow { currentStack.lastOrNull() }.first { it != origin }
-                } != null
-                if (!popped) {
-                    transitionState.animateTo(transitionState.currentState)
-                }
-            } catch (error: CancellationException) {
-                // 手势取消：弹回当前页。集合抛出的取消并不终止本协程，动画完成后再抛。
-                transitionState.animateTo(transitionState.currentState)
-                throw error
             }
+        }
+    }
+    val base = when (MeowTheme.style) {
+        MeowUiStyle.MaterialExpressive -> MaterialNavTransition
+        MeowUiStyle.Miuix -> MiuixNavTransitions.MiuixDefault
+    }
+    val transition = remember(base, predictiveBackEnabled) {
+        if (predictiveBackEnabled) base else navNoPredictiveTransition(base)
+    }
+    val display = @Composable {
+        MiuixNavDisplay(
+            backStack = navBackStack,
+            modifier = modifier,
+            onBack = { currentOnBack?.invoke() },
+            transition = transition,
+            content = entries,
+        )
+    }
+    if (onBack == null) {
+        // NavDisplay 的返回处理是内建的、没有开关，但它注册到哪条分发器上是由
+        // CompositionLocal 决定的。这里给它一条**孤立**的分发器：没有父级，系统返回事件
+        // 永远送不进来，于是这个宿主的返回处理形同虚设，而外层注册在真实分发器上的处理器
+        // 照常收到返回——转场、层级、状态管理都不受影响。
+        //
+        // 置 null 行不通：provides 只收非空，而且 current 取不到时还会回落到 view tree 上
+        // 的 owner，等于没断。
+        val inert = rememberInertNavigationEventDispatcherOwner()
+        CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides inert) {
+            display()
         }
     } else {
-        BackHandler(enabled = backAvailable) { currentOnBack?.invoke() }
+        display()
     }
+}
 
-    // 层叠期间上层页面必须不透明，否则视差中的下层页会透出来。页面底色取当前风格
-    // 的 scaffold 页面色，与 MeowScaffold/MeowPreferenceScreen 的背景无缝衔接。
-    val pageColor = when (MeowTheme.style) {
-        MeowUiStyle.MaterialExpressive -> MaterialTheme.colorScheme.surfaceContainer
-        // MiuixScaffold 的 containerColor 默认值;background 在浅色下更白,会跳色。
-        MeowUiStyle.Miuix -> MiuixTheme.colorScheme.surface
+/**
+ * 一条不接任何输入的分发器：宿主不该接管返回时，把它喂给 NavDisplay。
+ *
+ * 它没有父级，所以既收不到系统返回，也不会把事件从真实分发器那里截走。
+ */
+@Composable
+private fun rememberInertNavigationEventDispatcherOwner(): NavigationEventDispatcherOwner {
+    val owner = remember {
+        object : NavigationEventDispatcherOwner {
+            override val navigationEventDispatcher = NavigationEventDispatcher()
+        }
     }
-    val durationMillis = when (MeowTheme.style) {
-        MeowUiStyle.MaterialExpressive -> 350
-        MeowUiStyle.Miuix -> 380
-    }
-
-    // 被盖住的页面在转场结束后会离开组合;rememberSaveable 状态经由这里的 holder
-    // 存续,弹回时滚动位置、pager 页等都还在原处。
-    val stateHolder = rememberSaveableStateHolder()
-    // 但保留只给"仍在栈里"的页面:已经弹出的页面把保存的状态一并丢弃,下次再进
-    // 是一张新页(滚动回到顶部),而不是接着上次的位置。清理放在转场落定之后,
-    // 退出中的页面此时才真正离开组合。
-    val retainedKeys = remember { mutableSetOf<String>() }
-    val transition = rememberTransition(transitionState, label = "MeowNavHost")
-    if (transitionState.currentState == transitionState.targetState) {
-        val liveKeys = backStack.map { it.toString() }
-        SideEffect {
-            val iterator = retainedKeys.iterator()
-            while (iterator.hasNext()) {
-                val key = iterator.next()
-                if (key !in liveKeys) {
-                    stateHolder.removeState(key)
-                    iterator.remove()
-                }
+    DisposableEffect(owner) {
+        onDispose {
+            try {
+                owner.navigationEventDispatcher.dispose()
+            } catch (_: IllegalStateException) {
+                // 子分发器的级联释放可能已经带走了它。
             }
         }
     }
-    transition.AnimatedContent(
-        modifier = modifier,
-        transitionSpec = {
-            val slide = tween<IntOffset>(durationMillis, easing = NavEasing)
-            val fade = tween<Float>(durationMillis, easing = NavEasing)
-            val transform = if (popDirection) {
-                ContentTransform(
-                    targetContentEnter = slideInHorizontally(slide) { -it / 4 } +
-                        fadeIn(fade, initialAlpha = CoveredAlpha),
-                    initialContentExit = slideOutHorizontally(slide) { it },
-                    sizeTransform = null,
-                )
-            } else {
-                ContentTransform(
-                    targetContentEnter = slideInHorizontally(slide) { it },
-                    initialContentExit = slideOutHorizontally(slide) { -it / 4 } +
-                        fadeOut(fade, targetAlpha = CoveredAlpha),
-                    sizeTransform = null,
-                )
-            }
-            // 目标页的层级取它在栈里的深度：推入时新页更深所以在上层滑入，弹出时目标
-            // 更浅所以旧页保持在上层滑走。
-            transform.targetContentZIndex = currentStack.indexOf(targetState).toFloat()
-            transform
-        },
-    ) { page ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(pageColor),
-        ) {
-            // 键用字符串而不是页面对象本身:SaveableStateProvider 要求键能存进
-            // Bundle,而页面完全可以是普通的 data object/data class。枚举、data 类的
-            // toString 稳定且互不相同,跨进程恢复也一致。
-            val key = page.toString()
-            SideEffect { retainedKeys += key }
-            stateHolder.SaveableStateProvider(key = key) {
-                content(page)
-            }
-        }
-    }
+    return owner
+}
+
+/** 把调用侧的任意页面对象包成 `NavDisplay` 认得的路由。 */
+private data class MeowNavRoute(val value: Any) : MiuixNavKey
+
+/**
+ * 页面底色：取当前风格的 scaffold 页面色，与 MeowScaffold/MeowPreferenceScreen 的背景
+ * 无缝衔接。
+ */
+@Composable
+private fun navPageColor(): Color = when (MeowTheme.style) {
+    MeowUiStyle.MaterialExpressive -> MaterialTheme.colorScheme.surfaceContainer
+    // MiuixScaffold 的 containerColor 默认值；background 在浅色下更白，会跳色。
+    MeowUiStyle.Miuix -> MiuixTheme.colorScheme.surface
 }
 
 // 快出极缓入：前段快速让位、尾段长收敛，是各家 activity 转场共用的曲线形状。
@@ -197,5 +178,96 @@ private val NavEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 // 视差中被盖住的页面压暗到的透明度。
 private const val CoveredAlpha = 0.75f
 
-// 提交预测式返回后等待调用侧真正出栈的时限,超时视为返回被拦截。
-private const val VetoSettleTimeoutMillis = 350L
+// 被盖住的页面向前视差的宽度比例。
+private const val CoveredParallaxFraction = 0.25f
+
+private const val MaterialNavDurationMillis = 350
+
+// 关掉预测式返回后，提交/取消各自定时播完的时长。
+private const val NoPredictiveMillis = 350
+
+/**
+ * Material 分支的转场：几何上和 miuix 那条一致（新页全宽滑入、被盖住的页向前视差 1/4 宽），
+ * 差别在压暗幅度和时长——沿用本组件原来自绘时的 [CoveredAlpha] 与 [NavEasing]，换实现不换观感。
+ *
+ * 手势提交/取消走 [MiuixNavMotion] 的默认弹簧：那两段要跟手，续速度的弹簧比定时曲线合适。
+ */
+private val MaterialNavTransition: MiuixNavTransition = miuixNavGraphicsTransition(
+    motion = MiuixNavMotion(
+        programmatic = MiuixNavSettleSpec.Tween(
+            durationMillis = MaterialNavDurationMillis,
+            easing = NavEasing,
+        ),
+    ),
+) { scope ->
+    val width = scope.layoutSize.width.toFloat()
+    val depth = scope.relativeDepth
+    val rtl = scope.layoutDirection == LayoutDirection.Rtl
+    if (depth <= 0f) {
+        translationX = (if (rtl) -1f else 1f) * (-depth).coerceIn(0f, 1f) * width
+    } else {
+        val covered = depth.coerceIn(0f, 1f)
+        translationX = (if (rtl) 1f else -1f) * covered * width * CoveredParallaxFraction
+        alpha = 1f - (1f - CoveredAlpha) * covered
+    }
+}
+
+/**
+ * 关掉预测式返回：手势不再驱动画面。
+ *
+ * `NavDisplay` 的返回处理没有开关，手势会话照常发生；能改的是**画面怎么响应**。所以这里
+ * 包一层：手势按住期间把深度冻结在抓取那一刻（画面不动），松手提交/取消时再从冻结处定时
+ * 播到终点。观感等同于普通返回键，同时保留了 NavDisplay 的层级、状态与生命周期管理。
+ *
+ * 思路参考 InstallerX-Revived 的做法（它同样用 `navDirectionalTransition` 的 `predictivePop`
+ * 分支接管手势期的画面），实现为独立编写。
+ */
+private fun navNoPredictiveTransition(base: MiuixNavTransition): MiuixNavTransition =
+    miuixNavDirectionalTransition(
+        push = base,
+        pop = base,
+        predictivePop = object : MiuixNavTransition {
+            override val opaqueDepth: Float = base.opaqueDepth
+
+            // 手势不驱动画面，就没有可跟手的滑动关闭。
+            override val dismissDirection: MiuixNavSwipeDirection = MiuixNavSwipeDirection.None
+
+            override val motion: MiuixNavMotion = MiuixNavMotion(
+                commit = MiuixNavSettleSpec.Tween(NoPredictiveMillis, NavEasing),
+                cancel = MiuixNavSettleSpec.Tween(NoPredictiveMillis, NavEasing),
+            )
+
+            override fun scrimFraction(scope: MiuixNavTransitionScope): Float =
+                base.scrimFraction(scope.withFrozenGestureDepth())
+
+            override fun Modifier.transformEntry(scope: MiuixNavTransitionScope): Modifier {
+                val outer = this
+                return with(base) { outer.transformEntry(scope.withFrozenGestureDepth()) }
+            }
+        },
+    )
+
+/**
+ * 把手势带来的那部分深度变化抵消掉。
+ *
+ * 手指拖动时 `relativeDepth` 会随 `gesture.progress` 线性偏移，冻结即把它加回去。松手后
+ * settle 阶段再按已播时长从冻结值插值到真实深度——起点等于冻结值，所以提交那一刻不会跳。
+ */
+private fun MiuixNavTransitionScope.withFrozenGestureDepth(): MiuixNavTransitionScope {
+    val gesture = gesture ?: return this
+    val frozen = relativeDepth + gesture.progress
+    val settle = settle
+    val depth = if (settle == null || settle.phase == MiuixNavSettlePhase.Programmatic) {
+        frozen
+    } else {
+        val played = (settle.elapsedMillis / NoPredictiveMillis).coerceIn(0f, 1f)
+        val eased = NavEasing.transform(played)
+        frozen + (relativeDepth - frozen) * eased
+    }
+    return FrozenDepthScope(this, depth)
+}
+
+private class FrozenDepthScope(
+    delegate: MiuixNavTransitionScope,
+    override val relativeDepth: Float,
+) : MiuixNavTransitionScope by delegate
