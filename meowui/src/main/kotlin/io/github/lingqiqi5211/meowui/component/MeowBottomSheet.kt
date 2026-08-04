@@ -3,6 +3,7 @@ package io.github.lingqiqi5211.meowui.component
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,6 +40,9 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  * Miuix 分支必须在某个 [MeowScaffold]（或 miuix Scaffold）的组合子树内调用：抽屉经由
  * Scaffold 提供的 popup host 渲染，放在 Scaffold 之外（例如与 Scaffold 平级的导航层）
  * 时不会显示。Material 分支无此限制，但为两风格行为一致，请统一放进 Scaffold 内容里。
+ *
+ * [fullHeight] 让抽屉一开就顶满、也不会停在半展开：内容自己占满剩余高度，并且不再由抽屉
+ * 代为滚动——里面装浏览器一类会换内容的东西时，抽屉高度就不跟着内容一级一级地跳。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,11 +53,20 @@ fun MeowBottomSheet(
     title: String = "",
     startAction: (@Composable () -> Unit)? = null,
     endAction: (@Composable () -> Unit)? = null,
+    fullHeight: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     MeowStyleContent(
         materialExpressive = {
-            val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+            val sheetState = rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                // 顶满时不给半展开这一档，否则抽屉会先停在一半高的位置。
+                enabledValues = if (fullHeight) {
+                    setOf(SheetValue.Hidden, SheetValue.Expanded)
+                } else {
+                    SheetValue.entries.toSet()
+                },
+            )
             // show 变为 false 时先播放收起动画再移除，和 Miuix WindowBottomSheet 行为一致。
             var visible by remember { mutableStateOf(show) }
             LaunchedEffect(show) {
@@ -65,6 +78,9 @@ fun MeowBottomSheet(
                 }
             }
             if (visible) {
+                // 返回键交给 ModalBottomSheet 自己（直接关，没有跟手过程）。M3 至今只给抽屉式
+                // 导航栏做了预测式返回，底部抽屉没有；自己接需要先关掉 dialog 的「按返回即关」
+                // 再在抽屉内容里收手势，落地效果不理想——等上游给方案。
                 MaterialModalBottomSheet(
                     onDismissRequest = onDismissRequest,
                     modifier = modifier,
@@ -78,11 +94,13 @@ fun MeowBottomSheet(
                     // ModalBottomSheet 的内容槽位没有任何内边距,分组卡片会顶到抽屉
                     // 左右边缘。miuix 的 insideMargin 默认已经留了边距,这里补齐。
                     Column(
-                        modifier = Modifier.padding(
-                            start = MeowTheme.dimensions.pageHorizontalPadding,
-                            end = MeowTheme.dimensions.pageHorizontalPadding,
-                            bottom = MeowTheme.dimensions.pageHorizontalPadding,
-                        ),
+                        modifier = Modifier
+                            .then(if (fullHeight) Modifier.weight(1f) else Modifier)
+                            .padding(
+                                start = MeowTheme.dimensions.pageHorizontalPadding,
+                                end = MeowTheme.dimensions.pageHorizontalPadding,
+                                bottom = MeowTheme.dimensions.pageHorizontalPadding,
+                            ),
                         content = content,
                     )
                 }
@@ -108,9 +126,18 @@ fun MeowBottomSheet(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .scrollEndHaptic()
-                            .overScrollVertical()
-                            .verticalScroll(rememberScrollState())
+                            // 顶满时内容自己管滚动，抽屉不再代为滚动——否则里面的列表
+                            // 拿到的是无界高度，占不满也滚不动。
+                            .then(
+                                if (fullHeight) {
+                                    Modifier.fillMaxHeight()
+                                } else {
+                                    Modifier
+                                        .scrollEndHaptic()
+                                        .overScrollVertical()
+                                        .verticalScroll(rememberScrollState())
+                                },
+                            )
                             // 抽屉内容与底部边缘之间的垫高,与 Material 分支一致。
                             .padding(bottom = 16.dp),
                     ) {

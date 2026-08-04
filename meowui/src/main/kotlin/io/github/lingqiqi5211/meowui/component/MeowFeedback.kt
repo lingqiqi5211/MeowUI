@@ -1,5 +1,6 @@
 package io.github.lingqiqi5211.meowui.component
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -220,46 +221,53 @@ private fun TipContent(
     bodyColor: Color,
     action: (@Composable () -> Unit)?,
 ) {
-    Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MeowStyleContent(
-            materialExpressive = {
-                MaterialIcon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = iconTint,
-                )
-            },
-            miuix = {
-                MiuixIcon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = iconTint,
-                )
-            },
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            title?.takeIf(String::isNotBlank)?.let { text ->
-                MeowText(
-                    text = text,
-                    color = titleColor,
-                    style = MeowTheme.typography.title,
-                )
-            }
-            MeowText(
-                text = message,
-                color = bodyColor,
-                style = MeowTheme.typography.summary,
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MeowStyleContent(
+                materialExpressive = {
+                    MaterialIcon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = iconTint,
+                    )
+                },
+                miuix = {
+                    MiuixIcon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = iconTint,
+                    )
+                },
             )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                title?.takeIf(String::isNotBlank)?.let { text ->
+                    MeowText(
+                        text = text,
+                        color = titleColor,
+                        style = MeowTheme.typography.title,
+                    )
+                }
+                MeowText(
+                    text = message,
+                    color = bodyColor,
+                    style = MeowTheme.typography.summary,
+                )
         }
+        }
+        // 动作独占一行、靠右。和图标、正文挤在同一行时，正文被压成很窄的一栏——
+        // 有标题、正文又不止一句的提示卡尤其明显。
         action?.let {
-            Spacer(Modifier.width(8.dp))
-            it()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                it()
+            }
         }
     }
 }
