@@ -590,6 +590,13 @@ private fun MaterialMenuSinkContent(
     var headerOffset by remember { mutableStateOf(0) }
     val parent = submenuParent(groups, displayedKey)
     val anchor = displayedKey?.let { anchors[it] }
+    // 展开的是弹窗全局第一行时，二级从面板顶端起、盖住整张卡（下面把它的最小高度撑到一级
+    // 那么高），一级的缩放与压暗就没有意义——上游那边也是这个视觉结果：miuix 的一级照样缩，
+    // 但二级按 union rect 测量，第一行展开时它整块盖住，缩和压暗都看不见。空分组要跳过，
+    // 否则"第一行"会算到一个没有行的分组上。
+    val firstNonEmptyGroup = remember(groups) { groups.indexOfFirst { it.isNotEmpty() } }
+    val anchorIsPopupFirst = displayedKey != null && displayedKey == "$firstNonEmptyGroup:0"
+    val sinkFraction = if (anchorIsPopupFirst) 0f else expandFraction
     val anchorTop = anchor?.top ?: 0
     val anchorHeight = anchor?.height ?: 0
     val cornerPx = with(LocalDensity.current) { SinkCornerRadius.toPx() }
@@ -611,7 +618,7 @@ private fun MaterialMenuSinkContent(
                         .graphicsLayer {
                             // 朝弹窗生长的那个角收（顶栏菜单在末端图标底下），不是绕中心。
                             transformOrigin = TransformOrigin(if (rtl) 0f else 1f, 0f)
-                            val sink = 1f - (1f - SinkShrunkScale) * expandFraction
+                            val sink = 1f - (1f - SinkShrunkScale) * sinkFraction
                             scaleX = sink
                             scaleY = sink
                         }
@@ -622,7 +629,7 @@ private fun MaterialMenuSinkContent(
                             drawContent()
                             drawRect(
                                 color = Color.Black,
-                                alpha = SinkDarkenAmount * expandFraction,
+                                alpha = SinkDarkenAmount * sinkFraction,
                                 blendMode = BlendMode.SrcAtop,
                             )
                         },
@@ -758,7 +765,16 @@ private fun MaterialMenuSinkContent(
         val primary = measurables[0].measure(constraints)
         // 二级与一级同宽：宽度一变，弹窗就要重算锚点并跳位置。
         val secondary = measurables.getOrNull(1)?.measure(
-            constraints.copy(minWidth = primary.width, maxWidth = primary.width),
+            constraints.copy(
+                minWidth = primary.width,
+                maxWidth = primary.width,
+                // 第一行展开时二级要盖住整张卡（上游按 union rect 测量二级，同一个意思）。
+                minHeight = if (anchorIsPopupFirst) {
+                    primary.height.coerceAtMost(constraints.maxHeight)
+                } else {
+                    constraints.minHeight
+                },
+            ),
         )
         // 头行要压在锚点行上，所以面板整体上移它在面板里的偏移。
         val secondaryY = (anchorTop - headerOffset).coerceAtLeast(0)
