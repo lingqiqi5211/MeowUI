@@ -41,11 +41,10 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.ui.tooling.preview)
-    implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigationevent.compose)
-    // miuix 的 navigation3-ui fork 直接内嵌 androidx.navigation3.ui 包名类
-    //（NavDisplay 等来自这里），不要再同时引入官方 navigation3-ui,否则会重复类。
-    implementation(libs.miuix.navigation)
+    // 导航统一走 miuix-nav（上游 2026-07-25 用它取代了 miuix-navigation3-ui）：NavDisplay /
+    // NavKey 都在 top.yukonga.miuix.kmp.nav 下自成一套，androidx.navigation3 已不再引入。
+    implementation(libs.miuix.nav)
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.kotlinx.coroutines.android)
 

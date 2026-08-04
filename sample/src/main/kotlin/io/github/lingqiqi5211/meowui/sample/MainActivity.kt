@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
@@ -65,12 +66,15 @@ import io.github.lingqiqi5211.meowui.component.MeowColorPaletteDialog
 import io.github.lingqiqi5211.meowui.component.MeowColorPaletteMode
 import io.github.lingqiqi5211.meowui.component.MeowPopupPreference
 import io.github.lingqiqi5211.meowui.component.MeowLoadingDialog
+import io.github.lingqiqi5211.meowui.component.MeowMenuCascade
 import io.github.lingqiqi5211.meowui.component.MeowMenuItem
 import io.github.lingqiqi5211.meowui.component.MeowNavHost
 import io.github.lingqiqi5211.meowui.component.MeowNavigationBar
 import io.github.lingqiqi5211.meowui.component.MeowNavigationBarStyle
 import io.github.lingqiqi5211.meowui.component.MeowNavigationItem
 import io.github.lingqiqi5211.meowui.component.MeowPreferenceScreen
+import io.github.lingqiqi5211.meowui.component.MeowBreadcrumbBar
+import io.github.lingqiqi5211.meowui.component.MeowBreadcrumbItem
 import io.github.lingqiqi5211.meowui.component.MeowPreferenceSection
 import io.github.lingqiqi5211.meowui.component.MeowPullToRefresh
 import io.github.lingqiqi5211.meowui.component.MeowScaffold
@@ -245,7 +249,11 @@ private fun SampleSettings(
     val writeInterfaceScale = rememberMeowPreferenceWriter(SamplePreferences.InterfaceScale)
     // MeowNavHost 的返回栈就是调用侧的一个普通列表:推入/弹出即换一个列表,
     // 转场、预测式返回拖拽与页面层级全部由宿主接管。
-    // 顶栏菜单三形态（照 miuix 官方示例首页）：级联 / 分组单选 / 多选。
+    // 顶栏菜单形态（照 miuix 官方示例首页）：级联（下钻 / 下沉堆叠两种样式）
+    // / 分组单选 / 多选。
+    var sinkSort by rememberSaveable { mutableIntStateOf(0) }
+    var sinkView by rememberSaveable { mutableIntStateOf(0) }
+    var sinkFilter by rememberSaveable { mutableIntStateOf(0) }
     var cascadeSort by rememberSaveable { mutableIntStateOf(0) }
     var cascadeView by rememberSaveable { mutableIntStateOf(0) }
     var cascadeFilter by rememberSaveable { mutableIntStateOf(0) }
@@ -324,7 +332,8 @@ private fun SampleSettings(
                             contentDescription = "About MeowUI",
                             onClick = { showAlert = true },
                         ),
-                        // 级联菜单：选完即收，子菜单里的选项带选中标记。
+                        // 级联菜单样式 A（下钻）：子菜单替换主菜单内容，顶部一行回上级。
+                        // 选完即收，子菜单里的选项带选中标记。
                         MeowTopBarAction.Menu(
                             icon = Icons.Rounded.Tune,
                             contentDescription = "Cascading options",
@@ -358,6 +367,49 @@ private fun SampleSettings(
                                                     text = label,
                                                     selected = cascadeFilter == index,
                                                     onClick = { cascadeFilter = index },
+                                                )
+                                            },
+                                    ),
+                                ),
+                            ),
+                        ),
+                        // 级联菜单样式 B（下沉堆叠）：主菜单原地下沉压暗，子菜单从父项
+                        // 那一行长出来盖在上面——复刻 miuix 级联弹窗的观感。故意不自动
+                        // 收起：选完留在原地才看得出勾选有没有跟着变。
+                        MeowTopBarAction.Menu(
+                            icon = Icons.Rounded.Layers,
+                            contentDescription = "Cascading options (sink)",
+                            cascade = MeowMenuCascade.Sink,
+                            collapseOnSelection = false,
+                            groups = listOf(
+                                listOf("Sort by capture date", "Sort by date added")
+                                    .mapIndexed { index, label ->
+                                        MeowMenuItem(
+                                            text = label,
+                                            selected = sinkSort == index,
+                                            onClick = { sinkSort = index },
+                                        )
+                                    },
+                                listOf(
+                                    MeowMenuItem(
+                                        text = "View mode",
+                                        children = listOf("Group by date", "Compact")
+                                            .mapIndexed { index, label ->
+                                                MeowMenuItem(
+                                                    text = label,
+                                                    selected = sinkView == index,
+                                                    onClick = { sinkView = index },
+                                                )
+                                            },
+                                    ),
+                                    MeowMenuItem(
+                                        text = "Filter",
+                                        children = listOf("All items", "Camera album")
+                                            .mapIndexed { index, label ->
+                                                MeowMenuItem(
+                                                    text = label,
+                                                    selected = sinkFilter == index,
+                                                    onClick = { sinkFilter = index },
                                                 )
                                             },
                                     ),
@@ -752,6 +804,30 @@ private fun SettingsPage(
                         }
                     }
 
+                    // 面包屑：文件选择器那套路径导航。点某一段就回到那一级，
+                    // 路径长到超出屏宽时横向滚动而不是折叠，高亮段会自动滚到中间。
+                    var breadcrumbPath by rememberSaveable {
+                        mutableStateOf(listOf("Internal storage", "Android", "data"))
+                    }
+                    MeowPreferenceSection(title = "Breadcrumb") {
+                        MeowActionPreference(
+                            title = "Go deeper",
+                            summary = breadcrumbPath.joinToString("/"),
+                            onClick = {
+                                breadcrumbPath = breadcrumbPath +
+                                    SampleBreadcrumbSegments[
+                                        breadcrumbPath.size % SampleBreadcrumbSegments.size,
+                                    ]
+                            },
+                        )
+                    }
+                    MeowBreadcrumbBar(
+                        items = breadcrumbPath.map { segment -> MeowBreadcrumbItem(segment) },
+                        onItemClick = { index ->
+                            breadcrumbPath = breadcrumbPath.take(index + 1)
+                        },
+                    )
+
                     // Spinner 形态（照 miuix 示例 Spinner 区）：带图标+副文本的选项、
                     // 分组不收起、单项禁用。
                     var spinnerColor by rememberSaveable { mutableStateOf("Red") }
@@ -924,6 +1000,13 @@ private fun SamplePaletteDot(color: Color) {
 }
 
 /** 示例用的“应用图标”：40dp 圆形色块加首字母，实际应用应换成真实应用图标。 */
+private val SampleBreadcrumbSegments = listOf(
+    "com.meow.sample",
+    "files",
+    "cache",
+    "a-very-long-folder-name-that-gets-truncated",
+)
+
 @Composable
 private fun SampleAppIcon(color: Color, letter: String) {
     Box(
