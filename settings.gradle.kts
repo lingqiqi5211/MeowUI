@@ -23,28 +23,55 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        // miuix snapshots, for components that have landed upstream but are not in a
-        // release yet (BreadcrumbBar). GitHub Packages needs a token even for public
-        // packages: put `gpr.user` / `gpr.key` (a PAT with `read:packages`) in
-        // ~/.gradle/gradle.properties, or export GITHUB_ACTOR / GITHUB_TOKEN.
-        //
-        // While a snapshot is in the version catalogue MeowUI CANNOT be published to
-        // Maven Central: the POM would point at a coordinate nobody else can resolve.
-        maven {
-            name = "miuixSnapshots"
-            url = uri("https://maven.pkg.github.com/compose-miuix-ui/miuix")
-            credentials {
-                username = providers.gradleProperty("gpr.user").orNull
-                    ?: System.getenv("GITHUB_ACTOR")
-                password = providers.gradleProperty("gpr.key").orNull
-                    ?: System.getenv("GITHUB_TOKEN")
-            }
-            mavenContent { includeGroupAndSubgroups("top.yukonga.miuix.kmp") }
-        }
     }
 }
 
-rootProject.name = "MeowUI"
+// 不叫 MeowUI：miuix 以复合构建引入后，类型安全工程访问器对整个构建树生效，根项目与
+// :meowui 只差大小写，会撞生成文件名（Windows 上不区分大小写）。
+rootProject.name = "meowui-project"
+
+// miuix 是本仓库的 submodule，以复合构建方式引入。
+//
+// 这个分支要用的是 miuix 主线上还没进正式版的组件（BreadcrumbBar、miuix-nav），此前钉的是
+// GitHub Packages 上的快照——公开包也要 token，等于让每个消费方都先登录一次 GitHub。改成
+// submodule 之后，版本由 submodule 指针钉住，构建不再需要任何凭据。
+//
+// Gradle 会把 top.yukonga.miuix.kmp:* 这些坐标替换成 submodule 里的工程，版本目录里那几条
+// 退化成「期望哪一版」的记录。
+val miuixDir = file("third_party/miuix")
+require(miuixDir.resolve("settings.gradle.kts").isFile) {
+    """
+    miuix submodule is not checked out at ${miuixDir.absolutePath}
+
+        git submodule update --init --recursive
+
+    (from this repository's root, or clone with `git clone --recurse-submodules`.)
+    """.trimIndent()
+}
+// 内层构建按自己的 local.properties（或 ANDROID_HOME）找 SDK，新拉的 submodule 没有这份文件。
+// 从本构建的那份播种一次，值变了也重写——SDK 挪了位置不会留下过期路径。两个文件都在 .gitignore 里。
+val hostLocalProperties = file("local.properties")
+if (hostLocalProperties.isFile) {
+    val hostProperties = java.util.Properties()
+    hostLocalProperties.inputStream().use(hostProperties::load)
+    val sdkDir = hostProperties.getProperty("sdk.dir")
+    val submoduleLocalProperties = miuixDir.resolve("local.properties")
+    val seededSdkDir = submoduleLocalProperties
+        .takeIf { it.isFile }
+        ?.let { existing ->
+            val properties = java.util.Properties()
+            existing.inputStream().use(properties::load)
+            properties.getProperty("sdk.dir")
+        }
+    if (sdkDir != null && sdkDir != seededSdkDir) {
+        val seeded = java.util.Properties()
+        seeded.setProperty("sdk.dir", sdkDir)
+        submoduleLocalProperties.outputStream().use { out ->
+            seeded.store(out, "Seeded from MeowUI/local.properties by settings.gradle.kts")
+        }
+    }
+}
+includeBuild(miuixDir)
 
 include(":meowui")
 include(":meowui-xposed")

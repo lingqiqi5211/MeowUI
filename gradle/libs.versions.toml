@@ -39,7 +39,7 @@ compose-material3 = { module = "androidx.compose.material3:material3", version.r
 miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui", version.ref = "miuix" }
 miuix-preference = { module = "top.yukonga.miuix.kmp:miuix-preference", version.ref = "miuix" }
 miuix-icons = { module = "top.yukonga.miuix.kmp:miuix-icons", version.ref = "miuix" }
-miuix-blur-android = { module = "top.yukonga.miuix.kmp:miuix-blur-android", version.ref = "miuix" }
+miuix-blur-android = { module = "top.yukonga.miuix.kmp:miuix-blur", version.ref = "miuix" }
 miuix-nav = { module = "top.yukonga.miuix.kmp:miuix-nav", version.ref = "miuix" }
 
 androidx-navigationevent-compose = { module = "androidx.navigationevent:navigationevent-compose", version = "1.1.2" }
