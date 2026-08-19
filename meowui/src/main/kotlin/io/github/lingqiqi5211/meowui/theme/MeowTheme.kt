@@ -52,6 +52,59 @@ data class MeowColorScheme(
     val divider: Color,
     val error: Color,
     val onError: Color,
+    // 成对的容器色。两套设计体系各自都有这一组，只是取值风格不同:Material 的容器带明显
+    // 色调,Miuix 的更灰更平。调用侧自建的小色块(状态标签、图标底、状态卡)需要它们,
+    // 而在这里各分支映射自己的调色板,就不会出现「Miuix 皮肤下画着 Material 容器色」。
+    val primaryContainer: Color,
+    val onPrimaryContainer: Color,
+    val secondaryContainer: Color,
+    val onSecondaryContainer: Color,
+    val tertiaryContainer: Color,
+    val onTertiaryContainer: Color,
+    val errorContainer: Color,
+    val onErrorContainer: Color,
+    /** 比 [surfaceVariant] 再高一档的中性底,用于卡片里还要再分一层的小色块。 */
+    val surfaceContainerHighest: Color,
+    val onSurfaceContainerHighest: Color,
+    // 「成功」「警告」两档语义色。两套设计体系都没有定义它们:Material 只有 primary/
+    // secondary/tertiary/error 四组,Miuix 连 tertiary 都只是一档蓝。而「正常 / 已降级」
+    // 这种状态是应用普遍需要表达的,把它硬塞进 tertiary 会和「信息」撞色,塞进 error 又
+    // 会把降级说成故障。因此这两档由库按深浅色给定,两种风格下取值一致 —— 状态色本身就
+    // 该跨皮肤保持稳定,绿色是好、琥珀色是要注意。
+    val successContainer: Color,
+    val onSuccessContainer: Color,
+    val warningContainer: Color,
+    val onWarningContainer: Color,
+)
+
+/**
+ * 语义状态色，按深浅色给出。
+ *
+ * 与调色板无关:它们表达的是「好 / 要注意」，不是主题强调色，跟着 seed 变会让绿色变成
+ * 紫色,状态也就读不出来了。
+ */
+internal fun meowStatusColors(darkTheme: Boolean): MeowStatusColors = if (darkTheme) {
+    MeowStatusColors(
+        successContainer = Color(0xFF1E3B2A),
+        onSuccessContainer = Color(0xFF8FD9A8),
+        warningContainer = Color(0xFF3B2F14),
+        onWarningContainer = Color(0xFFF0C069),
+    )
+} else {
+    MeowStatusColors(
+        successContainer = Color(0xFFDCF0E2),
+        onSuccessContainer = Color(0xFF1B5E38),
+        warningContainer = Color(0xFFFBEBD2),
+        onWarningContainer = Color(0xFF7A4E07),
+    )
+}
+
+@Immutable
+internal data class MeowStatusColors(
+    val successContainer: Color,
+    val onSuccessContainer: Color,
+    val warningContainer: Color,
+    val onWarningContainer: Color,
 )
 
 @Immutable
@@ -295,6 +348,7 @@ private fun MaterialExpressiveContent(
         motionScheme = MotionScheme.expressive(),
     ) {
         val colors = MaterialTheme.colorScheme
+        val status = meowStatusColors(darkTheme)
         val typography = MaterialTheme.typography
         CompositionLocalProvider(
             LocalMeowUiStyle provides MeowUiStyle.MaterialExpressive,
@@ -311,6 +365,20 @@ private fun MaterialExpressiveContent(
                 divider = colors.outlineVariant,
                 error = colors.error,
                 onError = colors.onError,
+                primaryContainer = colors.primaryContainer,
+                onPrimaryContainer = colors.onPrimaryContainer,
+                secondaryContainer = colors.secondaryContainer,
+                onSecondaryContainer = colors.onSecondaryContainer,
+                tertiaryContainer = colors.tertiaryContainer,
+                onTertiaryContainer = colors.onTertiaryContainer,
+                errorContainer = colors.errorContainer,
+                onErrorContainer = colors.onErrorContainer,
+                surfaceContainerHighest = colors.surfaceContainerHighest,
+                onSurfaceContainerHighest = colors.onSurface,
+                successContainer = status.successContainer,
+                onSuccessContainer = status.onSuccessContainer,
+                warningContainer = status.warningContainer,
+                onWarningContainer = status.onWarningContainer,
             ),
             LocalMeowTypography provides MeowTypography(
                 pageTitle = typography.headlineMedium,
@@ -398,6 +466,8 @@ private fun MiuixContentInner(
 ) {
     MiuixTheme(colors = animatedColors) {
         val colors = MiuixTheme.colorScheme
+        // 这层拿不到 darkTheme 参数，读上游已经写入的 local，避免为一个布尔再穿一层参数。
+        val status = meowStatusColors(LocalMeowDarkTheme.current)
         val typography = MiuixTheme.textStyles
         CompositionLocalProvider(
             LocalMeowUiStyle provides MeowUiStyle.Miuix,
@@ -414,6 +484,20 @@ private fun MiuixContentInner(
                 divider = colors.dividerLine,
                 error = colors.error,
                 onError = colors.onError,
+                primaryContainer = colors.primaryContainer,
+                onPrimaryContainer = colors.onPrimaryContainer,
+                secondaryContainer = colors.secondaryContainer,
+                onSecondaryContainer = colors.onSecondaryContainer,
+                tertiaryContainer = colors.tertiaryContainer,
+                onTertiaryContainer = colors.onTertiaryContainer,
+                errorContainer = colors.errorContainer,
+                onErrorContainer = colors.onErrorContainer,
+                surfaceContainerHighest = colors.surfaceContainerHighest,
+                onSurfaceContainerHighest = colors.onSurfaceContainerHighest,
+                successContainer = status.successContainer,
+                onSuccessContainer = status.onSuccessContainer,
+                warningContainer = status.warningContainer,
+                onWarningContainer = status.onWarningContainer,
             ),
             LocalMeowTypography provides MeowTypography(
                 pageTitle = typography.title2,
