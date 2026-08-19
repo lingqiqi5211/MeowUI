@@ -69,6 +69,7 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.overlay.OverlayCascadingListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -794,6 +795,12 @@ private data class SinkAnchor(
     val count: Int,
 )
 
+/** ✓ 淡入淡出的时长：够短不拖慢点击反馈，够长能被看见。 */
+private val CheckMarkAnimationSpec = tween<Float>(durationMillis = 150, easing = EaseOutCubic)
+
+/** ✓ 出现时的起始缩放；不从 0 开始，否则末尾一段几乎看不见，只剩突然出现。 */
+private const val CheckMarkScaleFrom = 0.7f
+
 @Composable
 private fun MaterialTopBarMenuItem(
     item: MeowMenuItem,
@@ -840,15 +847,30 @@ private fun MaterialTopBarMenuItem(
                     )
                     // 可选中项恒定保留 ✓ 槽位（未选中时隐形）：否则切换选中会
                     // 改变行宽，不收起的菜单每点一下弹窗就重排跳位。
-                    item.selected != null -> MaterialIcon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .padding(start = 12.dp)
-                            .graphicsLayer {
-                                alpha = if (item.selected == true) 1f else 0f
-                            },
-                    )
+                    //
+                    // 也正因为槽位恒定，切换时没有任何位移可以带眼睛，一帧硬切 alpha
+                    // 看着像闪一下而不像"选中变了"；不收起的菜单里标记要当着用户的面
+                    // 从一行挪到另一行，所以淡入淡出，并带一点缩放让它是"长出来"的。
+                    item.selected != null -> {
+                        val selectedProgress by animateFloatAsState(
+                            targetValue = if (item.selected == true) 1f else 0f,
+                            animationSpec = CheckMarkAnimationSpec,
+                            label = "menuItemCheck",
+                        )
+                        MaterialIcon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(start = 12.dp)
+                                .graphicsLayer {
+                                    alpha = selectedProgress
+                                    val scale = CheckMarkScaleFrom +
+                                        (1f - CheckMarkScaleFrom) * selectedProgress
+                                    scaleX = scale
+                                    scaleY = scale
+                                },
+                        )
+                    }
                 }
             }
         },
