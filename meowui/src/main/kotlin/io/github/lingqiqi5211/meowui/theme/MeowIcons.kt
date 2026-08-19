@@ -32,7 +32,7 @@ import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.File
 import top.yukonga.miuix.kmp.icon.extended.Filter
 import top.yukonga.miuix.kmp.icon.extended.GridView
-import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.icon.extended.Layers
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.ListView
 import top.yukonga.miuix.kmp.icon.extended.Notes
@@ -90,14 +90,17 @@ object MeowIcons {
         get() = byStyle(Icons.Rounded.Notes) { MiuixIcons.ListView }
 
     // 底栏。成对出现,未选中/选中。
+    //
+    // Miuix 侧「概览」用 Layers 而不是 Home:那套里的 Home 只有实心造型(单条闭合路径),
+    // 摆在同为线条的盾、方格、齿轮旁边是唯一一块填充。
 
     val Home: ImageVector
         @Composable @ReadOnlyComposable
-        get() = byStyle(Icons.Outlined.Home) { MiuixIcons.Normal.Home }
+        get() = byStyle(Icons.Outlined.Home) { MiuixIcons.Normal.Layers }
 
     val HomeSelected: ImageVector
         @Composable @ReadOnlyComposable
-        get() = byStyle(Icons.Rounded.Home) { MiuixIcons.Demibold.Home }
+        get() = byStyle(Icons.Rounded.Home) { MiuixIcons.Demibold.Layers }
 
     val Crashes: ImageVector
         @Composable @ReadOnlyComposable

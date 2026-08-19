@@ -72,7 +72,16 @@ if (hostLocalProperties.isFile) {
         }
     }
 }
-includeBuild(miuixDir)
+// 只在本仓库是根构建时替换成源码;被 includeBuild 进别人的构建时让 miuix 走 Central。
+//
+// 0.9.4-rc01 起 miuix 各模块用新的 KMP Android library 插件,嵌套一层后 project 依赖选不到
+// 可运行的 android variant:编译期符号能看见,打进 APK 的类是空的,一进界面就
+// NoClassDefFoundError。宿主侧再 includeBuild 一次也只是让编译过去,产物照样跑不起来。
+//
+// 两条路径钉同一个 tag,拿到的 miuix 一致。
+if (gradle.parent == null) {
+    includeBuild(miuixDir)
+}
 
 include(":meowui")
 include(":meowui-xposed")
