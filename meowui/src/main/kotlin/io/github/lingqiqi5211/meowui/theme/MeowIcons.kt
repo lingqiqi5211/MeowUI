@@ -6,6 +6,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.BugReport
@@ -162,6 +163,18 @@ object MeowIcons {
     val Empty: ImageVector
         @Composable @ReadOnlyComposable
         get() = byStyle(Icons.Outlined.Inbox) { MiuixIcons.File }
+
+    /**
+     * 不是应用的系统进程,用在本该放应用图标的位置。
+     *
+     * Material 侧用芯片,「底层、原生」这层意思它表达得最准。Miuix 那套 156 个字形是给相册、
+     * 联系人、通话这些系统应用画的,没有芯片,退到齿轮——「系统的东西」最通用的符号。和底栏
+     * 「设置」同一个字形,但两处不会认错:这里是列表行左侧 36dp 的方块,位置本身就说明它替
+     * 的是应用图标。
+     */
+    val SystemProcess: ImageVector
+        @Composable @ReadOnlyComposable
+        get() = byStyle(Icons.Outlined.Memory) { MiuixIcons.Normal.Settings }
 }
 
 /**
