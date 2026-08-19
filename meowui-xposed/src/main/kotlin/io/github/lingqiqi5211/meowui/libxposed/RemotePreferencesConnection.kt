@@ -60,7 +60,16 @@ internal fun interface XposedServiceRegistry {
     fun subscribe(listener: (XposedService?) -> Unit): ConnectionSubscription
 }
 
-private object ProcessXposedServiceRegistry :
+/**
+ * The one place in the process that talks to [XposedServiceHelper].
+ *
+ * `XposedServiceHelper` keeps a single listener slot and `registerListener` overwrites it, so a
+ * second registrant silently displaces the first — and because the first registrant already
+ * drained the pending-binder cache, the newcomer receives nothing either. Everything that needs
+ * the service subscribes here instead; [io.github.lingqiqi5211.meowui.libxposed.MeowXposedService]
+ * is the public door.
+ */
+internal object ProcessXposedServiceRegistry :
     XposedServiceRegistry,
     XposedServiceHelper.OnServiceListener {
     private val lock = Any()
@@ -71,6 +80,8 @@ private object ProcessXposedServiceRegistry :
     init {
         XposedServiceHelper.registerListener(this)
     }
+
+    internal fun currentService(): XposedService? = synchronized(lock) { activeService }
 
     override fun subscribe(listener: (XposedService?) -> Unit): ConnectionSubscription {
         val currentService = synchronized(lock) {
