@@ -9,7 +9,7 @@ import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ErrorOutline
@@ -124,11 +124,16 @@ object MeowIcons {
         get() = byStyle(Icons.Rounded.Settings) { MiuixIcons.Demibold.Settings }
 
     // 状态。多用在页面级插图或状态徽标里。
+    //
+    // 这一组一律用线性字形。Material 侧 `CheckCircle` 是实心的,混在 `WarningAmber`、
+    // `ErrorOutline`、`Inbox` 这些线条图标里就成了同一页上唯一一个填充块——放进圆形徽标
+    // 更明显,看着像另一套图标混进来了。要挑选中/未选中那种「实心 vs 空心」的对比,是底栏
+    // 上面那几对的事,状态图标之间不该有这种差别。
 
     /** 一切正常。 */
     val Healthy: ImageVector
         @Composable @ReadOnlyComposable
-        get() = byStyle(Icons.Rounded.CheckCircle) { MiuixIcons.Ok }
+        get() = byStyle(Icons.Outlined.CheckCircle) { MiuixIcons.Ok }
 
     /** 需要注意,但还能用。 */
     val Warning: ImageVector
