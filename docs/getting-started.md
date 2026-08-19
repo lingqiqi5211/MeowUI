@@ -5,9 +5,9 @@
 - Android 8.0（API 26）及以上
 - Compose 项目
 - libxposed API/service（仅 Xposed 场景，版本见 `gradle/libs.versions.toml`）
-- MeowUI 当前版本：`0.1.4`
+- MeowUI 当前版本：`0.1.5`
 
-发布到 Maven Central 后可直接添加依赖；尚未发布前，也可以按下文用本地源码接入，依赖坐标一致。
+已发布到 Maven Central，直接添加依赖即可；也可以按下文用本地源码接入（composite build），依赖坐标一致。
 
 ## 使用 composite build
 
@@ -15,7 +15,7 @@
 
 ```text
 Projects/
-├─ MeowUI/
+├─ MeowUI/   ← git clone --recurse-submodules（miuix 是 submodule）
 └─ MyXposedModule/
 ```
 
@@ -25,13 +25,14 @@ Projects/
 includeBuild("../MeowUI")
 ```
 
-路径按实际目录调整。
+路径按实际目录调整。若 MeowUI 是已有的 clone，先补 `git submodule update --init` 拉出
+miuix。工具链要求、SDK 定位与坐标替换行为等注意事项见 [README「源码级接入」](../README.md#源码级接入composite-build)。
 
 ### 设置页模块
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.4")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.5")
 }
 ```
 
@@ -49,7 +50,7 @@ Hook 进程的远程设置连接与 `PreferenceKey` 等定义也在 `meowui-xpos
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.4")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.5")
 }
 ```
 
@@ -57,7 +58,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.4")
+    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.5")
 }
 ```
 

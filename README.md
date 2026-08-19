@@ -28,7 +28,7 @@ MeowUI 是一套 **双风格 Compose UI 样式库**：业务层只编写一份�
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.5-rc02")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.5")
 }
 ```
 
@@ -36,23 +36,9 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.5-rc02")
+    implementation("io.github.lingqiqi5211.meowui:meowui:0.1.5")
 }
 ```
-
-也可用源码接入：假设宿主项目与 MeowUI 是相邻目录，先 `git submodule update --init` 拉出
-miuix，再在宿主项目的 `settings.gradle.kts` 中加入 `includeBuild("../MeowUI")`，依赖坐标不变。
-
-### 依赖的 miuix 版本（`test` 分支）
-
-`test` 分支专门用来跟进 miuix 主线上还没进正式版的组件，版本号走 `0.1.x-rcNN`。
-
-当前钉的是 **v0.9.4-rc01**——`MeowBreadcrumbBar` 用到的 `BreadcrumbBar` 和两套风格共用的
-`miuix-nav` 都随这一版首次进入 Maven Central，坐标全部公网可解析，宿主项目不需要任何
-额外仓库或凭据。
-
-源码构建时 miuix 以 submodule + 复合构建引入，指针钉在与 Central 一致的 `v0.9.4-rc01`
-tag 上：`git clone --recurse-submodules`（或事后 `git submodule update --init`）即可。
 
 用 `MeowPreferenceProvider` 提供一个 `PreferenceStore` 实现（内存版 `InMemoryPreferenceStore` 可直接用；持久化版按需包装 SharedPreferences、DataStore 或你自己的配置通道，比如 Magisk 管理器的守护进程配置），其余用法与 Xposed 场景完全一致：
 
@@ -65,6 +51,37 @@ setMeowContent {
     }
 }
 ```
+
+### 源码级接入（composite build）
+
+不想依赖二进制也可以整棵源码接入——miuix 以 git submodule + 复合构建方式内嵌，宿主项目无需任何仓库凭据：
+
+```bash
+git clone --recurse-submodules https://github.com/lingqiqi5211/MeowUI.git
+```
+
+然后在宿主项目的 `settings.gradle.kts` 中加入（路径按实际目录调整）：
+
+```kotlin
+includeBuild("../MeowUI")
+```
+
+依赖坐标保持不变，Gradle 会把 `io.github.lingqiqi5211.meowui:*` 与 `top.yukonga.miuix.kmp:*` 全部替换为源码工程。
+
+**注意事项：**
+
+- **submodule 必须先拉出来**：已 clone 的仓库补一句 `git submodule update --init`。漏了会在配置期收到指路的报错，不会静默失败。
+- **Android SDK 定位**：MeowUI 会把自己 `local.properties` 里的 `sdk.dir` 播种给 miuix；若 MeowUI 目录下没有这份文件（如 CI 环境），请保证 `ANDROID_HOME` 已设置。
+- **工具链对齐**：整棵复合构建运行在宿主的 Gradle 上——宿主 Gradle 需 ≥ 9.6、JDK 21+，AGP 与 Kotlin 建议与本仓库 `gradle/libs.versions.toml` 同代（当前 AGP 9.3.x / Kotlin 2.4.x），差一大代可能因插件类路径冲突在配置期失败。
+- **坐标替换是全局的**：宿主自己再声明 `top.yukonga.miuix.kmp:*` 的其它版本会被源码工程覆盖，写什么版本号都会被忽略。
+- **首次构建更慢**：miuix 从源码编译，冷构建时间明显高于二进制依赖；后续有构建缓存兜底。
+- **工程名避让**：复合构建树内的工程名不要与 `meowui`、`miuix` 只差大小写（Windows 不区分大小写，类型安全访问器的生成文件会撞名）。
+
+### 依赖的 miuix 版本
+
+当前钉的是 **v0.9.4-rc01**——`MeowBreadcrumbBar` 用到的 `BreadcrumbBar` 和两套风格共用的
+`miuix-nav` 都随这一版首次进入 Maven Central。二进制接入时按 POM 从 Central 解析；
+源码接入时 submodule 指针钉在同一个 tag 上，两条路径拿到的 miuix 完全一致。
 
 ## 最小示例
 

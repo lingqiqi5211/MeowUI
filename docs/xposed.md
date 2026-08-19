@@ -17,7 +17,7 @@ MeowUI **只支持 libxposed API**，本文所有示例均采用 libxposed API �
 ```kotlin
 // 设置页与 Hook 模块使用同一构件
 dependencies {
-    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.4")
+    implementation("io.github.lingqiqi5211.meowui:meowui-xposed:0.1.5")
 
     // libxposed API 在本库中是 compileOnly（运行时由框架提供，不进 POM），
     // Hook 模块需要自行声明——Xposed 模块工程通常本来就有这一行：
