@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button as MaterialButton
+import androidx.compose.material3.Checkbox as MaterialCheckbox
 import androidx.compose.material3.ButtonDefaults as MaterialButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator as MaterialCircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -41,6 +44,7 @@ import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
+import top.yukonga.miuix.kmp.basic.Checkbox as MiuixCheckbox
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator as MiuixCircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
@@ -179,6 +183,71 @@ fun <T> MeowSingleChoiceDialog(
                 cancelModifier = cancelModifier,
                 onSelected = { draft = it },
                 onConfirm = { if (confirmEnabled) onSelected(draft) },
+                onDismissRequest = onDismissRequest,
+            )
+        },
+    )
+}
+
+/**
+ * 多选对话框，确认后一次性提交选择。
+ *
+ * 与 [MeowSingleChoiceDialog] 的区别只在于可以选多项：草稿同样只在确认时提交，取消或点外
+ * 面关掉都丢弃。适合「导出/分享时包含哪些字段」这类每次都要确认一遍的场景。
+ *
+ * [onConfirmed] 拿到的是确认那一刻的完整选择集合，不是增量。
+ */
+@Composable
+fun <T> MeowMultiChoiceDialog(
+    show: Boolean,
+    title: String,
+    selected: Set<T>,
+    options: List<T>,
+    onConfirmed: (Set<T>) -> Unit,
+    onDismissRequest: () -> Unit,
+    optionLabel: (T) -> String = { it.toString() },
+    cancelText: String = "Cancel",
+    confirmText: String = "OK",
+    confirmModifier: Modifier = Modifier,
+    cancelModifier: Modifier = Modifier,
+) {
+    // 只按 show 重置，理由同 MeowSingleChoiceDialog：打开期间外部值变化不清掉临时选择。
+    var draft by remember(show) { mutableStateOf(selected) }
+    val toggle: (T) -> Unit = { option ->
+        draft = if (option in draft) draft - option else draft + option
+    }
+
+    MeowStyleContent(
+        materialExpressive = {
+            if (show) {
+                MaterialMultiChoiceDialog(
+                    title = title,
+                    selected = draft,
+                    options = options,
+                    optionLabel = optionLabel,
+                    confirmText = confirmText,
+                    cancelText = cancelText,
+                    confirmModifier = confirmModifier,
+                    cancelModifier = cancelModifier,
+                    onToggled = toggle,
+                    onConfirm = { onConfirmed(draft) },
+                    onDismissRequest = onDismissRequest,
+                )
+            }
+        },
+        miuix = {
+            MiuixMultiChoiceDialog(
+                show = show,
+                title = title,
+                selected = draft,
+                options = options,
+                optionLabel = optionLabel,
+                confirmText = confirmText,
+                cancelText = cancelText,
+                confirmModifier = confirmModifier,
+                cancelModifier = cancelModifier,
+                onToggled = toggle,
+                onConfirm = { onConfirmed(draft) },
                 onDismissRequest = onDismissRequest,
             )
         },
@@ -719,6 +788,169 @@ private fun <T> MaterialChoiceList(
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyLarge,
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun <T> MaterialMultiChoiceDialog(
+    title: String,
+    selected: Set<T>,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    confirmText: String,
+    cancelText: String,
+    confirmModifier: Modifier,
+    cancelModifier: Modifier,
+    onToggled: (T) -> Unit,
+    onConfirm: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { MaterialText(title) },
+        text = {
+            MaterialCheckboxList(
+                selected = selected,
+                options = options,
+                optionLabel = optionLabel,
+                onToggled = onToggled,
+            )
+        },
+        confirmButton = {
+            MaterialButton(onClick = onConfirm, modifier = confirmModifier) {
+                MaterialText(confirmText)
+            }
+        },
+        dismissButton = {
+            MaterialTextButton(onClick = onDismissRequest, modifier = cancelModifier) {
+                MaterialText(cancelText)
+            }
+        },
+    )
+}
+
+@Composable
+private fun <T> MiuixMultiChoiceDialog(
+    show: Boolean,
+    title: String,
+    selected: Set<T>,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    confirmText: String,
+    cancelText: String,
+    confirmModifier: Modifier,
+    cancelModifier: Modifier,
+    onToggled: (T) -> Unit,
+    onConfirm: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    WindowDialog(
+        show = show,
+        title = title,
+        insideMargin = DpSize(0.dp, 24.dp),
+        onDismissRequest = onDismissRequest,
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            MiuixCheckboxList(
+                selected = selected,
+                options = options,
+                optionLabel = optionLabel,
+                onToggled = onToggled,
+            )
+            Spacer(Modifier.height(12.dp))
+            MiuixDialogButtons(
+                confirmText = confirmText,
+                cancelText = cancelText,
+                onConfirm = onConfirm,
+                onCancel = onDismissRequest,
+                modifier = Modifier.padding(horizontal = 24.dp),
+                confirmModifier = confirmModifier,
+                cancelModifier = cancelModifier,
+            )
+        }
+    }
+}
+
+@Composable
+private fun <T> MaterialCheckboxList(
+    selected: Set<T>,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    onToggled: (T) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 360.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        options.forEachIndexed { index, option ->
+            key(index, option) {
+                val isChecked = option in selected
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .toggleable(
+                            value = isChecked,
+                            role = Role.Checkbox,
+                            onValueChange = { onToggled(option) },
+                        )
+                        .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // null callback: the whole row is the target, and a checkbox that also
+                    // handled clicks would announce itself separately to a screen reader.
+                    MaterialCheckbox(checked = isChecked, onCheckedChange = null)
+                    Spacer(Modifier.width(12.dp))
+                    MaterialText(
+                        text = optionLabel(option),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun <T> MiuixCheckboxList(
+    selected: Set<T>,
+    options: List<T>,
+    optionLabel: (T) -> String,
+    onToggled: (T) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 360.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        options.forEachIndexed { index, option ->
+            key(index, option) {
+                val isChecked = option in selected
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .toggleable(
+                            value = isChecked,
+                            role = Role.Checkbox,
+                            onValueChange = { onToggled(option) },
+                        )
+                        .padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MiuixCheckbox(
+                        state = if (isChecked) ToggleableState.On else ToggleableState.Off,
+                        onClick = null,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    MiuixText(text = optionLabel(option), modifier = Modifier.weight(1f))
                 }
             }
         }
