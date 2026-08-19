@@ -4,9 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -647,34 +645,19 @@ private fun <T> MaterialChoicePreference(
                                         Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
                                     }
                                     MaterialDropdownMenuItem(
+                                        // 选中态交给 selected 的容器样式，不自己画 ✓。
                                         text = {
-                                            // ✓ 固定行右缘：trailing 槽会紧跟文字，短标题时浮在行中。
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                Column(modifier = Modifier.weight(1f, fill = false)) {
-                                                    MaterialText(optionLabel(option))
-                                                    optionSummary?.invoke(option)
-                                                        ?.takeIf(String::isNotBlank)
-                                                        ?.let { text ->
-                                                            MaterialText(
-                                                                text = text,
-                                                                style = MaterialTheme.typography.bodySmall,
-                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                            )
-                                                        }
-                                                }
-                                                MaterialIcon(
-                                                    imageVector = Icons.Rounded.Check,
-                                                    contentDescription = null,
-                                                    modifier = Modifier
-                                                        .padding(start = 12.dp)
-                                                        .graphicsLayer {
-                                                            alpha = if (option == value) 1f else 0f
-                                                        },
-                                                )
+                                            Column {
+                                                MaterialText(optionLabel(option))
+                                                optionSummary?.invoke(option)
+                                                    ?.takeIf(String::isNotBlank)
+                                                    ?.let { text ->
+                                                        MaterialText(
+                                                            text = text,
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        )
+                                                    }
                                             }
                                         },
                                         onClick = {
