@@ -38,6 +38,7 @@ import androidx.compose.material3.ShortNavigationBarItem as MaterialShortNavigat
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.ToggleButton as MaterialToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -131,7 +132,11 @@ fun MeowTabRow(
                             .weight(1f)
                             .semantics { role = Role.RadioButton },
                         shapes = when {
-                            tabs.size == 1 -> ToggleButtonDefaults.shapes()
+                            tabs.size == 1 -> ToggleButtonShapes(
+                                shape = ToggleButtonDefaults.shape,
+                                pressedShape = ToggleButtonDefaults.pressedShape,
+                                checkedShape = ToggleButtonDefaults.checkedShape,
+                            )
                             index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                             index == tabs.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                             else -> ButtonGroupDefaults.connectedMiddleButtonShapes()

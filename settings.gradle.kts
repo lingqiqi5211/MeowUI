@@ -32,9 +32,10 @@ rootProject.name = "meowui-project"
 
 // miuix 是本仓库的 submodule，以复合构建方式引入。
 //
-// 这个分支要用的是 miuix 主线上还没进正式版的组件（BreadcrumbBar、miuix-nav），此前钉的是
-// GitHub Packages 上的快照——公开包也要 token，等于让每个消费方都先登录一次 GitHub。改成
-// submodule 之后，版本由 submodule 指针钉住，构建不再需要任何凭据。
+// 当初改 submodule 是因为要用还没进正式版的组件（BreadcrumbBar、miuix-nav），而快照挂在
+// GitHub Packages 上，公开包也要 token。这些组件已随 0.9.4-rc01 进入 Maven Central，
+// submodule 现在钉在对应的发布 tag 上：本地按源码构建，发布出去的 POM 写的版本消费方
+// 可以直接从 Central 解析。
 //
 // Gradle 会把 top.yukonga.miuix.kmp:* 这些坐标替换成 submodule 里的工程，版本目录里那几条
 // 退化成「期望哪一版」的记录。
