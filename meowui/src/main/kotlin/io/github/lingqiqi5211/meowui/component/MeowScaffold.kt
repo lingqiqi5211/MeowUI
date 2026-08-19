@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -90,6 +91,30 @@ internal val LocalMeowOverlayHost = staticCompositionLocalOf<MeowOverlayHostStat
 internal val LocalMeowScrollContext = staticCompositionLocalOf { MeowScrollContext() }
 
 /**
+ * 底栏插槽顶部有多少是「留白」——被量进插槽高度、但底栏并没有画上去的部分。
+ *
+ * 悬浮底栏是个胶囊：插槽里除了胶囊本身，上方还有阴影余量和外边距，加起来 30dp 出头。
+ * 而 scaffold 布局是把 snackbar 的底边贴在**插槽顶边**上的（Material 与 miuix 的
+ * ScaffoldLayout 都如此），于是 snackbar 会浮在离胶囊三十多 dp 的半空中，看着不像
+ * 「贴着底栏弹出来的」，而像凭空停在页面中下部。
+ *
+ * 底栏把这段留白报上来，[MeowSnackbarHost] 据此往下让回去，只留 [MeowSnackbarGap]。
+ * 标准底栏没有留白，报 0，位置与原来一致。
+ *
+ * 用 MutableState 而不是普通值：写的人（底栏）和读的人（snackbar 宿主）是同一个
+ * scaffold 下的两个兄弟插槽，谁都不在对方的作用域里。
+ */
+@Stable
+internal class MeowBottomBarInset {
+    var deadSpaceTop: Dp by mutableStateOf(0.dp)
+}
+
+internal val LocalMeowBottomBarInset = staticCompositionLocalOf<MeowBottomBarInset?> { null }
+
+/** snackbar 底边与悬浮胶囊顶边之间留的空隙。 */
+internal val MeowSnackbarGap = 8.dp
+
+/**
  * 内容当前是否画在底部抽屉里。
  *
  * Miuix 抽屉的底色与页面里的分组卡底色是同一档,卡片贴在抽屉上几乎看不出边界。
@@ -136,10 +161,12 @@ fun MeowScaffold(
 ) {
     val backdrop = rememberLayerBackdrop()
     val overlayHost = remember { MeowOverlayHostState() }
+    val bottomBarInset = remember { MeowBottomBarInset() }
     CompositionLocalProvider(
         LocalMeowScaffoldEffect provides effect,
         LocalMeowBackdrop provides backdrop,
         LocalMeowOverlayHost provides overlayHost,
+        LocalMeowBottomBarInset provides bottomBarInset,
     ) {
       Box(modifier = Modifier.fillMaxSize()) {
         MeowStyleContent(
