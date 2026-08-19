@@ -40,8 +40,10 @@ import androidx.compose.material3.ToggleButton as MaterialToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -310,6 +312,21 @@ private fun NavigationBarStyleSwitch(
     floating: @Composable () -> Unit,
     floatingShadowHeadroom: Dp = 0.dp,
 ) {
+    // 悬浮时插槽顶部这一段是量进高度但没画东西的：阴影余量 + 胶囊自己的外边距。
+    // 报给 scaffold，snackbar 才知道该往下贴多少（见 LocalMeowBottomBarInset）。
+    val bottomBarInset = LocalMeowBottomBarInset.current
+    val deadSpaceTop = if (style == MeowNavigationBarStyle.Floating) {
+        floatingShadowHeadroom + FloatingNavigationBarOuterPadding
+    } else {
+        0.dp
+    }
+    if (bottomBarInset != null) {
+        SideEffect { bottomBarInset.deadSpaceTop = deadSpaceTop }
+        DisposableEffect(Unit) {
+            onDispose { bottomBarInset.deadSpaceTop = 0.dp }
+        }
+    }
+
     Box(contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(
             visible = style == MeowNavigationBarStyle.Standard,
@@ -360,7 +377,10 @@ private fun MeowFloatingNavigationBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(
+                horizontal = FloatingNavigationBarOuterHorizontalPadding,
+                vertical = FloatingNavigationBarOuterPadding,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         val barWidth = minOf(
@@ -660,6 +680,13 @@ private fun MiuixNavigationBadge(badge: String?) {
 }
 
 private val MiuixFloatingShadowHeadroom = 24.dp
+
+/**
+ * 胶囊与插槽边界之间的外边距。竖直方向这一段在顶部是「留白」,会被报给
+ * [LocalMeowBottomBarInset]——改这个值时那边自动跟着走,不要写死成两份。
+ */
+private val FloatingNavigationBarOuterPadding = 12.dp
+private val FloatingNavigationBarOuterHorizontalPadding = 20.dp
 private val FloatingNavigationBarHeight = 64.dp
 private val FloatingNavigationBarPadding = 4.dp
 private val FloatingNavigationItemHeight = 56.dp

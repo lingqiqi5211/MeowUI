@@ -3,10 +3,15 @@ package io.github.lingqiqi5211.meowui.component
 import androidx.compose.material3.SnackbarHost as MaterialSnackbarHost
 import androidx.compose.material3.SnackbarHostState as MaterialSnackbarHostState
 import androidx.compose.material3.SnackbarResult as MaterialSnackbarResult
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
@@ -78,15 +83,26 @@ fun rememberMeowSnackbarState(): MeowSnackbarState {
     return state
 }
 
-/** 由 MeowScaffold 安装到各风格 Scaffold 的 snackbarHost 槽位。 */
+/**
+ * 由 MeowScaffold 安装到各风格 Scaffold 的 snackbarHost 槽位。
+ *
+ * 往下让回底栏插槽顶部的那段留白（见 [LocalMeowBottomBarInset]），让 snackbar 贴着
+ * 悬浮胶囊弹出，而不是浮在它上方三十多 dp 的半空里。用 offset 而不是负 padding：
+ * 位移不参与测量，snackbar 自身的尺寸和换行都不受影响。
+ */
 @Composable
 internal fun MeowSnackbarHost(state: MeowSnackbarState) {
-    MeowStyleContent(
-        materialExpressive = {
-            MaterialSnackbarHost(hostState = state.materialHostState)
-        },
-        miuix = {
-            MiuixSnackbarHost(state = state.miuixHostState)
-        },
-    )
+    val deadSpace = LocalMeowBottomBarInset.current?.deadSpaceTop ?: 0.dp
+    val shift = (deadSpace - MeowSnackbarGap).coerceAtLeast(0.dp)
+
+    Box(modifier = Modifier.offset { IntOffset(x = 0, y = shift.roundToPx()) }) {
+        MeowStyleContent(
+            materialExpressive = {
+                MaterialSnackbarHost(hostState = state.materialHostState)
+            },
+            miuix = {
+                MiuixSnackbarHost(state = state.miuixHostState)
+            },
+        )
+    }
 }
