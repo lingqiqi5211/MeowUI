@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Home
@@ -38,6 +39,7 @@ import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.ListView
 import top.yukonga.miuix.kmp.icon.extended.Notes
 import top.yukonga.miuix.kmp.icon.extended.Ok
+import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.icon.extended.Report
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.icon.extended.Share
@@ -79,6 +81,11 @@ object MeowIcons {
     val Filter: ImageVector
         @Composable @ReadOnlyComposable
         get() = byStyle(Icons.Rounded.FilterList) { MiuixIcons.Filter }
+
+    /** 重新读取当前内容。 */
+    val Refresh: ImageVector
+        @Composable @ReadOnlyComposable
+        get() = byStyle(Icons.Rounded.Refresh) { MiuixIcons.Refresh }
 
     /** 自动换行开启:文字排成段落。 */
     val WrapLines: ImageVector
