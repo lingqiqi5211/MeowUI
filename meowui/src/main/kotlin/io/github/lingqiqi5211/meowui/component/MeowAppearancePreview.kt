@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import kotlin.math.max
@@ -224,7 +227,7 @@ private fun PreviewBottomBar() {
 }
 
 @Composable
-private fun PreviewDot(color: androidx.compose.ui.graphics.Color) {
+private fun PreviewDot(color: Color) {
     Box(
         modifier = Modifier
             .size(7.dp)
@@ -234,7 +237,7 @@ private fun PreviewDot(color: androidx.compose.ui.graphics.Color) {
 }
 
 @Composable
-private fun PreviewBlock(modifier: Modifier, color: androidx.compose.ui.graphics.Color) {
+private fun PreviewBlock(modifier: Modifier, color: Color) {
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -244,6 +247,6 @@ private fun PreviewBlock(modifier: Modifier, color: androidx.compose.ui.graphics
 }
 
 @Composable
-private fun PreviewSpacer(size: androidx.compose.ui.unit.Dp) {
-    androidx.compose.foundation.layout.Spacer(Modifier.size(size))
+private fun PreviewSpacer(size: Dp) {
+    Spacer(Modifier.size(size))
 }

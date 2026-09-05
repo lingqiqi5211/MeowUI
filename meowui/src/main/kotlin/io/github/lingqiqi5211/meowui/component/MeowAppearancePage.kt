@@ -29,9 +29,9 @@ import io.github.lingqiqi5211.meowui.theme.MeowAppearance
 import io.github.lingqiqi5211.meowui.theme.MeowAppearanceDefaults
 import io.github.lingqiqi5211.meowui.theme.MeowColorSpec
 import io.github.lingqiqi5211.meowui.theme.MeowPaletteStyle
+import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import io.github.lingqiqi5211.meowui.theme.MeowThemeMode
-import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.supportsSpec2025
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard

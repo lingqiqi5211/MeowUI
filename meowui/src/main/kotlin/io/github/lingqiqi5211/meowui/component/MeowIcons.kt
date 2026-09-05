@@ -2,39 +2,41 @@ package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.CreateNewFolder
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CreateNewFolder
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon as MaterialIcon
+import androidx.compose.material3.LocalContentColor as MaterialLocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
+import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Delete
-import top.yukonga.miuix.kmp.icon.extended.Close
-import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.icon.extended.AddFolder
-import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
+import top.yukonga.miuix.kmp.icon.extended.Add
+import top.yukonga.miuix.kmp.icon.extended.AddFolder
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.icon.extended.Close
+import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.File
 import top.yukonga.miuix.kmp.icon.extended.Folder
 import top.yukonga.miuix.kmp.icon.extended.Ok
 import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.icon.extended.Tune
-import io.github.lingqiqi5211.meowui.theme.MeowTheme
-import io.github.lingqiqi5211.meowui.core.MeowUiStyle
-import androidx.compose.ui.graphics.vector.ImageVector
+import top.yukonga.miuix.kmp.theme.LocalContentColor as MiuixLocalContentColor
 
 /**
  * 「点进去」的行尾箭头，取当前风格自己的那一个。
@@ -54,7 +56,7 @@ fun MeowNavigateIcon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = contentDescription,
                 modifier = modifier,
-                tint = tint.takeIf { it != Color.Unspecified } ?: androidx.compose.material3.LocalContentColor.current,
+                tint = tint.takeIf { it != Color.Unspecified } ?: MaterialLocalContentColor.current,
             )
         },
         miuix = {
@@ -62,8 +64,7 @@ fun MeowNavigateIcon(
                 imageVector = MiuixIcons.Basic.ArrowRight,
                 contentDescription = contentDescription,
                 modifier = modifier,
-                tint = tint.takeIf { it != Color.Unspecified }
-                    ?: top.yukonga.miuix.kmp.theme.LocalContentColor.current,
+                tint = tint.takeIf { it != Color.Unspecified } ?: MiuixLocalContentColor.current,
             )
         },
     )
@@ -197,8 +198,7 @@ private fun MeowStyleIcon(
                 imageVector = material,
                 contentDescription = contentDescription,
                 modifier = modifier,
-                tint = tint.takeIf { it != Color.Unspecified }
-                    ?: androidx.compose.material3.LocalContentColor.current,
+                tint = tint.takeIf { it != Color.Unspecified } ?: MaterialLocalContentColor.current,
             )
         },
         miuix = {
@@ -206,8 +206,7 @@ private fun MeowStyleIcon(
                 imageVector = miuix,
                 contentDescription = contentDescription,
                 modifier = modifier,
-                tint = tint.takeIf { it != Color.Unspecified }
-                    ?: top.yukonga.miuix.kmp.theme.LocalContentColor.current,
+                tint = tint.takeIf { it != Color.Unspecified } ?: MiuixLocalContentColor.current,
             )
         },
     )

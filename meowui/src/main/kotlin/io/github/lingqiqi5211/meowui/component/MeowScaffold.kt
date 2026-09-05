@@ -1,5 +1,6 @@
 package io.github.lingqiqi5211.meowui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -14,29 +15,28 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.foundation.background
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.ScrollBehavior as MiuixTopAppBarScrollBehavior
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Stable
 data class MeowScaffoldEffect(
@@ -168,90 +168,93 @@ fun MeowScaffold(
         LocalMeowOverlayHost provides overlayHost,
         LocalMeowBottomBarInset provides bottomBarInset,
     ) {
-      Box(modifier = Modifier.fillMaxSize()) {
-        MeowStyleContent(
-            materialExpressive = {
-                val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-                    rememberTopAppBarState(),
-                )
-                CompositionLocalProvider(
-                    LocalMeowScrollContext provides MeowScrollContext(
-                        nestedScrollConnection = scrollBehavior.nestedScrollConnection,
-                        materialTopBar = scrollBehavior,
-                    ),
-                ) {
-                    MaterialScaffold(
-                        modifier = modifier,
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        contentWindowInsets = WindowInsets.safeDrawing,
-                        topBar = {
-                            MeowTopBar(
-                                title = title,
-                                subtitle = subtitle,
-                                onBackClick = onBackClick,
-                                navigationModifier = navigationModifier,
-                                navigationIcon = navigationIcon,
-                                actionItems = actionItems,
-                            )
-                        },
-                        bottomBar = bottomBar,
-                        snackbarHost = {
-                            snackbarState?.let { MeowSnackbarHost(it) }
-                        },
-                        content = { paddingValues ->
-                            MeowScaffoldContent(
-                                paddingValues = paddingValues,
-                                effect = effect,
-                                content = content,
-                            )
-                        },
+        Box(modifier = Modifier.fillMaxSize()) {
+            MeowStyleContent(
+                materialExpressive = {
+                    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+                        rememberTopAppBarState(),
                     )
-                }
-            },
-            miuix = {
-                val scrollBehavior = MiuixScrollBehavior()
-                CompositionLocalProvider(
-                    LocalMeowScrollContext provides MeowScrollContext(
-                        nestedScrollConnection = scrollBehavior.nestedScrollConnection,
-                        miuixTopBar = scrollBehavior,
-                    ),
-                ) {
-                    MiuixScaffold(
-                        modifier = modifier,
-                        topBar = {
-                            MeowTopBar(
-                                title = title,
-                                subtitle = subtitle,
-                                onBackClick = onBackClick,
-                                navigationModifier = navigationModifier,
-                                navigationIcon = navigationIcon,
-                                actionItems = actionItems,
-                            )
-                        },
-                        bottomBar = bottomBar,
-                        snackbarHost = {
-                            snackbarState?.let { MeowSnackbarHost(it) }
-                        },
-                        content = { paddingValues ->
-                            MeowScaffoldContent(
-                                paddingValues = paddingValues,
-                                effect = effect,
-                                content = content,
-                            )
-                        },
-                    )
-                }
-            },
-        )
-        // 浮层最后画，因此盖在顶栏、底栏与内容之上。
-        overlayHost.content?.invoke()
-      }
+                    CompositionLocalProvider(
+                        LocalMeowScrollContext provides MeowScrollContext(
+                            nestedScrollConnection = scrollBehavior.nestedScrollConnection,
+                            materialTopBar = scrollBehavior,
+                        ),
+                    ) {
+                        MaterialScaffold(
+                            modifier = modifier,
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            contentWindowInsets = WindowInsets.safeDrawing,
+                            topBar = {
+                                MeowTopBar(
+                                    title = title,
+                                    subtitle = subtitle,
+                                    onBackClick = onBackClick,
+                                    navigationModifier = navigationModifier,
+                                    navigationIcon = navigationIcon,
+                                    actionItems = actionItems,
+                                )
+                            },
+                            bottomBar = bottomBar,
+                            snackbarHost = {
+                                snackbarState?.let { MeowSnackbarHost(it) }
+                            },
+                            content = { paddingValues ->
+                                MeowScaffoldContent(
+                                    paddingValues = paddingValues,
+                                    backdrop = backdrop,
+                                    effect = effect,
+                                    content = content,
+                                )
+                            },
+                        )
+                    }
+                },
+                miuix = {
+                    val scrollBehavior = MiuixScrollBehavior()
+                    CompositionLocalProvider(
+                        LocalMeowScrollContext provides MeowScrollContext(
+                            nestedScrollConnection = scrollBehavior.nestedScrollConnection,
+                            miuixTopBar = scrollBehavior,
+                        ),
+                    ) {
+                        MiuixScaffold(
+                            modifier = modifier,
+                            topBar = {
+                                MeowTopBar(
+                                    title = title,
+                                    subtitle = subtitle,
+                                    onBackClick = onBackClick,
+                                    navigationModifier = navigationModifier,
+                                    navigationIcon = navigationIcon,
+                                    actionItems = actionItems,
+                                )
+                            },
+                            bottomBar = bottomBar,
+                            snackbarHost = {
+                                snackbarState?.let { MeowSnackbarHost(it) }
+                            },
+                            content = { paddingValues ->
+                                MeowScaffoldContent(
+                                    paddingValues = paddingValues,
+                                    backdrop = backdrop,
+                                    effect = effect,
+                                    content = content,
+                                )
+                            },
+                        )
+                    }
+                },
+            )
+            // 浮层最后画，因此盖在顶栏、底栏与内容之上。
+            overlayHost.content?.invoke()
+        }
     }
 }
 
 @Composable
 private fun MeowScaffoldContent(
     paddingValues: PaddingValues,
+    backdrop: LayerBackdrop,
     effect: MeowScaffoldEffect,
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -268,7 +271,7 @@ private fun MeowScaffoldContent(
         modifier = Modifier
             .fillMaxSize()
             // 悬浮底栏与顶栏的背景模糊取自这份图层快照。
-            .layerBackdrop(LocalMeowBackdrop.current ?: rememberLayerBackdrop())
+            .layerBackdrop(backdrop)
             .background(pageColor)
             .then(effect.contentModifier),
     ) {

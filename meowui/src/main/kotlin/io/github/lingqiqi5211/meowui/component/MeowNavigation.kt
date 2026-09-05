@@ -66,7 +66,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -75,12 +74,11 @@ import androidx.compose.ui.unit.sp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.LocalMeowBlurEnabled
 import io.github.lingqiqi5211.meowui.theme.LocalMeowDarkTheme
-import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
-import kotlinx.coroutines.launch
+import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Badge as MiuixBadge
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
@@ -395,7 +393,7 @@ private fun MeowFloatingNavigationBar(
         val animationScope = rememberCoroutineScope()
         // 固定的 spring 而不是 MaterialTheme.motionScheme:Miuix 分支没有装配
         // Material 主题,读它只会拿到与风格无关的默认值。
-        val settleSpec = spring<Float>(dampingRatio = 0.85f, stiffness = 550f)
+        val settleSpec = remember { spring<Float>(dampingRatio = 0.85f, stiffness = 550f) }
         val indicatorProgress = remember { Animatable(selectedIndex.toFloat()) }
         var dragProgress by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
         var dragging by remember { mutableStateOf(false) }

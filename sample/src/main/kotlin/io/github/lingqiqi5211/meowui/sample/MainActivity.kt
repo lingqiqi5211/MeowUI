@@ -25,14 +25,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Sort
-import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.ViewAgenda
@@ -51,20 +51,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.component.MeowActionPreference
-import io.github.lingqiqi5211.meowui.component.MeowAppearancePage
 import io.github.lingqiqi5211.meowui.component.MeowAlertDialog
 import io.github.lingqiqi5211.meowui.component.MeowAlertStyle
+import io.github.lingqiqi5211.meowui.component.MeowAppearancePage
 import io.github.lingqiqi5211.meowui.component.MeowBottomSheet
+import io.github.lingqiqi5211.meowui.component.MeowBreadcrumbBar
+import io.github.lingqiqi5211.meowui.component.MeowBreadcrumbItem
 import io.github.lingqiqi5211.meowui.component.MeowButton
 import io.github.lingqiqi5211.meowui.component.MeowCard
 import io.github.lingqiqi5211.meowui.component.MeowCheckboxPreference
 import io.github.lingqiqi5211.meowui.component.MeowColorPaletteDialog
 import io.github.lingqiqi5211.meowui.component.MeowColorPaletteMode
-import io.github.lingqiqi5211.meowui.component.MeowPopupPreference
 import io.github.lingqiqi5211.meowui.component.MeowLoadingDialog
 import io.github.lingqiqi5211.meowui.component.MeowMenuCascade
 import io.github.lingqiqi5211.meowui.component.MeowMenuItem
@@ -72,9 +74,8 @@ import io.github.lingqiqi5211.meowui.component.MeowNavHost
 import io.github.lingqiqi5211.meowui.component.MeowNavigationBar
 import io.github.lingqiqi5211.meowui.component.MeowNavigationBarStyle
 import io.github.lingqiqi5211.meowui.component.MeowNavigationItem
+import io.github.lingqiqi5211.meowui.component.MeowPopupPreference
 import io.github.lingqiqi5211.meowui.component.MeowPreferenceScreen
-import io.github.lingqiqi5211.meowui.component.MeowBreadcrumbBar
-import io.github.lingqiqi5211.meowui.component.MeowBreadcrumbItem
 import io.github.lingqiqi5211.meowui.component.MeowPreferenceSection
 import io.github.lingqiqi5211.meowui.component.MeowPullToRefresh
 import io.github.lingqiqi5211.meowui.component.MeowScaffold
@@ -85,9 +86,9 @@ import io.github.lingqiqi5211.meowui.component.MeowSnackbarResult
 import io.github.lingqiqi5211.meowui.component.MeowSwitchPreference
 import io.github.lingqiqi5211.meowui.component.MeowTabRow
 import io.github.lingqiqi5211.meowui.component.MeowTabRowStyle
-import io.github.lingqiqi5211.meowui.component.MeowTip
 import io.github.lingqiqi5211.meowui.component.MeowTextInputDialog
 import io.github.lingqiqi5211.meowui.component.MeowTextInputPreference
+import io.github.lingqiqi5211.meowui.component.MeowTip
 import io.github.lingqiqi5211.meowui.component.MeowTopBarAction
 import io.github.lingqiqi5211.meowui.component.rememberMeowSnackbarState
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
@@ -97,9 +98,9 @@ import io.github.lingqiqi5211.meowui.preference.MeowPreferenceProvider
 import io.github.lingqiqi5211.meowui.preference.rememberMeowPreferenceValue
 import io.github.lingqiqi5211.meowui.preference.rememberMeowPreferenceWriter
 import io.github.lingqiqi5211.meowui.setMeowContent
-import io.github.lingqiqi5211.meowui.theme.MeowPaletteStyle
 import io.github.lingqiqi5211.meowui.theme.MeowAppearance
 import io.github.lingqiqi5211.meowui.theme.MeowColorSpec
+import io.github.lingqiqi5211.meowui.theme.MeowPaletteStyle
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import io.github.lingqiqi5211.meowui.theme.MeowThemeMode
 import kotlinx.coroutines.delay
@@ -789,17 +790,17 @@ private fun SettingsPage(
                             // 结果用普通分组：Material 下每行自己一块分段卡片，
                             // Miuix 下是一张原生分组卡，和页面里的列表长得一样。
                             MeowPreferenceSection {
-                            matches.forEach { name ->
-                                MeowActionPreference(
-                                    title = name,
-                                    // 选中某项:留下查询词并收起,演示「调用侧程序化收起」
-                                    // 与组件自己的取消(会清词)是两条不同的路径。
-                                    onClick = {
-                                        searchQuery = name
-                                        searchExpanded = false
-                                    },
-                                )
-                            }
+                                matches.forEach { name ->
+                                    MeowActionPreference(
+                                        title = name,
+                                        // 选中某项:留下查询词并收起,演示「调用侧程序化收起」
+                                        // 与组件自己的取消(会清词)是两条不同的路径。
+                                        onClick = {
+                                            searchQuery = name
+                                            searchExpanded = false
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
@@ -999,7 +1000,6 @@ private fun SamplePaletteDot(color: Color) {
     )
 }
 
-/** 示例用的“应用图标”：40dp 圆形色块加首字母，实际应用应换成真实应用图标。 */
 private val SampleBreadcrumbSegments = listOf(
     "com.meow.sample",
     "files",
@@ -1007,6 +1007,7 @@ private val SampleBreadcrumbSegments = listOf(
     "a-very-long-folder-name-that-gets-truncated",
 )
 
+/** 示例用的“应用图标”：40dp 圆形色块加首字母，实际应用应换成真实应用图标。 */
 @Composable
 private fun SampleAppIcon(color: Color, letter: String) {
     Box(
@@ -1025,7 +1026,7 @@ private fun SampleAppIcon(color: Color, letter: String) {
 
 /** 示例用的选项图标：24dp 矢量图标，跟随主题的次级前景色。 */
 @Composable
-private fun SampleOptionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector) {
+private fun SampleOptionIcon(icon: ImageVector) {
     Image(
         imageVector = icon,
         contentDescription = null,
@@ -1218,7 +1219,7 @@ private fun AboutHero() {
         )
         Spacer(Modifier.height(4.dp))
         BasicText(
-            text = "0.1.1 · Android 8+ · Material 3 Expressive · Miuix",
+            text = "Android 8+ · Material 3 Expressive · Miuix",
             style = MeowTheme.typography.summary.copy(color = MeowTheme.colors.onSurfaceVariant),
         )
     }

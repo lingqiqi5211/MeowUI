@@ -1,10 +1,10 @@
 package io.github.lingqiqi5211.meowui.component
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.SnackbarHost as MaterialSnackbarHost
 import androidx.compose.material3.SnackbarHostState as MaterialSnackbarHostState
 import androidx.compose.material3.SnackbarResult as MaterialSnackbarResult
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable

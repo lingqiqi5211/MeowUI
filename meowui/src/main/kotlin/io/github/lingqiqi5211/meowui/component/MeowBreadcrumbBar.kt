@@ -1,8 +1,18 @@
 package io.github.lingqiqi5211.meowui.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
@@ -19,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +37,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.semantics.Role
@@ -36,26 +55,6 @@ import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import top.yukonga.miuix.kmp.basic.BreadcrumbBar as MiuixBreadcrumbBar
 import top.yukonga.miuix.kmp.basic.BreadcrumbItem as MiuixBreadcrumbItem
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.ScrollState
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.runtime.key
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExitTransition
 
 /**
  * 面包屑中的一段。[path] 是路径片段，[text] 是显示文案（为空时显示 [path]）。
@@ -122,8 +121,11 @@ fun MeowBreadcrumbBar(
                 )
             },
             miuix = {
+                val miuixItems = remember(items) {
+                    items.map { item -> MiuixBreadcrumbItem(item.path, item.text) }
+                }
                 MiuixBreadcrumbBar(
-                    items = items.map { item -> MiuixBreadcrumbItem(item.path, item.text) },
+                    items = miuixItems,
                     onItemClick = onItemClick,
                     highlightIndex = highlightIndex,
                     enabled = enabled,
@@ -263,48 +265,48 @@ private fun MaterialBreadcrumbBar(
     ) {
         items.forEachIndexed { index, item ->
             key(item.path, index) {
-            if (index > 0) {
-                MaterialIcon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    modifier = Modifier.padding(horizontal = 2.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                        alpha = if (enabled) 1f else DisabledAlpha,
-                    ),
-                )
-            }
-            val highlighted = hasHighlight && index == highlightIndex
-            // 新加入的那一段自己展开淡入，已有的段不重播（visibleState 只在首次组合时
-            // 从 false 走到 true）。回上一级时末段直接消失，整条的宽度由
-            // animateContentSize 收回——试过给末段做收缩淡出，观感反而更别扭。
-            val appearance = remember { MutableTransitionState(false) }
-            appearance.targetState = true
-            AnimatedVisibility(
-                visibleState = appearance,
-                enter = fadeIn(tween(LevelChangeMillis, easing = LevelChangeEasing)) +
-                    expandHorizontally(
-                        animationSpec = tween(LevelChangeMillis, easing = LevelChangeEasing),
-                        expandFrom = Alignment.Start,
-                    ),
-                exit = ExitTransition.None,
-            ) {
-            MaterialBreadcrumbSegment(
-                text = item.text ?: item.path,
-                highlighted = highlighted,
-                enabled = enabled,
-                itemMaxWidth = itemMaxWidth,
-                onPositioned = if (highlighted) {
-                    { x, width ->
-                        highlightX = x
-                        highlightWidth = width
-                        if (!positioned) positioned = true
-                    }
-                } else {
-                    null
-                },
-                onClick = { onItemClick(index) },
-            )
-            }
+                if (index > 0) {
+                    MaterialIcon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.padding(horizontal = 2.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = if (enabled) 1f else DisabledAlpha,
+                        ),
+                    )
+                }
+                val highlighted = hasHighlight && index == highlightIndex
+                // 新加入的那一段自己展开淡入，已有的段不重播（visibleState 只在首次组合时
+                // 从 false 走到 true）。回上一级时末段直接消失，整条的宽度由
+                // animateContentSize 收回——试过给末段做收缩淡出，观感反而更别扭。
+                val appearance = remember { MutableTransitionState(false) }
+                appearance.targetState = true
+                AnimatedVisibility(
+                    visibleState = appearance,
+                    enter = fadeIn(tween(LevelChangeMillis, easing = LevelChangeEasing)) +
+                        expandHorizontally(
+                            animationSpec = tween(LevelChangeMillis, easing = LevelChangeEasing),
+                            expandFrom = Alignment.Start,
+                        ),
+                    exit = ExitTransition.None,
+                ) {
+                    MaterialBreadcrumbSegment(
+                        text = item.text ?: item.path,
+                        highlighted = highlighted,
+                        enabled = enabled,
+                        itemMaxWidth = itemMaxWidth,
+                        onPositioned = if (highlighted) {
+                            { x, width ->
+                                highlightX = x
+                                highlightWidth = width
+                                if (!positioned) positioned = true
+                            }
+                        } else {
+                            null
+                        },
+                        onClick = { onItemClick(index) },
+                    )
+                }
             }
         }
     }
