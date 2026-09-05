@@ -99,7 +99,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 浮层起始位置取自折叠输入条在窗口中的实测坐标，所以两者重合，看上去是同一条输入条飞上去。
  *
  * 交互约定（两端相同）：
- * - 折叠时整条输入条可点，点按回调 `onExpandedChange(true)`，展开后自动抢焦点弹键盘；
+ * - 折叠时整条输入条可点，点按回调 `onExpandedChange(true)`，展开后自动抢焦点弹键盘
+ *   （[autoFocus] 置 false 则不抢，用于搜索面已被别的页面盖住的场合）；
  * - 返回按钮 / 取消 / 系统返回键都等于「取消」——清空查询词并回调 `onExpandedChange(false)`；
  * - 查询词非空时行内出现清空按钮（缩放淡入），只清词不收起，焦点保留；
  * - [content] 自带容器：组件只管边距与系统栏/键盘让位，卡片形态由调用侧决定；
@@ -119,6 +120,12 @@ fun MeowSearchBar(
     cancelText: String = "Cancel",
     clearContentDescription: String = "Clear",
     onSearch: (String) -> Unit = {},
+    /**
+     * 展开的一刻要不要抢焦点弹键盘。只在展开那一瞬读取，翻回 true 不补抢。
+     *
+     * 调用侧把整页压在搜索面上时置 false：重建后浮层照样挂载，抢焦点就把键盘弹到了别人的页上。
+     */
+    autoFocus: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -192,7 +199,7 @@ fun MeowSearchBar(
         // 焦点在浮层自己的组合里要：输入框属于宿主的子树，搜索框那边发起的
         // requestFocus 会快一拍，报 FocusRequester is not initialized 并静默失败（键盘不弹）。
         LaunchedEffect(expanded) {
-            if (expanded) focusRequester.requestFocus()
+            if (expanded && autoFocus) focusRequester.requestFocus()
         }
         MeowStyleContent(
             materialExpressive = {
