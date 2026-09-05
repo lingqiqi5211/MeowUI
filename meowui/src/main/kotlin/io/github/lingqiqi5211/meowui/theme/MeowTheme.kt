@@ -11,11 +11,11 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
@@ -33,9 +33,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.Colors as MiuixColors
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.theme.ThemeController
 import top.yukonga.miuix.kmp.theme.ThemeColorSpec as MiuixColorSpec
+import top.yukonga.miuix.kmp.theme.ThemeController
 import top.yukonga.miuix.kmp.theme.ThemePaletteStyle as MiuixPaletteStyle
 
 @Immutable
@@ -460,7 +461,7 @@ private fun MiuixContent(
 
 @Composable
 private fun MiuixContentInner(
-    animatedColors: top.yukonga.miuix.kmp.theme.Colors,
+    animatedColors: MiuixColors,
     dimensions: MeowDimensions,
     content: @Composable () -> Unit,
 ) {
@@ -527,8 +528,10 @@ private fun SystemBarAppearanceEffect(darkTheme: Boolean) {
     val view = LocalView.current
     if (view.isInEditMode) return
 
-    SideEffect {
-        val window = view.context.findActivity()?.window ?: return@SideEffect
+    // 只在深浅色真的变了才碰窗口：主题入口随外观状态频繁重组，每次都去找 Activity、
+    // 写 inset controller 是白做。
+    LaunchedEffect(view, darkTheme) {
+        val window = view.context.findActivity()?.window ?: return@LaunchedEffect
         val controller = WindowCompat.getInsetsController(window, view)
         controller.isAppearanceLightStatusBars = !darkTheme
         controller.isAppearanceLightNavigationBars = !darkTheme

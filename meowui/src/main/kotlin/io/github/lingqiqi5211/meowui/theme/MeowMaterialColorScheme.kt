@@ -1,14 +1,13 @@
 package io.github.lingqiqi5211.meowui.theme
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.PaletteStyle as MaterialKolorPaletteStyle
 import com.materialkolor.dynamicColorScheme as materialKolorDynamicColorScheme
+import com.materialkolor.dynamiccolor.ColorSpec
 
 /**
  * Material 3 Expressive 分支的配色生成。
@@ -97,65 +96,117 @@ internal val MeowPaletteStyle.supportsSpec2025: Boolean
  * 对 [ColorScheme] 内全部色 role 做 spring 过渡，
  * 让浅深色、种子色或调色板风格切换时颜色平滑变化而不是硬切。
  *
- * 首帧直接取目标值，不会从错误颜色开始播放动画。
+ * 过渡由 [rememberColorTransition] 的一条进度驱动。首帧直接取目标值。
  */
 @Composable
 internal fun ColorScheme.animateAsState(): ColorScheme {
-    @Composable
-    fun animateColor(color: Color): Color = animateColorAsState(
-        targetValue = color,
-        animationSpec = spring(),
-        label = "meow_theme_color",
-    ).value
+    val animated = rememberColorTransition(remember(this) { toColorList() })
+    return remember(animated) { animated.toColorScheme() }
+}
 
+private fun ColorScheme.toColorList(): List<Color> = listOf(
+    primary,
+    onPrimary,
+    primaryContainer,
+    onPrimaryContainer,
+    inversePrimary,
+    secondary,
+    onSecondary,
+    secondaryContainer,
+    onSecondaryContainer,
+    tertiary,
+    onTertiary,
+    tertiaryContainer,
+    onTertiaryContainer,
+    background,
+    onBackground,
+    surface,
+    onSurface,
+    surfaceVariant,
+    onSurfaceVariant,
+    surfaceTint,
+    inverseSurface,
+    inverseOnSurface,
+    error,
+    onError,
+    errorContainer,
+    onErrorContainer,
+    outline,
+    outlineVariant,
+    scrim,
+    surfaceBright,
+    surfaceDim,
+    surfaceContainer,
+    surfaceContainerHigh,
+    surfaceContainerHighest,
+    surfaceContainerLow,
+    surfaceContainerLowest,
+    primaryFixed,
+    primaryFixedDim,
+    onPrimaryFixed,
+    onPrimaryFixedVariant,
+    secondaryFixed,
+    secondaryFixedDim,
+    onSecondaryFixed,
+    onSecondaryFixedVariant,
+    tertiaryFixed,
+    tertiaryFixedDim,
+    onTertiaryFixed,
+    onTertiaryFixedVariant,
+)
+
+// 与 toColorList 的顺序一一对应。
+private fun List<Color>.toColorScheme(): ColorScheme {
+    var index = 0
+    fun next(): Color = this[index++]
     return ColorScheme(
-        primary = animateColor(primary),
-        onPrimary = animateColor(onPrimary),
-        primaryContainer = animateColor(primaryContainer),
-        onPrimaryContainer = animateColor(onPrimaryContainer),
-        inversePrimary = animateColor(inversePrimary),
-        secondary = animateColor(secondary),
-        onSecondary = animateColor(onSecondary),
-        secondaryContainer = animateColor(secondaryContainer),
-        onSecondaryContainer = animateColor(onSecondaryContainer),
-        tertiary = animateColor(tertiary),
-        onTertiary = animateColor(onTertiary),
-        tertiaryContainer = animateColor(tertiaryContainer),
-        onTertiaryContainer = animateColor(onTertiaryContainer),
-        background = animateColor(background),
-        onBackground = animateColor(onBackground),
-        surface = animateColor(surface),
-        onSurface = animateColor(onSurface),
-        surfaceVariant = animateColor(surfaceVariant),
-        onSurfaceVariant = animateColor(onSurfaceVariant),
-        surfaceTint = animateColor(surfaceTint),
-        inverseSurface = animateColor(inverseSurface),
-        inverseOnSurface = animateColor(inverseOnSurface),
-        error = animateColor(error),
-        onError = animateColor(onError),
-        errorContainer = animateColor(errorContainer),
-        onErrorContainer = animateColor(onErrorContainer),
-        outline = animateColor(outline),
-        outlineVariant = animateColor(outlineVariant),
-        scrim = animateColor(scrim),
-        surfaceBright = animateColor(surfaceBright),
-        surfaceDim = animateColor(surfaceDim),
-        surfaceContainer = animateColor(surfaceContainer),
-        surfaceContainerHigh = animateColor(surfaceContainerHigh),
-        surfaceContainerHighest = animateColor(surfaceContainerHighest),
-        surfaceContainerLow = animateColor(surfaceContainerLow),
-        surfaceContainerLowest = animateColor(surfaceContainerLowest),
-        primaryFixed = animateColor(primaryFixed),
-        primaryFixedDim = animateColor(primaryFixedDim),
-        onPrimaryFixed = animateColor(onPrimaryFixed),
-        onPrimaryFixedVariant = animateColor(onPrimaryFixedVariant),
-        secondaryFixed = animateColor(secondaryFixed),
-        secondaryFixedDim = animateColor(secondaryFixedDim),
-        onSecondaryFixed = animateColor(onSecondaryFixed),
-        onSecondaryFixedVariant = animateColor(onSecondaryFixedVariant),
-        tertiaryFixed = animateColor(tertiaryFixed),
-        tertiaryFixedDim = animateColor(tertiaryFixedDim),
-        onTertiaryFixed = animateColor(onTertiaryFixed),
-        onTertiaryFixedVariant = animateColor(onTertiaryFixedVariant),
+        primary = next(),
+        onPrimary = next(),
+        primaryContainer = next(),
+        onPrimaryContainer = next(),
+        inversePrimary = next(),
+        secondary = next(),
+        onSecondary = next(),
+        secondaryContainer = next(),
+        onSecondaryContainer = next(),
+        tertiary = next(),
+        onTertiary = next(),
+        tertiaryContainer = next(),
+        onTertiaryContainer = next(),
+        background = next(),
+        onBackground = next(),
+        surface = next(),
+        onSurface = next(),
+        surfaceVariant = next(),
+        onSurfaceVariant = next(),
+        surfaceTint = next(),
+        inverseSurface = next(),
+        inverseOnSurface = next(),
+        error = next(),
+        onError = next(),
+        errorContainer = next(),
+        onErrorContainer = next(),
+        outline = next(),
+        outlineVariant = next(),
+        scrim = next(),
+        surfaceBright = next(),
+        surfaceDim = next(),
+        surfaceContainer = next(),
+        surfaceContainerHigh = next(),
+        surfaceContainerHighest = next(),
+        surfaceContainerLow = next(),
+        surfaceContainerLowest = next(),
+        primaryFixed = next(),
+        primaryFixedDim = next(),
+        onPrimaryFixed = next(),
+        onPrimaryFixedVariant = next(),
+        secondaryFixed = next(),
+        secondaryFixedDim = next(),
+        onSecondaryFixed = next(),
+        onSecondaryFixedVariant = next(),
+        tertiaryFixed = next(),
+        tertiaryFixedDim = next(),
+        onTertiaryFixed = next(),
+        onTertiaryFixedVariant = next(),
     )
 }
