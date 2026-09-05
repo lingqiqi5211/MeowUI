@@ -1,10 +1,10 @@
 package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,10 +17,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -28,17 +28,16 @@ import androidx.compose.material3.Button as MaterialButton
 import androidx.compose.material3.Checkbox as MaterialCheckbox
 import androidx.compose.material3.DropdownMenuGroup as MaterialDropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem as MaterialDropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup as MaterialDropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon as MaterialIcon
 import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SegmentedListItem as MaterialSegmentedListItem
 import androidx.compose.material3.Slider as MaterialSlider
+import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.Switch as MaterialSwitch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text as MaterialText
@@ -53,10 +52,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -64,7 +61,9 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
@@ -74,6 +73,7 @@ import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.basic.SliderDefaults as MiuixSliderDefaults
 import top.yukonga.miuix.kmp.basic.SmallTitle as MiuixSmallTitle
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.preference.ArrowPreference as MiuixArrowPreference
@@ -115,8 +115,11 @@ fun MeowPreferenceScreen(
 
     MeowStyleContent(
         materialExpressive = {
+            // 甩到列表尽头轻响一下，与 Miuix 分支同一处反馈；overscroll 仍是 Material 自己的拉伸。
             PreferenceColumn(
-                modifier = modifier.then(nestedScrollModifier),
+                modifier = modifier
+                    .scrollEndHaptic()
+                    .then(nestedScrollModifier),
                 contentPadding = mergedPadding,
                 sectionSpacing = 13.dp,
                 content = content,
@@ -140,7 +143,7 @@ fun MeowPreferenceScreen(
 private fun PreferenceColumn(
     modifier: Modifier,
     contentPadding: PaddingValues,
-    sectionSpacing: androidx.compose.ui.unit.Dp,
+    sectionSpacing: Dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -448,6 +451,12 @@ fun MeowSliderPreference(
                 enabled = enabled,
                 valueRange = valueRange,
                 steps = steps,
+                // 分档滑条换档时轻响；连续滑条只在到端时响。Material 分支同此。
+                hapticEffect = if (steps > 0) {
+                    MiuixSliderDefaults.SliderHapticEffect.Step
+                } else {
+                    MiuixSliderDefaults.SliderHapticEffect.Edge
+                },
                 onValueChangeFinished = onValueChangeFinished,
             )
         },
@@ -610,7 +619,7 @@ private fun <T> MaterialChoicePreference(
     collapseOnSelection: Boolean,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val hapticFeedback = LocalHapticFeedback.current
+    val haptics = rememberMeowHaptics()
 
     MaterialPreferenceRow(
         title = title,
@@ -661,9 +670,7 @@ private fun <T> MaterialChoicePreference(
                                             }
                                         },
                                         onClick = {
-                                            hapticFeedback.performHapticFeedback(
-                                                HapticFeedbackType.VirtualKey,
-                                            )
+                                            haptics.picked()
                                             onValueChange(option)
                                             if (collapseOnSelection) expanded = false
                                         },
@@ -686,7 +693,7 @@ private fun <T> MaterialChoicePreference(
             }
         },
         onClick = {
-            hapticFeedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
+            haptics.menuOpened()
             expanded = true
         },
     )
@@ -792,12 +799,10 @@ private fun MaterialSwitchPreference(
     enabled: Boolean,
     leading: (@Composable () -> Unit)?,
 ) {
-    val hapticFeedback = LocalHapticFeedback.current
+    val haptics = rememberMeowHaptics()
     val interactionSource = remember { MutableInteractionSource() }
     val updateChecked: (Boolean) -> Unit = { newValue ->
-        hapticFeedback.performHapticFeedback(
-            if (newValue) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff,
-        )
+        haptics.toggled(newValue)
         onCheckedChange(newValue)
     }
 
@@ -868,9 +873,13 @@ private fun MaterialCheckboxPreference(
     enabled: Boolean,
     leading: (@Composable () -> Unit)?,
 ) {
+    val haptics = rememberMeowHaptics()
     MaterialSegmentedListItem(
         checked = checked,
-        onCheckedChange = onCheckedChange,
+        onCheckedChange = { newValue ->
+            haptics.toggled(newValue)
+            onCheckedChange(newValue)
+        },
         shapes = materialPreferenceItemShapes(),
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
@@ -909,6 +918,9 @@ private fun MaterialSliderPreference(
     valueText: (Float) -> String,
     onValueChangeFinished: (() -> Unit)?,
 ) {
+    // 到端、换档时的反馈与 Miuix 分支同一套（见 MeowSliderHaptic）。
+    val haptics = rememberMeowHaptics()
+    val sliderHaptic = rememberSliderHaptic(value, valueRange)
     MaterialSegmentedListItem(
         shapes = materialPreferenceItemShapes(),
         modifier = modifier.fillMaxWidth(),
@@ -925,7 +937,10 @@ private fun MaterialSliderPreference(
                 Spacer(Modifier.height(12.dp))
                 MaterialSlider(
                     value = value,
-                    onValueChange = onValueChange,
+                    onValueChange = { newValue ->
+                        sliderHaptic.onValueChange(newValue, valueRange, steps, haptics)
+                        onValueChange(newValue)
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = enabled,
                     valueRange = valueRange,
@@ -1068,7 +1083,7 @@ private fun materialPreferenceItemColors(): ListItemColors = ListItemDefaults.se
 internal fun MeowText(
     text: String,
     color: Color,
-    style: androidx.compose.ui.text.TextStyle,
+    style: TextStyle,
     modifier: Modifier = Modifier,
     maxLines: Int = Int.MAX_VALUE,
 ) {

@@ -228,6 +228,8 @@ private fun ColorPickerContent(
     }
     val customSelected = !dynamicColor && distinctPresets.none { it == seedColor }
     var showCustomDialog by remember { mutableStateOf(false) }
+    // 选中一个色票即时生效，等同于在弹窗里选中一项：响 Confirm。
+    val haptics = rememberMeowHaptics()
 
     MeowColorPaletteDialog(
         show = showCustomDialog,
@@ -284,7 +286,10 @@ private fun ColorPickerContent(
                             colorSpec = colorSpec,
                             size = swatchSize,
                             contentDescription = "Follow wallpaper colors",
-                            onClick = { onDynamicColorChange(true) },
+                            onClick = {
+                                haptics.picked()
+                                onDynamicColorChange(true)
+                            },
                         )
                     }
 
@@ -295,8 +300,11 @@ private fun ColorPickerContent(
                         paletteStyle = paletteStyle,
                         colorSpec = colorSpec,
                         size = swatchSize,
-                        contentDescription = "Theme color #%06X".format(cell.color.toArgb() and 0xFFFFFF),
+                        contentDescription = remember(cell.color) {
+                            "Theme color #%06X".format(cell.color.toArgb() and 0xFFFFFF)
+                        },
                         onClick = {
+                            haptics.picked()
                             onDynamicColorChange(false)
                             onSeedColorChange(cell.color)
                         },

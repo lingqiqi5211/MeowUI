@@ -18,8 +18,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button as MaterialButton
-import androidx.compose.material3.Checkbox as MaterialCheckbox
 import androidx.compose.material3.ButtonDefaults as MaterialButtonDefaults
+import androidx.compose.material3.Checkbox as MaterialCheckbox
 import androidx.compose.material3.CircularProgressIndicator as MaterialCircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton as MaterialRadioButton
@@ -756,6 +756,7 @@ private fun <T> MaterialChoiceList(
     optionLabel: (T) -> String,
     onSelected: (T) -> Unit,
 ) {
+    val haptics = rememberMeowHaptics()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -773,7 +774,11 @@ private fun <T> MaterialChoiceList(
                         .selectable(
                             selected = isSelected,
                             role = Role.RadioButton,
-                            onClick = { onSelected(option) },
+                            onClick = {
+                                // 与 miuix RadioButton 一致：选中响 ToggleOn，重复点已选项响 ToggleOff。
+                                haptics.toggled(!isSelected)
+                                onSelected(option)
+                            },
                         )
                         .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -881,6 +886,7 @@ private fun <T> MaterialCheckboxList(
     optionLabel: (T) -> String,
     onToggled: (T) -> Unit,
 ) {
+    val haptics = rememberMeowHaptics()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -897,7 +903,10 @@ private fun <T> MaterialCheckboxList(
                         .toggleable(
                             value = isChecked,
                             role = Role.Checkbox,
-                            onValueChange = { onToggled(option) },
+                            onValueChange = { checked ->
+                                haptics.toggled(checked)
+                                onToggled(option)
+                            },
                         )
                         .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -924,6 +933,8 @@ private fun <T> MiuixCheckboxList(
     optionLabel: (T) -> String,
     onToggled: (T) -> Unit,
 ) {
+    // 行接管了点击，miuix Checkbox 自己的反馈不会触发，这里补上同一种。
+    val haptics = rememberMeowHaptics()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -940,7 +951,10 @@ private fun <T> MiuixCheckboxList(
                         .toggleable(
                             value = isChecked,
                             role = Role.Checkbox,
-                            onValueChange = { onToggled(option) },
+                            onValueChange = { checked ->
+                                haptics.toggled(checked)
+                                onToggled(option)
+                            },
                         )
                         .padding(horizontal = 24.dp),
                     verticalAlignment = Alignment.CenterVertically,

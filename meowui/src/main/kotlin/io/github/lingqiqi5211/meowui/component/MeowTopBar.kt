@@ -1,101 +1,101 @@
 package io.github.lingqiqi5211.meowui.component
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.layout.height
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.DropdownMenuGroup as MaterialDropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem as MaterialDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup as MaterialDropdownMenuPopup
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon as MaterialIcon
 import androidx.compose.material3.IconButton as MaterialIconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar as MaterialLargeFlexibleTopAppBar
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.MenuItemShapes
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TextButton as MaterialTextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.vector.ImageVector
-import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import io.github.lingqiqi5211.meowui.theme.LocalMeowBlurEnabled
-import top.yukonga.miuix.kmp.blur.blur
-import top.yukonga.miuix.kmp.blur.drawBackdrop
-import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
+import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
+import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
+import top.yukonga.miuix.kmp.blur.blur
+import top.yukonga.miuix.kmp.blur.drawBackdrop
+import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.overlay.OverlayCascadingListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
-import kotlin.math.roundToInt
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.animation.core.spring
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.util.lerp
-import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.draw.drawWithContent
 
 /**
  * A top bar action.
@@ -367,9 +367,11 @@ private fun MaterialTopBarMenu(action: MeowTopBarAction.Menu) {
     // 收回那一下内容闪一次；冻结原样淡出才平。
     var submenuKey by remember { mutableStateOf<String?>(null) }
     val groups = action.resolvedGroups
+    val haptics = rememberMeowHaptics()
 
     MaterialIconButton(
         onClick = {
+            haptics.menuOpened()
             submenuKey = null
             expanded = true
         },
@@ -586,9 +588,9 @@ private fun MaterialMenuSinkContent(
     // 锚点：父项那一行在一级里的位置、高度，以及它在自己分组里的形状——二级的头行要顶着
     // 这一行落位，形状不一致的话展开第一帧会露出一圈圆角。
     val anchors = remember { mutableStateMapOf<String, SinkAnchor>() }
-    var primaryTop by remember { mutableStateOf(0) }
+    var primaryTop by remember { mutableIntStateOf(0) }
     // 头行在二级面板里的偏移（分组容器自己的内边距），面板要往上挪这么多才对得齐。
-    var headerOffset by remember { mutableStateOf(0) }
+    var headerOffset by remember { mutableIntStateOf(0) }
     val parent = submenuParent(groups, displayedKey)
     val anchor = displayedKey?.let { anchors[it] }
     // 展开的是弹窗全局第一行时，二级从面板顶端起、盖住整张卡（下面把它的最小高度撑到一级
@@ -644,12 +646,14 @@ private fun MaterialMenuSinkContent(
                     itemModifier = { groupIndex, itemIndex ->
                         val key = "$groupIndex:$itemIndex"
                         Modifier.onGloballyPositioned { coordinates ->
-                            anchors[key] = SinkAnchor(
+                            val anchor = SinkAnchor(
                                 top = coordinates.positionInWindow().y.roundToInt() - primaryTop,
                                 height = coordinates.size.height,
                                 index = itemIndex,
                                 count = groups[groupIndex].size,
                             )
+                            // 每趟布局都会回调；没变就不写，免得白白触发一轮重组。
+                            if (anchors[key] != anchor) anchors[key] = anchor
                         }
                     },
                 )
@@ -804,12 +808,13 @@ private const val CheckMarkScaleFrom = 0.7f
 @Composable
 private fun MaterialTopBarMenuItem(
     item: MeowMenuItem,
-    shapes: androidx.compose.material3.MenuItemShapes,
+    shapes: MenuItemShapes,
     onOpenSubmenu: () -> Unit,
     onPicked: () -> Unit,
     modifier: Modifier = Modifier,
     arrowRotation: () -> Float = { 0f },
 ) {
+    val haptics = rememberMeowHaptics()
     // 带 selected 的 Expressive 重载：选中态背景与形状由组件自己处理，对应 miuix 的 ✓。
     // ✓ / 子菜单箭头不走 trailing 槽：那个槽紧跟在文字后面，短标题的行里
     // 标记会浮在行中间；自己在 text 槽里两端对齐，标记恒定贴行右缘。
@@ -817,7 +822,13 @@ private fun MaterialTopBarMenuItem(
         selected = item.selected == true,
         modifier = modifier,
         onClick = {
-            if (item.children.isNotEmpty()) onOpenSubmenu() else onPicked()
+            if (item.children.isNotEmpty()) {
+                onOpenSubmenu()
+            } else {
+                // 与 miuix 弹窗选项一致：选中一项响 Confirm。
+                haptics.picked()
+                onPicked()
+            }
         },
         text = {
             Row(
@@ -919,15 +930,22 @@ private fun MiuixTopBarAction(action: MeowTopBarAction) {
 @Composable
 private fun MiuixTopBarMenu(action: MeowTopBarAction.Menu) {
     val groups = action.resolvedGroups
-    val entries = remember(groups) {
-        groups.map { group -> DropdownEntry(items = group.map { it.toMiuixDropdownItem() }) }
+    // miuix 的级联弹窗自己不响；照它的下拉入口（Spinner / DropdownMenu）与下拉弹窗的做法：
+    // 展开响 ContextClick，选中一项响 Confirm。
+    val haptics = rememberMeowHaptics()
+    val entries = remember(groups, haptics) {
+        groups.map { group ->
+            DropdownEntry(items = group.map { it.toMiuixDropdownItem(haptics) })
+        }
     }
-
     val collapseOnSelection = action.collapseOnSelection
 
     var expanded by remember { mutableStateOf(false) }
     MiuixIconButton(
-        onClick = { expanded = true },
+        onClick = {
+            haptics.menuOpened()
+            expanded = true
+        },
         modifier = action.modifier,
         enabled = action.enabled && groups.isNotEmpty(),
     ) {
@@ -945,24 +963,33 @@ private fun MiuixTopBarMenu(action: MeowTopBarAction.Menu) {
     }
 }
 
-/** 递归转换为 miuix DropdownItem;children 非空时由 miuix 原生级联弹窗堆叠展开。 */
-private fun MeowMenuItem.toMiuixDropdownItem(): DropdownItem = DropdownItem(
-    text = text,
-    summary = summary,
-    enabled = enabled,
-    selected = selected == true,
-    onClick = onClick,
-    icon = icon?.let { image ->
-        { modifier ->
-            MiuixIcon(
-                imageVector = image,
-                contentDescription = null,
-                modifier = modifier,
-            )
-        }
-    },
-    children = children.takeIf { it.isNotEmpty() }?.map { it.toMiuixDropdownItem() },
-)
+/**
+ * 递归转换为 miuix DropdownItem;children 非空时由 miuix 原生级联弹窗堆叠展开。
+ * 叶子项被点中时先响一下再回调；子菜单入口的 onClick 由 miuix 忽略，不用包。
+ */
+private fun MeowMenuItem.toMiuixDropdownItem(haptics: MeowHaptics): DropdownItem {
+    val onPicked = onClick
+    return DropdownItem(
+        text = text,
+        summary = summary,
+        enabled = enabled,
+        selected = selected == true,
+        onClick = {
+            haptics.picked()
+            onPicked()
+        },
+        icon = icon?.let { image ->
+            { modifier ->
+                MiuixIcon(
+                    imageVector = image,
+                    contentDescription = null,
+                    modifier = modifier,
+                )
+            }
+        },
+        children = children.takeIf { it.isNotEmpty() }?.map { it.toMiuixDropdownItem(haptics) },
+    )
+}
 
 private const val MenuDrillFadeMillis = 120
 

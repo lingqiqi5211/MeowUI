@@ -66,6 +66,7 @@ MeowUI 统一组件语义、状态、`PreferenceKey` 绑定和业务回调，不
 - Material 使用 Expressive motion，Miuix 使用 Miuix 自身动效；不要共用一套动画参数强行得到相似外观。
 - 首次 composition 直接显示最终颜色、尺寸、圆角和选中状态。动画只表达首次显示之后的真实状态变化。
 - 同一交互只保留一个 indication、一个点击入口和一次触觉反馈，避免闪烁、双重遮罩或重复提交。
+- 触觉反馈两种风格同一套，取值照 Miuix：开关、复选、单选切换用 `ToggleOn` / `ToggleOff`；弹出菜单展开用 `ContextClick`；在弹窗里选中一项用 `Confirm`；滑条到端、下拉到位用 `GestureThresholdActivate`；滑条换档、列表甩到尽头用 `TextHandleMove`。Miuix 原生组件自带的反馈不重复触发；Material 分支与库内自绘的行经 `MeowHaptics` 补齐。
 - 静态分组不为展示效果强加 item 动画；动态插入、删除、展开或排序才使用对应动画。
 - `MeowPullToRefresh` 的刷新状态由调用侧持有；刷新指示、顶栏滚动和内容 overscroll 必须协作，不得互相抢占手势。
 - 轻量结果使用 `MeowTip` 或页面内状态；只有阻止继续操作且无法后台完成时才使用 Loading Dialog。

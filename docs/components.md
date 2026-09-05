@@ -24,6 +24,10 @@ MeowUI 的公共组件只暴露一套业务 API。`MeowTheme` 根据 `MeowUiStyl
 
 动态条件项建议使用稳定 key。绑定 `PreferenceKey` 的设置项会使用对应 key 保持身份稳定；自定义内容通过 `item(key = ...)` 显式提供稳定 key。
 
+## 触觉反馈
+
+两种风格下同一交互给同一种震感，取值照 Miuix 原生组件：开关、复选、单选切换；弹出菜单展开与选中一项；滑条到端与换档；下拉刷新到位；列表甩到尽头。Miuix 分支由原生组件触发，Material 分支由库补齐，调用侧不需要自己调 `LocalHapticFeedback`。
+
 ```kotlin
 MeowPreferenceSection(title = "功能") {
     MeowSwitchPreference(
@@ -82,7 +86,7 @@ MeowCheckboxPreference(
 
 ### Slider
 
-当前 key 必须是 `PreferenceKey<Float>`。可设置范围、步数和显示文本。
+当前 key 必须是 `PreferenceKey<Float>`。可设置范围、步数和显示文本。拖到两端时有一次触觉反馈；`steps > 0` 时每换一档轻响一下，两种风格相同。
 
 ```kotlin
 MeowSliderPreference(

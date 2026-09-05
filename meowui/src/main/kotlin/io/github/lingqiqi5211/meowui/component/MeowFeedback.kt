@@ -26,6 +26,10 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox as MaterialPull
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,7 +42,6 @@ import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardColors as MiuixCardColors
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.PullToRefresh as MiuixPullToRefresh
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -160,6 +163,15 @@ fun MeowPullToRefresh(
     MeowStyleContent(
         materialExpressive = {
             val state = rememberPullToRefreshState()
+            // 下拉到位响一下，与 miuix PullToRefresh 到达阈值时的反馈一致。
+            // 刷新中指示器会自己动画到阈值，那不是手势，不响。
+            val haptics = rememberMeowHaptics()
+            val refreshing by rememberUpdatedState(isRefreshing)
+            LaunchedEffect(state) {
+                snapshotFlow { state.distanceFraction >= 1f }.collect { reached ->
+                    if (reached && !refreshing) haptics.thresholdReached()
+                }
+            }
             MaterialPullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = onRefresh,
@@ -255,7 +267,7 @@ private fun TipContent(
                     color = bodyColor,
                     style = MeowTheme.typography.summary,
                 )
-        }
+            }
         }
         // 动作独占一行、靠右。和图标、正文挤在同一行时，正文被压成很窄的一栏——
         // 有标题、正文又不止一句的提示卡尤其明显。
