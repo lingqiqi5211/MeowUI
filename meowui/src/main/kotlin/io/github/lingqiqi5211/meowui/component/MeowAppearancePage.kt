@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowAppearance
 import io.github.lingqiqi5211.meowui.theme.MeowAppearanceDefaults
+import io.github.lingqiqi5211.meowui.theme.MeowBlur
 import io.github.lingqiqi5211.meowui.theme.MeowColorSpec
 import io.github.lingqiqi5211.meowui.theme.MeowPaletteStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
@@ -35,7 +36,6 @@ import io.github.lingqiqi5211.meowui.theme.MeowThemeMode
 import io.github.lingqiqi5211.meowui.theme.supportsSpec2025
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
-import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 
 /** 可替换的外观设置页文字。 */
 @Immutable
@@ -63,19 +63,64 @@ data class MeowAppearanceLabels(
     val predictiveBackSummary: String = "Preview the destination while swiping back",
     val interfaceScale: String = "Interface scale",
     val interfaceScaleSummary: String = "Adjust the size of the entire interface",
+    val defaultValue: String = "Default",
     val customColor: String = "Custom color",
     val dialogConfirm: String = "Done",
     val dialogCancel: String = "Cancel",
 )
 
 /**
- * 統一的外觀設定頁。
+ * 外观页显示哪些功能块。默认全开，应用按需关掉。
  *
- * 頁面本身不保存正式設定；每次變更都透過 [onAppearanceChange] 回傳。
+ * 一个分组里的功能块全关、也没有调用侧的条目时，整组连标题一起不显示。功能块自身的适用
+ * 条件仍然生效：Monet 开关只在 Miuix 下、AMOLED 只在 Material 下、预测式返回只在 Android 14
+ * 起、模糊只在设备能渲染时（见 [MeowBlur.isSupported]）出现。
+ */
+@Immutable
+data class MeowAppearanceOptions(
+    /** 顶部的主题预览头图。 */
+    val preview: Boolean = true,
+    /** 主题色：色票取色卡、Miuix 的 Monet 开关、色彩风格与色彩标准。 */
+    val themeColor: Boolean = true,
+    /** 深浅模式切换。 */
+    val themeMode: Boolean = true,
+    /** AMOLED 纯黑深色。 */
+    val amoledDark: Boolean = true,
+    /** Material / Miuix 界面风格切换。 */
+    val interfaceStyle: Boolean = true,
+    val floatingNavigationBar: Boolean = true,
+    val blur: Boolean = true,
+    val predictiveBack: Boolean = true,
+    val interfaceScale: Boolean = true,
+) {
+    companion object {
+        /** 全部功能块。 */
+        val All: MeowAppearanceOptions = MeowAppearanceOptions()
+
+        /** 一个内置功能块都不显示，只剩调用侧自己的内容。 */
+        val None: MeowAppearanceOptions = MeowAppearanceOptions(
+            preview = false,
+            themeColor = false,
+            themeMode = false,
+            amoledDark = false,
+            interfaceStyle = false,
+            floatingNavigationBar = false,
+            blur = false,
+            predictiveBack = false,
+            interfaceScale = false,
+        )
+    }
+}
+
+/**
+ * 统一的外观设置页。
  *
- * 頭圖（色票上方的主題預覽）默認使用內置的 [MeowAppearancePreview]，
- * 會按手機/摺疊屏/平板選擇不同的迷你界面形態；[showPreview] 設為 false 可去掉頭圖，
- * [previewContent] 不為 null 時用自定義內容替換內置頭圖。
+ * 页面本身不保存正式设置；每次变更都通过 [onAppearanceChange] 回传。
+ *
+ * - [options] 决定显示哪些功能块；[showPreview] 为 false 等同于 `options.preview = false`。
+ * - 头图默认是 [MeowAppearancePreview]，[previewContent] 不为 null 时替换。
+ * - [colorItems]、[interfaceItems] 追加到「颜色」「界面」分组末尾；给了它们，对应分组就算
+ *   内置功能块全关也会连标题一起显示。[extraContent] 追加在全部内置分组之后，可放整组。
  */
 @Composable
 fun MeowAppearancePage(
@@ -88,6 +133,9 @@ fun MeowAppearancePage(
     showPreview: Boolean = true,
     previewContent: (@Composable (MeowAppearance) -> Unit)? = null,
     extraContent: @Composable ColumnScope.() -> Unit = {},
+    options: MeowAppearanceOptions = MeowAppearanceOptions.All,
+    colorItems: (@Composable MeowPreferenceSectionScope.() -> Unit)? = null,
+    interfaceItems: (@Composable MeowPreferenceSectionScope.() -> Unit)? = null,
 ) {
     MeowPreferencePage(
         title = labels.title,
@@ -102,6 +150,9 @@ fun MeowAppearancePage(
             showPreview = showPreview,
             previewContent = previewContent,
             extraContent = extraContent,
+            options = options,
+            colorItems = colorItems,
+            interfaceItems = interfaceItems,
         )
     }
 }
@@ -122,69 +173,76 @@ fun ColumnScope.MeowAppearanceContent(
     showPreview: Boolean = true,
     previewContent: (@Composable (MeowAppearance) -> Unit)? = null,
     extraContent: @Composable ColumnScope.() -> Unit = {},
+    options: MeowAppearanceOptions = MeowAppearanceOptions.All,
+    colorItems: (@Composable MeowPreferenceSectionScope.() -> Unit)? = null,
+    interfaceItems: (@Composable MeowPreferenceSectionScope.() -> Unit)? = null,
 ) {
-    val normalizedScale = appearance.interfaceScale
-        .takeIf(Float::isFinite)
-        ?.coerceIn(
-            MeowAppearanceDefaults.MinInterfaceScale,
-            MeowAppearanceDefaults.MaxInterfaceScale,
-        ) ?: 1f
-    var draftScale by remember(normalizedScale) {
-        mutableFloatStateOf(normalizedScale)
-    }
-
     // Miuix 关闭 Monet 后使用原生配色，种子色与调色板设置不再生效，相关选项一并隐藏。
     val colorCustomizable = appearance.style != MeowUiStyle.Miuix || appearance.miuixMonetEnabled
+    val showMiuixMonet = options.themeColor && appearance.style == MeowUiStyle.Miuix
+    val showPalette = options.themeColor && colorCustomizable
+    // AMOLED 纯黑深色仅 Material 分支生效，作为深色模式的叠加开关。
+    val showAmoledDark = options.amoledDark && appearance.style == MeowUiStyle.MaterialExpressive
+    val showBlur = options.blur && MeowBlur.isSupported
+    val showPredictiveBack = options.predictiveBack &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+    val showColorSection = showMiuixMonet || showAmoledDark || showPalette || colorItems != null
+    val showInterfaceSection = options.interfaceStyle || options.floatingNavigationBar ||
+        showBlur || showPredictiveBack || options.interfaceScale || interfaceItems != null
 
-    if (showPreview) {
+    if (showPreview && options.preview) {
         previewContent?.invoke(appearance) ?: MeowAppearancePreview()
     }
 
-    AnimatedVisibility(
-        visible = colorCustomizable,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically(),
-    ) {
-        AppearanceColorCard(title = labels.themeColor) {
-            MeowColorPicker(
-                dynamicColor = appearance.dynamicColor,
-                seedColor = appearance.seedColor,
-                paletteStyle = appearance.paletteStyle,
-                colorSpec = appearance.colorSpec,
-                customColorTitle = labels.customColor,
-                confirmText = labels.dialogConfirm,
-                cancelText = labels.dialogCancel,
-                onDynamicColorChange = { enabled ->
-                    onAppearanceChange(appearance.copy(dynamicColor = enabled))
+    if (options.themeColor) {
+        AnimatedVisibility(
+            visible = colorCustomizable,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            AppearanceColorCard(title = labels.themeColor) {
+                MeowColorPicker(
+                    dynamicColor = appearance.dynamicColor,
+                    seedColor = appearance.seedColor,
+                    paletteStyle = appearance.paletteStyle,
+                    colorSpec = appearance.colorSpec,
+                    customColorTitle = labels.customColor,
+                    confirmText = labels.dialogConfirm,
+                    cancelText = labels.dialogCancel,
+                    onDynamicColorChange = { enabled ->
+                        onAppearanceChange(appearance.copy(dynamicColor = enabled))
+                    },
+                    onSeedColorChange = { color ->
+                        onAppearanceChange(
+                            appearance.copy(
+                                dynamicColor = false,
+                                seedColor = color,
+                            ),
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    if (options.themeMode) {
+        Column {
+            AppearanceSectionTitle(labels.themeMode)
+            val modes = MeowThemeMode.entries
+            MeowTabRow(
+                tabs = listOf(labels.systemMode, labels.lightMode, labels.darkMode),
+                selectedIndex = modes.indexOf(appearance.themeMode),
+                onTabSelected = { index ->
+                    onAppearanceChange(appearance.copy(themeMode = modes[index]))
                 },
-                onSeedColorChange = { color ->
-                    onAppearanceChange(
-                        appearance.copy(
-                            dynamicColor = false,
-                            seedColor = color,
-                        ),
-                    )
-                },
+                modifier = Modifier.fillMaxWidth(),
+                style = MeowTabRowStyle.Contour,
             )
         }
     }
 
-    Column {
-        AppearanceSectionTitle(labels.themeMode)
-        val modes = MeowThemeMode.entries
-        MeowTabRow(
-            tabs = listOf(labels.systemMode, labels.lightMode, labels.darkMode),
-            selectedIndex = modes.indexOf(appearance.themeMode),
-            onTabSelected = { index ->
-                onAppearanceChange(appearance.copy(themeMode = modes[index]))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            style = MeowTabRowStyle.Contour,
-        )
-    }
-
-    MeowPreferenceSection(title = labels.colorSettings) {
-        if (appearance.style == MeowUiStyle.Miuix) {
+    if (showColorSection) MeowPreferenceSection(title = labels.colorSettings) {
+        item(key = "miuixMonet", visible = showMiuixMonet, container = false) {
             MeowSwitchPreference(
                 title = labels.miuixMonet,
                 summary = labels.miuixMonetSummary,
@@ -194,8 +252,7 @@ fun ColumnScope.MeowAppearanceContent(
                 },
             )
         }
-        // AMOLED 纯黑深色仅 Material 分支生效,作为深色模式的叠加开关。
-        if (appearance.style == MeowUiStyle.MaterialExpressive) {
+        item(key = "amoledDark", visible = showAmoledDark, container = false) {
             MeowSwitchPreference(
                 title = labels.amoledDark,
                 summary = labels.amoledDarkSummary,
@@ -205,7 +262,7 @@ fun ColumnScope.MeowAppearanceContent(
                 },
             )
         }
-        if (colorCustomizable) {
+        item(key = "paletteStyle", visible = showPalette, container = false) {
             MeowPopupPreference(
                 title = labels.paletteStyle,
                 value = appearance.paletteStyle,
@@ -224,6 +281,8 @@ fun ColumnScope.MeowAppearanceContent(
                     )
                 },
             )
+        }
+        item(key = "colorSpec", visible = showPalette, container = false) {
             val availableColorSpecs = if (appearance.paletteStyle.supportsSpec2025) {
                 MeowColorSpec.entries
             } else {
@@ -245,42 +304,47 @@ fun ColumnScope.MeowAppearanceContent(
                 },
             )
         }
+        colorItems?.invoke(this)
     }
 
-    MeowPreferenceSection(title = labels.interfaceSettings) {
-        MeowPopupPreference(
-            title = labels.interfaceStyle,
-            value = appearance.style,
-            options = MeowUiStyle.entries,
-            optionLabel = { style ->
-                when (style) {
-                    MeowUiStyle.MaterialExpressive -> "Material 3 Expressive"
-                    MeowUiStyle.Miuix -> "Miuix"
-                }
-            },
-            onValueChange = { style ->
-                onAppearanceChange(appearance.copy(style = style))
-            },
-        )
-        MeowSwitchPreference(
-            title = labels.floatingNavigationBar,
-            summary = labels.floatingNavigationBarSummary,
-            checked = appearance.floatingNavigationBarEnabled,
-            onCheckedChange = { enabled ->
-                onAppearanceChange(appearance.copy(floatingNavigationBarEnabled = enabled))
-            },
-        )
-        // 不支持 RuntimeShader 时开关只显示偏好，不可改。
-        MeowSwitchPreference(
-            title = labels.blur,
-            summary = labels.blurSummary,
-            checked = appearance.blurEnabled,
-            enabled = isRuntimeShaderSupported(),
-            onCheckedChange = { enabled ->
-                onAppearanceChange(appearance.copy(blurEnabled = enabled))
-            },
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+    if (showInterfaceSection) MeowPreferenceSection(title = labels.interfaceSettings) {
+        item(key = "interfaceStyle", visible = options.interfaceStyle, container = false) {
+            MeowPopupPreference(
+                title = labels.interfaceStyle,
+                value = appearance.style,
+                options = MeowUiStyle.entries,
+                optionLabel = { style ->
+                    when (style) {
+                        MeowUiStyle.MaterialExpressive -> "Material 3 Expressive"
+                        MeowUiStyle.Miuix -> "Miuix"
+                    }
+                },
+                onValueChange = { style ->
+                    onAppearanceChange(appearance.copy(style = style))
+                },
+            )
+        }
+        item(key = "floatingNavigationBar", visible = options.floatingNavigationBar, container = false) {
+            MeowSwitchPreference(
+                title = labels.floatingNavigationBar,
+                summary = labels.floatingNavigationBarSummary,
+                checked = appearance.floatingNavigationBarEnabled,
+                onCheckedChange = { enabled ->
+                    onAppearanceChange(appearance.copy(floatingNavigationBarEnabled = enabled))
+                },
+            )
+        }
+        item(key = "blur", visible = showBlur, container = false) {
+            MeowSwitchPreference(
+                title = labels.blur,
+                summary = labels.blurSummary,
+                checked = appearance.blurEnabled,
+                onCheckedChange = { enabled ->
+                    onAppearanceChange(appearance.copy(blurEnabled = enabled))
+                },
+            )
+        }
+        item(key = "predictiveBack", visible = showPredictiveBack, container = false) {
             MeowSwitchPreference(
                 title = labels.predictiveBack,
                 summary = labels.predictiveBackSummary,
@@ -290,23 +354,50 @@ fun ColumnScope.MeowAppearanceContent(
                 },
             )
         }
-        MeowSliderPreference(
-            title = labels.interfaceScale,
-            summary = labels.interfaceScaleSummary,
-            value = draftScale,
-            // 拖动期间不量化，滑块才连续跟手；松手时量化到 1% 再提交。
-            onValueChange = { draftScale = it },
-            onValueChangeFinished = {
-                val committed = (draftScale * 100).roundToInt() / 100f
-                onAppearanceChange(appearance.copy(interfaceScale = committed))
-            },
-            valueRange = MeowAppearanceDefaults.MinInterfaceScale..MeowAppearanceDefaults.MaxInterfaceScale,
-            valueText = { "${(it * 100).roundToInt()}%" },
-        )
+        item(key = "interfaceScale", visible = options.interfaceScale, container = false) {
+            InterfaceScaleItem(
+                appearance = appearance,
+                onAppearanceChange = onAppearanceChange,
+                labels = labels,
+            )
+        }
+        interfaceItems?.invoke(this)
     }
 
     extraContent()
     Spacer(Modifier.height(4.dp))
+}
+
+@Composable
+private fun InterfaceScaleItem(
+    appearance: MeowAppearance,
+    onAppearanceChange: (MeowAppearance) -> Unit,
+    labels: MeowAppearanceLabels,
+) {
+    val normalizedScale = appearance.interfaceScale
+        .takeIf(Float::isFinite)
+        ?.coerceIn(
+            MeowAppearanceDefaults.MinInterfaceScale,
+            MeowAppearanceDefaults.MaxInterfaceScale,
+        ) ?: 1f
+    var draftScale by remember(normalizedScale) {
+        mutableFloatStateOf(normalizedScale)
+    }
+    MeowSliderPreference(
+        title = labels.interfaceScale,
+        summary = labels.interfaceScaleSummary,
+        value = draftScale,
+        // 拖动期间不量化，滑块才连续跟手；松手时量化到 1% 再提交。
+        onValueChange = { draftScale = it },
+        onValueChangeFinished = {
+            val committed = (draftScale * 100).roundToInt() / 100f
+            onAppearanceChange(appearance.copy(interfaceScale = committed))
+        },
+        valueRange = MeowAppearanceDefaults.MinInterfaceScale..MeowAppearanceDefaults.MaxInterfaceScale,
+        valueText = { "${(it * 100).roundToInt()}%" },
+        defaultValue = 1f,
+        defaultText = labels.defaultValue,
+    )
 }
 
 @Composable

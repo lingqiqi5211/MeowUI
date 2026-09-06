@@ -261,7 +261,7 @@ object MeowTheme {
 
         CompositionLocalProvider(
             LocalDensity provides scaledDensity,
-            LocalMeowBlurEnabled provides appearance.blurEnabled,
+            LocalMeowBlurEnabled provides (appearance.blurEnabled && MeowBlur.isSupported),
         ) {
             MeowThemeContent(
                 style = appearance.style,

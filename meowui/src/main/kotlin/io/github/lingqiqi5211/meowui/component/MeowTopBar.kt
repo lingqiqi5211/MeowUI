@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import io.github.lingqiqi5211.meowui.theme.LocalMeowBlurEnabled
+import io.github.lingqiqi5211.meowui.theme.MeowBlur
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.DropdownEntry
@@ -91,7 +92,6 @@ import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.blur.blur
 import top.yukonga.miuix.kmp.blur.drawBackdrop
-import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.overlay.OverlayCascadingListPopup
@@ -199,7 +199,7 @@ fun MeowTopBar(
     val backdrop = LocalMeowBackdrop.current
     val useBlur = LocalMeowBlurEnabled.current &&
         backdrop != null &&
-        isRuntimeShaderSupported()
+        MeowBlur.isSupported
     val effectModifier = modifier.then(effect.topBarModifier)
     // navigationIcon 优先；只给 onBackClick 时渲染风格原生的返回按钮。
     // navigationModifier 只作用于内置返回按钮；自定义 navigationIcon 由调用侧自己带 modifier。

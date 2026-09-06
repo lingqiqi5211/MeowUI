@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.LocalMeowBlurEnabled
 import io.github.lingqiqi5211.meowui.theme.LocalMeowDarkTheme
+import io.github.lingqiqi5211.meowui.theme.MeowBlur
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import kotlin.math.roundToInt
@@ -86,7 +87,6 @@ import top.yukonga.miuix.kmp.basic.TabRowWithContour as MiuixTabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.blur.blur
 import top.yukonga.miuix.kmp.blur.drawBackdrop
-import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 enum class MeowTabRowStyle {
@@ -369,7 +369,7 @@ private fun MeowFloatingNavigationBar(
     val backdrop = LocalMeowBackdrop.current
     val useBlur = LocalMeowBlurEnabled.current &&
         backdrop != null &&
-        isRuntimeShaderSupported()
+        MeowBlur.isSupported
 
     BoxWithConstraints(
         modifier = modifier
