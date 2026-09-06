@@ -122,6 +122,7 @@ Material 分支优先使用 `ListItemDefaults.segmentedShapes(index, count)`。�
 ### 设置项
 
 - Switch 使用 Material 3 Expressive Switch 包装；整行负责唯一点击、写入、语义和触觉反馈。
+- 正文从 scaffold 内边距处直接开始，顶栏与第一组之间不再加页边距；分组标题与分组之间留 8dp，分组之间 13dp（与 KernelSU 一致）。
 - Checkbox 用于次级或并列布尔选项，不与主要 Switch 混淆层级。
 - Slider 的标题/摘要区域与轨道之间保留独立间距，值文本不能挤压标题。
 - `MeowPopupPreference` 使用 Material Dropdown/Popup；当前值与选项文字保持 Material 正文字号层级。

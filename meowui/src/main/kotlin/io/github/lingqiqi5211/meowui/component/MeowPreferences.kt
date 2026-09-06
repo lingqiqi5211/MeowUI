@@ -100,13 +100,30 @@ private val LocalMaterialPreferenceItemShapes = staticCompositionLocalOf<ListIte
 /** 文本输入类组件"不允许为空"的统一默认错误文案。 */
 internal const val MeowDefaultBlankErrorText = "Value cannot be empty"
 
+object MeowPreferenceScreenDefaults {
+    /** 正文内边距，按风格取值。Material 顶部为 0：大标题顶栏已把标题和正文隔开（KernelSU 同此）。 */
+    @Composable
+    fun contentPadding(): PaddingValues {
+        val dimensions = MeowTheme.dimensions
+        return when (MeowTheme.style) {
+            MeowUiStyle.MaterialExpressive -> PaddingValues(
+                start = dimensions.pageHorizontalPadding,
+                end = dimensions.pageHorizontalPadding,
+                bottom = dimensions.pageVerticalPadding,
+            )
+
+            MeowUiStyle.Miuix -> PaddingValues(
+                horizontal = dimensions.pageHorizontalPadding,
+                vertical = dimensions.pageVerticalPadding,
+            )
+        }
+    }
+}
+
 @Composable
 fun MeowPreferenceScreen(
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(
-        horizontal = MeowTheme.dimensions.pageHorizontalPadding,
-        vertical = MeowTheme.dimensions.pageVerticalPadding,
-    ),
+    contentPadding: PaddingValues = MeowPreferenceScreenDefaults.contentPadding(),
     scaffoldPadding: PaddingValues = LocalMeowScaffoldContentPadding.current,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -221,7 +238,7 @@ private fun MaterialPreferenceSection(
                 text = it,
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
             )
         }
         Column(
