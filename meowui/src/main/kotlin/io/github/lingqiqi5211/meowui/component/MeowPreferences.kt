@@ -759,20 +759,10 @@ private fun <T> MaterialChoicePreference(
                                     }
                                     MaterialDropdownMenuItem(
                                         // 选中态交给 selected 的容器样式，不自己画 ✓。
-                                        text = {
-                                            Column {
-                                                MaterialText(optionLabel(option))
-                                                optionSummary?.invoke(option)
-                                                    ?.takeIf(String::isNotBlank)
-                                                    ?.let { text ->
-                                                        MaterialText(
-                                                            text = text,
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        )
-                                                    }
-                                            }
-                                        },
+                                        text = { MaterialText(optionLabel(option)) },
+                                        supportingText = optionSummary?.invoke(option)
+                                            ?.takeIf(String::isNotBlank)
+                                            ?.let { text -> { MaterialText(text) } },
                                         onClick = {
                                             haptics.picked()
                                             onValueChange(option)
@@ -1221,8 +1211,10 @@ private fun materialTrailingContent(
             value?.takeIf(String::isNotBlank)?.let {
                 MaterialText(
                     text = it,
+                    modifier = Modifier.widthAtMostFraction(MaterialValueMaxWidthFraction),
                     style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
+                    textAlign = TextAlign.End,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             if (!value.isNullOrBlank() && trailing != null) {
@@ -1239,6 +1231,20 @@ private fun materialTrailingContent(
             }
         }
     }
+}
+
+/** 行尾值文本最多占可用宽度的比例，取自 miuix BasicComponent 对 end 区域的上限。 */
+private const val MaterialValueMaxWidthFraction = 0.6f
+
+/** 宽度上限取可用宽度的一部分，本身只占内容宽度：长值换行，不挤掉标题。 */
+private fun Modifier.widthAtMostFraction(fraction: Float): Modifier = layout { measurable, constraints ->
+    val cap = if (constraints.hasBoundedWidth) {
+        (constraints.maxWidth * fraction).roundToInt()
+    } else {
+        constraints.maxWidth
+    }
+    val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = cap))
+    layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
