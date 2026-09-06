@@ -84,9 +84,12 @@ fun MeowSliderPreference(
     valueText: (Float) -> String = { it.toString() },
     onValueChange: (Float) -> Unit = {},
     onClick: (() -> Unit)? = null,
-    /** 在滑条上标出 [key] 的默认值并吸附。 */
-    showDefaultValue: Boolean = true,
+    /** 在滑条上标出 [key] 的默认值。 */
+    showDefaultValue: Boolean = false,
+    /** 标出默认值时，拖到附近吸上去。 */
+    snapToDefault: Boolean = true,
     showSteps: Boolean = false,
+    defaultText: String? = "Default",
 ) {
     val storedValue by rememberMeowPreferenceValue(key)
     val connectionState by rememberMeowPreferenceConnectionState()
@@ -119,7 +122,9 @@ fun MeowSliderPreference(
         },
         onClick = onClick,
         defaultValue = if (showDefaultValue) key.defaultValue else null,
+        snapToDefault = snapToDefault,
         showSteps = showSteps,
+        defaultText = defaultText,
     )
 }
 

@@ -88,7 +88,7 @@ MeowCheckboxPreference(
 
 当前 key 必须是 `PreferenceKey<Float>`。可设置范围、步数和显示文本。拖到两端时有一次触觉反馈；`steps > 0` 时每换一档轻响一下，两种风格相同。
 
-绑定 key 的滑条默认在轨道上标出 key 的默认值，拖到附近会吸上去；`showDefaultValue = false` 关掉。不绑定 key 时用 `defaultValue` 传入。分档滑条默认只吸附、不画刻度点，`showSteps = true` 画出来。
+`showDefaultValue = true` 让绑定 key 的滑条在轨道上标出 key 的默认值；不绑定 key 时用 `defaultValue` 传入。标出默认值后拖到附近会吸上去，`snapToDefault = false` 只标不吸。值正好在默认值上时行尾显示 `defaultText`（默认 "Default"）而不是数值，传 null 一直显示数值。分档滑条默认只吸附、不画刻度点，`showSteps = true` 画出来。
 
 `onClick` 让整行（标题、副文本、数值）可点，滑条本身仍归拖动，两种风格都不追加行尾箭头；用来打开精确输入之类的对话框。
 
@@ -603,11 +603,12 @@ MeowTheme(appearance = appearance) {
 ```
 
 - **头图**：默认显示内置的 `MeowAppearancePreview` —— 一块随主题实时着色的迷你界面，按设备形态自动切换（手机为竖屏单栏、展开态折叠屏为铰链双栏、平板为横屏侧栏布局）。`showPreview = false` 可去掉头图；`previewContent` 不为 null 时用自定义内容替换，同样不需要区分 Material 与 Miuix。
-- `extraContent` 可在标准选项之后加入模块自己的外观设置。
+- **按功能块裁剪**：`options: MeowAppearanceOptions` 决定显示哪些功能块——头图、主题色（色票、Monet 开关、色彩风格、色彩标准）、深浅模式、AMOLED、界面风格、悬浮底栏、模糊、预测式返回、界面缩放，默认 `All`；`None` 关掉全部，只剩调用侧自己的内容。一个分组里的功能块全关、也没有自定义条目时，整组连标题一起不显示。
+- **自定义条目**：`colorItems`、`interfaceItems` 是 `MeowPreferenceSectionScope` lambda，追加到「颜色」「界面」分组末尾，可用分组内的任何设置项；给了它们，对应分组就会显示。`extraContent` 追加在全部内置分组之后，可放整组。
 - 界面缩放范围为 80%–110%，松开 Slider 后提交；系统字体缩放比例保持不变。
 - 不支持 2025 色彩标准的色彩风格只显示并使用 2021，避免无效组合。
 - `amoledDarkEnabled` 为 AMOLED 纯黑深色开关（背景与 surface 容器压成纯黑，保留 surfaceBright 卡片层次），叠加在深色模式上——深色生效时（含跟随系统进入深色）即应用；仅 Material 3 Expressive 分支生效并显示该开关，Miuix 分支忽略。
-- `blurEnabled`（默认开）控制顶栏与悬浮底栏的内置背景磨砂：在 `MeowScaffold` 内且设备支持 RuntimeShader 时，栏体对身后内容做模糊并叠半透明底色；关闭或设备不支持时自动回退不透明底色。该开关经 `MeowTheme(appearance = …)` 统一入口生效；外观页的界面分组有对应开关，设备不支持时开关不可改。
+- `blurEnabled`（默认开）控制顶栏与悬浮底栏的内置背景磨砂：在 `MeowScaffold` 内且设备支持 RuntimeShader 时，栏体对身后内容做模糊并叠半透明底色；关闭或设备不支持时自动回退不透明底色。该开关经 `MeowTheme(appearance = …)` 统一入口生效。模糊经 RuntimeShader 实现，Android 13 起可用（`MeowBlur.isSupported`）；更低版本外观页不显示模糊开关，主题也忽略 `blurEnabled`。
 - `floatingNavigationBarEnabled`（默认开）只保存偏好：应用的底栏按它选择 `MeowNavigationBarStyle.Floating` 或 `Standard`（sample 即如此）。外观页的界面分组有对应开关。
 - 界面缩放改变时密度沿一条动画过渡，两种风格下页面尺寸都连续变化而不是一步跳到位。
 - 色票行末尾附带调色盘（miuix ColorPicker），可自选任意种子色；选中态显示当前自选颜色。调色盘弹窗的标题/确认/取消文案经 `MeowAppearanceLabels.customColor/dialogConfirm/dialogCancel`（或 `MeowColorPicker` 的同名参数）本地化。

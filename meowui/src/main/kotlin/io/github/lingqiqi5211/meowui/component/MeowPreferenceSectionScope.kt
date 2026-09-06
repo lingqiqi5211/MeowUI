@@ -222,7 +222,9 @@ class MeowPreferenceSectionScope internal constructor() {
         onValueChangeFinished: (() -> Unit)? = null,
         onClick: (() -> Unit)? = null,
         defaultValue: Float? = null,
+        snapToDefault: Boolean = true,
         showSteps: Boolean = false,
+        defaultText: String? = "Default",
     ) = item(key = title, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowSliderPreference(
             title = title,
@@ -237,7 +239,9 @@ class MeowPreferenceSectionScope internal constructor() {
             onValueChangeFinished = onValueChangeFinished,
             onClick = onClick,
             defaultValue = defaultValue,
+            snapToDefault = snapToDefault,
             showSteps = showSteps,
+            defaultText = defaultText,
         )
     }
 
@@ -252,8 +256,10 @@ class MeowPreferenceSectionScope internal constructor() {
         valueText: (Float) -> String = { it.toString() },
         onValueChange: (Float) -> Unit = {},
         onClick: (() -> Unit)? = null,
-        showDefaultValue: Boolean = true,
+        showDefaultValue: Boolean = false,
+        snapToDefault: Boolean = true,
         showSteps: Boolean = false,
+        defaultText: String? = "Default",
     ) = item(key = key.name, container = false) {
         io.github.lingqiqi5211.meowui.component.MeowSliderPreference(
             key = key,
@@ -267,7 +273,9 @@ class MeowPreferenceSectionScope internal constructor() {
             onValueChange = onValueChange,
             onClick = onClick,
             showDefaultValue = showDefaultValue,
+            snapToDefault = snapToDefault,
             showSteps = showSteps,
+            defaultText = defaultText,
         )
     }
 

@@ -452,13 +452,22 @@ fun MeowSliderPreference(
     onValueChangeFinished: (() -> Unit)? = null,
     /** 整行可点（滑条仍归拖动）；两种风格都不加行尾箭头。 */
     onClick: (() -> Unit)? = null,
-    /** 在滑条上标出默认值并吸附；null 不画。 */
+    /** 在滑条上标出默认值；null 不画。 */
     defaultValue: Float? = null,
+    /** 拖到 [defaultValue] 附近时吸上去。 */
+    snapToDefault: Boolean = true,
     /** 分档滑条是否画出每一档的刻度点。 */
     showSteps: Boolean = false,
+    /** 值正好等于 [defaultValue] 时，行尾显示这段文字而不是数值；null 一直显示数值。 */
+    defaultText: String? = "Default",
 ) {
     val keyPoints = remember(valueRange, steps, showSteps, defaultValue) {
         sliderKeyPoints(valueRange, steps, showSteps, defaultValue)
+    }
+    val displayText = if (defaultText != null && defaultValue != null && value == defaultValue) {
+        defaultText
+    } else {
+        valueText(value)
     }
     MeowStyleContent(
         materialExpressive = {
@@ -471,10 +480,11 @@ fun MeowSliderPreference(
                 valueRange = valueRange,
                 steps = steps,
                 enabled = enabled,
-                valueText = valueText,
+                valueText = displayText,
                 onValueChangeFinished = onValueChangeFinished,
                 onClick = onClick,
                 defaultValue = defaultValue?.takeIf { it in valueRange },
+                snapToDefault = snapToDefault,
                 showSteps = showSteps,
             )
         },
@@ -488,10 +498,11 @@ fun MeowSliderPreference(
                 valueRange = valueRange,
                 steps = steps,
                 enabled = enabled,
-                valueText = valueText(value),
+                valueText = displayText,
                 onValueChangeFinished = onValueChangeFinished,
                 onClick = onClick,
                 keyPoints = keyPoints,
+                snapToDefault = snapToDefault,
             )
         },
     )
@@ -535,6 +546,7 @@ private fun MiuixSliderRow(
     onValueChangeFinished: (() -> Unit)?,
     onClick: (() -> Unit)?,
     keyPoints: List<Float>?,
+    snapToDefault: Boolean,
 ) {
     BasicComponent(
         modifier = modifier,
@@ -572,7 +584,7 @@ private fun MiuixSliderRow(
                 },
                 showKeyPoints = keyPoints != null,
                 keyPoints = keyPoints,
-                magnetThreshold = SliderMagnetThreshold,
+                magnetThreshold = if (snapToDefault) SliderMagnetThreshold else 0f,
             )
         },
         onClick = onClick,
@@ -1026,18 +1038,21 @@ private fun MaterialSliderPreference(
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
     enabled: Boolean,
-    valueText: (Float) -> String,
+    valueText: String,
     onValueChangeFinished: (() -> Unit)?,
     onClick: (() -> Unit)?,
     defaultValue: Float?,
+    snapToDefault: Boolean,
     showSteps: Boolean,
 ) {
     val haptics = rememberMeowHaptics()
     val sliderHaptic = rememberSliderHaptic(value, valueRange)
     // 分档滑条已落在档上，只有连续滑条需要吸附。
-    val snapToDefault: (Float) -> Float = { newValue ->
+    val snap: (Float) -> Float = { newValue ->
         val span = valueRange.endInclusive - valueRange.start
-        if (defaultValue != null && steps == 0 && abs(newValue - defaultValue) <= span * SliderMagnetThreshold) {
+        if (snapToDefault && defaultValue != null && steps == 0 &&
+            abs(newValue - defaultValue) <= span * SliderMagnetThreshold
+        ) {
             defaultValue
         } else {
             newValue
@@ -1067,7 +1082,7 @@ private fun MaterialSliderPreference(
             MaterialSlider(
                 value = value,
                 onValueChange = { rawValue ->
-                    val newValue = snapToDefault(rawValue)
+                    val newValue = snap(rawValue)
                     sliderHaptic.onValueChange(newValue, valueRange, steps, defaultValue, haptics)
                     onValueChange(newValue)
                 },
@@ -1120,7 +1135,7 @@ private fun MaterialSliderPreference(
                 )
             }
             MaterialText(
-                text = valueText(value),
+                text = valueText,
                 modifier = Modifier.padding(top = materialPreferenceInternalPadding()),
                 style = MaterialTheme.typography.labelLarge,
             )
