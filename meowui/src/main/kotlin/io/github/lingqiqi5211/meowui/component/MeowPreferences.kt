@@ -1,7 +1,6 @@
 package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,8 +52,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -64,24 +66,29 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.basic.Slider as MiuixSlider
 import top.yukonga.miuix.kmp.basic.SliderDefaults as MiuixSliderDefaults
 import top.yukonga.miuix.kmp.basic.SmallTitle as MiuixSmallTitle
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.preference.ArrowPreference as MiuixArrowPreference
 import top.yukonga.miuix.kmp.preference.CheckboxLocation
 import top.yukonga.miuix.kmp.preference.CheckboxPreference as MiuixCheckboxPreference
-import top.yukonga.miuix.kmp.preference.SliderPreference as MiuixSliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference as MiuixSwitchPreference
 import top.yukonga.miuix.kmp.preference.WindowSpinnerPreference as MiuixWindowSpinnerPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -426,8 +433,16 @@ fun MeowSliderPreference(
     enabled: Boolean = true,
     valueText: (Float) -> String = { it.toString() },
     onValueChangeFinished: (() -> Unit)? = null,
+    /** 整行可点（滑条仍归拖动）；两种风格都不加行尾箭头。 */
     onClick: (() -> Unit)? = null,
+    /** 在滑条上标出默认值并吸附；null 不画。 */
+    defaultValue: Float? = null,
+    /** 分档滑条是否画出每一档的刻度点。 */
+    showSteps: Boolean = false,
 ) {
+    val keyPoints = remember(valueRange, steps, showSteps, defaultValue) {
+        sliderKeyPoints(valueRange, steps, showSteps, defaultValue)
+    }
     MeowStyleContent(
         materialExpressive = {
             MaterialSliderPreference(
@@ -442,29 +457,109 @@ fun MeowSliderPreference(
                 valueText = valueText,
                 onValueChangeFinished = onValueChangeFinished,
                 onClick = onClick,
+                defaultValue = defaultValue?.takeIf { it in valueRange },
+                showSteps = showSteps,
             )
         },
         miuix = {
-            MiuixSliderPreference(
+            MiuixSliderRow(
+                title = title,
                 value = value,
                 onValueChange = onValueChange,
                 modifier = modifier,
-                title = title,
                 summary = summary,
+                valueRange = valueRange,
+                steps = steps,
+                enabled = enabled,
                 valueText = valueText(value),
+                onValueChangeFinished = onValueChangeFinished,
                 onClick = onClick,
+                keyPoints = keyPoints,
+            )
+        },
+    )
+}
+
+/** 滑条上要画、也要吸附的点；没有时返回 null。 */
+private fun sliderKeyPoints(
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    showSteps: Boolean,
+    defaultValue: Float?,
+): List<Float>? {
+    val points = mutableListOf<Float>()
+    if (showSteps && steps > 0) {
+        val span = valueRange.endInclusive - valueRange.start
+        for (index in 0..steps + 1) {
+            points += valueRange.start + span * index / (steps + 1)
+        }
+    }
+    if (defaultValue != null && defaultValue in valueRange && points.none { it == defaultValue }) {
+        points += defaultValue
+    }
+    return points.takeIf { it.isNotEmpty() }
+}
+
+/** 吸附半径，占取值范围的比例；同 miuix Slider 的默认值。 */
+private const val SliderMagnetThreshold = 0.02f
+
+/** 不用 miuix SliderPreference：它一给 onClick 就画行尾箭头。这里按它的结构自己拼。 */
+@Composable
+private fun MiuixSliderRow(
+    title: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier,
+    summary: String?,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    enabled: Boolean,
+    valueText: String,
+    onValueChangeFinished: (() -> Unit)?,
+    onClick: (() -> Unit)?,
+    keyPoints: List<Float>?,
+) {
+    BasicComponent(
+        modifier = modifier,
+        title = title,
+        summary = summary,
+        endActions = {
+            MiuixText(
+                text = valueText,
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .align(Alignment.CenterVertically)
+                    .weight(1f, fill = false),
+                color = if (enabled) {
+                    MiuixTheme.colorScheme.onSurfaceVariantActions
+                } else {
+                    MiuixTheme.colorScheme.disabledOnSecondaryVariant
+                },
+                style = MeowTheme.typography.value,
+            )
+        },
+        bottomAction = {
+            MiuixSlider(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
                 enabled = enabled,
                 valueRange = valueRange,
                 steps = steps,
-                // 分档滑条换档时轻响；连续滑条只在到端时响。Material 分支同此。
-                hapticEffect = if (steps > 0) {
+                onValueChangeFinished = onValueChangeFinished,
+                // 有档或有标记点才响换档；连续滑条只响到端。
+                hapticEffect = if (steps > 0 || keyPoints != null) {
                     MiuixSliderDefaults.SliderHapticEffect.Step
                 } else {
                     MiuixSliderDefaults.SliderHapticEffect.Edge
                 },
-                onValueChangeFinished = onValueChangeFinished,
+                showKeyPoints = keyPoints != null,
+                keyPoints = keyPoints,
+                magnetThreshold = SliderMagnetThreshold,
             )
         },
+        onClick = onClick,
+        enabled = enabled,
     )
 }
 
@@ -927,47 +1022,84 @@ private fun MaterialSliderPreference(
     valueText: (Float) -> String,
     onValueChangeFinished: (() -> Unit)?,
     onClick: (() -> Unit)?,
+    defaultValue: Float?,
+    showSteps: Boolean,
 ) {
-    // 到端、换档时的反馈与 Miuix 分支同一套（见 MeowSliderHaptic）。
     val haptics = rememberMeowHaptics()
     val sliderHaptic = rememberSliderHaptic(value, valueRange)
-    MaterialSegmentedListItem(
-        shapes = materialPreferenceItemShapes(),
-        modifier = modifier.fillMaxWidth(),
-        enabled = enabled,
-        supportingContent = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = materialPreferenceInternalPadding()),
-            ) {
-                summary?.takeIf(String::isNotBlank)?.let {
-                    MaterialPreferenceSupportingText(it, bottomPadding = false)
-                }
-                Spacer(Modifier.height(12.dp))
-                MaterialSlider(
-                    value = value,
-                    onValueChange = { newValue ->
-                        sliderHaptic.onValueChange(newValue, valueRange, steps, haptics)
-                        onValueChange(newValue)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = enabled,
-                    valueRange = valueRange,
-                    steps = steps,
-                    onValueChangeFinished = onValueChangeFinished,
-                    // 分档只用来吸附，不画刻度点。
-                    colors = MaterialSliderDefaults.colors(
-                        activeTickColor = Color.Transparent,
-                        inactiveTickColor = Color.Transparent,
-                        disabledActiveTickColor = Color.Transparent,
-                        disabledInactiveTickColor = Color.Transparent,
-                    ),
-                )
+    // 分档滑条已落在档上，只有连续滑条需要吸附。
+    val snapToDefault: (Float) -> Float = { newValue ->
+        val span = valueRange.endInclusive - valueRange.start
+        if (defaultValue != null && steps == 0 && abs(newValue - defaultValue) <= span * SliderMagnetThreshold) {
+            defaultValue
+        } else {
+            newValue
+        }
+    }
+    val defaultColors = MaterialSliderDefaults.colors()
+    val sliderColors = if (showSteps) {
+        defaultColors
+    } else {
+        defaultColors.copy(
+            activeTickColor = Color.Transparent,
+            inactiveTickColor = Color.Transparent,
+            disabledActiveTickColor = Color.Transparent,
+            disabledInactiveTickColor = Color.Transparent,
+        )
+    }
+    val supportingContent: @Composable () -> Unit = {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = materialPreferenceInternalPadding()),
+        ) {
+            summary?.takeIf(String::isNotBlank)?.let {
+                MaterialPreferenceSupportingText(it, bottomPadding = false)
             }
-        },
-        colors = materialPreferenceItemColors(),
-    ) {
+            Spacer(Modifier.height(12.dp))
+            MaterialSlider(
+                value = value,
+                onValueChange = { rawValue ->
+                    val newValue = snapToDefault(rawValue)
+                    sliderHaptic.onValueChange(newValue, valueRange, steps, defaultValue, haptics)
+                    onValueChange(newValue)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled,
+                onValueChangeFinished = onValueChangeFinished,
+                colors = sliderColors,
+                steps = steps,
+                track = { state ->
+                    MaterialSliderDefaults.Track(
+                        sliderState = state,
+                        modifier = if (defaultValue != null) {
+                            Modifier.drawDefaultValueMarker(
+                                fraction = (defaultValue - valueRange.start) /
+                                    (valueRange.endInclusive - valueRange.start),
+                                valueFraction = { state.coercedValueAsFraction },
+                                activeColor = if (enabled) {
+                                    defaultColors.activeTickColor
+                                } else {
+                                    defaultColors.disabledActiveTickColor
+                                },
+                                inactiveColor = if (enabled) {
+                                    defaultColors.inactiveTickColor
+                                } else {
+                                    defaultColors.disabledInactiveTickColor
+                                },
+                            )
+                        } else {
+                            Modifier
+                        },
+                        enabled = enabled,
+                        colors = sliderColors,
+                    )
+                },
+                valueRange = valueRange,
+            )
+        }
+    }
+    val headline: @Composable () -> Unit = {
         // 数值文本与标题同行显示，而不是放 trailing 槽位：
         // trailing 会占满整行右侧，把下方的滑条挤得不足全宽。
         Row(
@@ -982,13 +1114,49 @@ private fun MaterialSliderPreference(
             }
             MaterialText(
                 text = valueText(value),
-                modifier = Modifier
-                    .then(if (onClick != null && enabled) Modifier.clickable(onClick = onClick) else Modifier)
-                    .padding(top = materialPreferenceInternalPadding()),
+                modifier = Modifier.padding(top = materialPreferenceInternalPadding()),
                 style = MaterialTheme.typography.labelLarge,
             )
         }
     }
+    if (onClick != null) {
+        MaterialSegmentedListItem(
+            onClick = onClick,
+            shapes = materialPreferenceItemShapes(),
+            modifier = modifier.fillMaxWidth(),
+            enabled = enabled,
+            supportingContent = supportingContent,
+            colors = materialPreferenceItemColors(),
+            content = headline,
+        )
+    } else {
+        MaterialSegmentedListItem(
+            shapes = materialPreferenceItemShapes(),
+            modifier = modifier.fillMaxWidth(),
+            enabled = enabled,
+            supportingContent = supportingContent,
+            colors = materialPreferenceItemColors(),
+            content = headline,
+        )
+    }
+}
+
+/** 在轨道上画默认值标记，大小同 M3 刻度点；已滑过的一侧用活动刻度色。 */
+private fun Modifier.drawDefaultValueMarker(
+    fraction: Float,
+    valueFraction: () -> Float,
+    activeColor: Color,
+    inactiveColor: Color,
+): Modifier = drawWithContent {
+    drawContent()
+    val rtl = layoutDirection == LayoutDirection.Rtl
+    val x = (if (rtl) 1f - fraction else fraction) * size.width
+    val covered = fraction <= valueFraction()
+    drawCircle(
+        color = if (covered) activeColor else inactiveColor,
+        radius = 2.dp.toPx(),
+        center = Offset(x, size.height / 2f),
+    )
 }
 
 @Composable

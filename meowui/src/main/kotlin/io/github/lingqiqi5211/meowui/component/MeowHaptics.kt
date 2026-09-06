@@ -53,6 +53,7 @@ internal fun rememberMeowHaptics(): MeowHaptics {
  *
  * - 到端：值进入 0% 或 100% 时响一次，离开端点后再回来才再响；一开始就停在端点上不响。
  * - 分档（`steps > 0`）：换到另一档时轻响一下，端点那一下已经由到端反馈负责，不重复。
+ * - 标记点（[keyPoint]，如默认值）：吸上去那一下轻响，停在上面不再响。
  */
 @Stable
 internal class MeowSliderHaptic {
@@ -63,13 +64,15 @@ internal class MeowSliderHaptic {
         value: Float,
         valueRange: ClosedFloatingPointRange<Float>,
         steps: Int,
+        keyPoint: Float?,
         haptics: MeowHaptics,
     ) {
         val isAtEdge = value == valueRange.start || value == valueRange.endInclusive
         if (isAtEdge && !atEdge) haptics.thresholdReached()
         atEdge = isAtEdge
-        if (steps <= 0) return
-        if (!isAtEdge && value != lastStep) haptics.tick()
+        val changedStep = steps > 0 && value != lastStep
+        val landedOnKeyPoint = keyPoint != null && value == keyPoint && lastStep != keyPoint
+        if (!isAtEdge && (changedStep || landedOnKeyPoint)) haptics.tick()
         lastStep = value
     }
 

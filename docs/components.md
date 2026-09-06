@@ -88,6 +88,10 @@ MeowCheckboxPreference(
 
 当前 key 必须是 `PreferenceKey<Float>`。可设置范围、步数和显示文本。拖到两端时有一次触觉反馈；`steps > 0` 时每换一档轻响一下，两种风格相同。
 
+绑定 key 的滑条默认在轨道上标出 key 的默认值，拖到附近会吸上去；`showDefaultValue = false` 关掉。不绑定 key 时用 `defaultValue` 传入。分档滑条默认只吸附、不画刻度点，`showSteps = true` 画出来。
+
+`onClick` 让整行（标题、副文本、数值）可点，滑条本身仍归拖动，两种风格都不追加行尾箭头；用来打开精确输入之类的对话框。
+
 ```kotlin
 MeowSliderPreference(
     title = "动画强度",
@@ -96,12 +100,13 @@ MeowSliderPreference(
     valueRange = 0f..1f,
     steps = 9,
     valueText = { "${(it * 100).toInt()}%" },
+    onClick = { showIntensityDialog = true },
 )
 ```
 
 ### Popup / Dropdown / Spinner
 
-普通单选设置默认使用 `MeowPopupPreference`，表达 Dropdown/Spinner 的即时选择语义。Material 分支使用 Expressive 分组菜单并标记当前选项；Miuix 分支使用原生 `WindowSpinnerPreference`，由组件负责右侧当前值、箭头、弹窗位置与选中样式。两套样式都只在选中时提交一次新值。
+普通单选设置默认使用 `MeowPopupPreference`，表达 Dropdown/Spinner 的即时选择语义。Material 分支使用 Expressive 分组菜单并标记当前选项；Miuix 分支使用原生 `WindowSpinnerPreference`，由组件负责右侧当前值、箭头、弹窗位置与选中样式。两套样式都只在选中时提交一次新值。行尾的当前值最多占六成宽度，长文本在其中换行而不是截成一行。
 
 ```kotlin
 MeowPopupPreference(
