@@ -149,7 +149,11 @@ internal class SharedPreferencesStoreBackend(
         readValue: SharedPreferences.() -> T,
     ): T {
         val preferences = synchronized(lock) { currentPreferences } ?: return defaultValue
-        return preferences.readValue()
+        return try {
+            preferences.readValue()
+        } catch (_: ClassCastException) {
+            defaultValue
+        }
     }
 
     private inline fun write(
