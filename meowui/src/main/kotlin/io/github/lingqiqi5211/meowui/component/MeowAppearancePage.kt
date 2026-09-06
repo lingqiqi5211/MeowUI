@@ -243,7 +243,7 @@ fun ColumnScope.MeowAppearanceContent(
 
     if (showColorSection) MeowPreferenceSection(title = labels.colorSettings) {
         item(key = "miuixMonet", visible = showMiuixMonet, container = false) {
-            MeowSwitchPreference(
+            io.github.lingqiqi5211.meowui.component.MeowSwitchPreference(
                 title = labels.miuixMonet,
                 summary = labels.miuixMonetSummary,
                 checked = appearance.miuixMonetEnabled,
@@ -253,7 +253,7 @@ fun ColumnScope.MeowAppearanceContent(
             )
         }
         item(key = "amoledDark", visible = showAmoledDark, container = false) {
-            MeowSwitchPreference(
+            io.github.lingqiqi5211.meowui.component.MeowSwitchPreference(
                 title = labels.amoledDark,
                 summary = labels.amoledDarkSummary,
                 checked = appearance.amoledDarkEnabled,
@@ -263,7 +263,7 @@ fun ColumnScope.MeowAppearanceContent(
             )
         }
         item(key = "paletteStyle", visible = showPalette, container = false) {
-            MeowPopupPreference(
+            io.github.lingqiqi5211.meowui.component.MeowPopupPreference(
                 title = labels.paletteStyle,
                 value = appearance.paletteStyle,
                 options = MeowPaletteStyle.entries,
@@ -288,7 +288,7 @@ fun ColumnScope.MeowAppearanceContent(
             } else {
                 listOf(MeowColorSpec.Spec2021)
             }
-            MeowPopupPreference(
+            io.github.lingqiqi5211.meowui.component.MeowPopupPreference(
                 title = labels.colorSpec,
                 value = appearance.colorSpec.takeIf(availableColorSpecs::contains)
                     ?: MeowColorSpec.Spec2021,
@@ -309,7 +309,7 @@ fun ColumnScope.MeowAppearanceContent(
 
     if (showInterfaceSection) MeowPreferenceSection(title = labels.interfaceSettings) {
         item(key = "interfaceStyle", visible = options.interfaceStyle, container = false) {
-            MeowPopupPreference(
+            io.github.lingqiqi5211.meowui.component.MeowPopupPreference(
                 title = labels.interfaceStyle,
                 value = appearance.style,
                 options = MeowUiStyle.entries,
@@ -325,7 +325,7 @@ fun ColumnScope.MeowAppearanceContent(
             )
         }
         item(key = "floatingNavigationBar", visible = options.floatingNavigationBar, container = false) {
-            MeowSwitchPreference(
+            io.github.lingqiqi5211.meowui.component.MeowSwitchPreference(
                 title = labels.floatingNavigationBar,
                 summary = labels.floatingNavigationBarSummary,
                 checked = appearance.floatingNavigationBarEnabled,
@@ -335,7 +335,7 @@ fun ColumnScope.MeowAppearanceContent(
             )
         }
         item(key = "blur", visible = showBlur, container = false) {
-            MeowSwitchPreference(
+            io.github.lingqiqi5211.meowui.component.MeowSwitchPreference(
                 title = labels.blur,
                 summary = labels.blurSummary,
                 checked = appearance.blurEnabled,
@@ -345,7 +345,7 @@ fun ColumnScope.MeowAppearanceContent(
             )
         }
         item(key = "predictiveBack", visible = showPredictiveBack, container = false) {
-            MeowSwitchPreference(
+            io.github.lingqiqi5211.meowui.component.MeowSwitchPreference(
                 title = labels.predictiveBack,
                 summary = labels.predictiveBackSummary,
                 checked = appearance.predictiveBackEnabled,
