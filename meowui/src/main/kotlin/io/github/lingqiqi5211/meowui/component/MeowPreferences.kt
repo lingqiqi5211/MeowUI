@@ -1,6 +1,7 @@
 package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SegmentedListItem as MaterialSegmentedListItem
 import androidx.compose.material3.Slider as MaterialSlider
+import androidx.compose.material3.SliderDefaults as MaterialSliderDefaults
 import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.Switch as MaterialSwitch
 import androidx.compose.material3.SwitchDefaults
@@ -424,6 +426,7 @@ fun MeowSliderPreference(
     enabled: Boolean = true,
     valueText: (Float) -> String = { it.toString() },
     onValueChangeFinished: (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     MeowStyleContent(
         materialExpressive = {
@@ -438,6 +441,7 @@ fun MeowSliderPreference(
                 enabled = enabled,
                 valueText = valueText,
                 onValueChangeFinished = onValueChangeFinished,
+                onClick = onClick,
             )
         },
         miuix = {
@@ -448,6 +452,7 @@ fun MeowSliderPreference(
                 title = title,
                 summary = summary,
                 valueText = valueText(value),
+                onClick = onClick,
                 enabled = enabled,
                 valueRange = valueRange,
                 steps = steps,
@@ -539,6 +544,8 @@ fun MeowTextInputPreference(
     maxLines: Int = if (singleLine) 1 else 6,
     allowBlank: Boolean = true,
     blankErrorText: String = MeowDefaultBlankErrorText,
+    confirmText: String = "OK",
+    cancelText: String = "Cancel",
     validator: (String) -> String? = { null },
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -560,6 +567,8 @@ fun MeowTextInputPreference(
         maxLines = maxLines,
         allowBlank = allowBlank,
         blankErrorText = blankErrorText,
+        confirmText = confirmText,
+        cancelText = cancelText,
         validator = validator,
         onConfirm = {
             onValueChange(it)
@@ -917,6 +926,7 @@ private fun MaterialSliderPreference(
     enabled: Boolean,
     valueText: (Float) -> String,
     onValueChangeFinished: (() -> Unit)?,
+    onClick: (() -> Unit)?,
 ) {
     // 到端、换档时的反馈与 Miuix 分支同一套（见 MeowSliderHaptic）。
     val haptics = rememberMeowHaptics()
@@ -946,6 +956,13 @@ private fun MaterialSliderPreference(
                     valueRange = valueRange,
                     steps = steps,
                     onValueChangeFinished = onValueChangeFinished,
+                    // 分档只用来吸附，不画刻度点。
+                    colors = MaterialSliderDefaults.colors(
+                        activeTickColor = Color.Transparent,
+                        inactiveTickColor = Color.Transparent,
+                        disabledActiveTickColor = Color.Transparent,
+                        disabledInactiveTickColor = Color.Transparent,
+                    ),
                 )
             }
         },
@@ -965,7 +982,9 @@ private fun MaterialSliderPreference(
             }
             MaterialText(
                 text = valueText(value),
-                modifier = Modifier.padding(top = materialPreferenceInternalPadding()),
+                modifier = Modifier
+                    .then(if (onClick != null && enabled) Modifier.clickable(onClick = onClick) else Modifier)
+                    .padding(top = materialPreferenceInternalPadding()),
                 style = MaterialTheme.typography.labelLarge,
             )
         }
