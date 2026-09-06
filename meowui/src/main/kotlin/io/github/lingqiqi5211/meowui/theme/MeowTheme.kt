@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -234,12 +237,21 @@ object MeowTheme {
             MeowThemeMode.Dark -> true
         }
         val baseDensity = LocalDensity.current
-        val interfaceScale = appearance.interfaceScale
+        val targetScale = appearance.interfaceScale
             .takeIf(Float::isFinite)
             ?.coerceIn(
                 MeowAppearanceDefaults.MinInterfaceScale,
                 MeowAppearanceDefaults.MaxInterfaceScale,
             ) ?: 1f
+        // 密度沿动画过渡，缩放变化时布局连续变化。首帧直接取目标值。
+        val interfaceScale by animateFloatAsState(
+            targetValue = targetScale,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+            label = "MeowInterfaceScale",
+        )
         val scaledDensity = remember(baseDensity, interfaceScale) {
             Density(
                 density = baseDensity.density * interfaceScale,

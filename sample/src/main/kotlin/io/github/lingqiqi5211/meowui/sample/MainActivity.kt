@@ -197,6 +197,7 @@ private fun SampleApp() {
         miuixMonetEnabled = miuixMonet,
         amoledDarkEnabled = amoledDark,
         blurEnabled = blurEnabled,
+        floatingNavigationBarEnabled = floatingNavigation,
         predictiveBackEnabled = predictiveBack,
         interfaceScale = interfaceScale,
     )
@@ -205,7 +206,6 @@ private fun SampleApp() {
         MeowTheme(appearance = appearance) {
             SampleSettings(
                 appearance = appearance,
-                floatingNavigation = floatingNavigation,
                 floatingLabels = floatingLabels,
             )
         }
@@ -215,7 +215,6 @@ private fun SampleApp() {
 @Composable
 private fun SampleSettings(
     appearance: MeowAppearance,
-    floatingNavigation: Boolean,
     floatingLabels: Boolean,
 ) {
     var selectedPage by rememberSaveable { mutableIntStateOf(0) }
@@ -236,7 +235,6 @@ private fun SampleSettings(
     //（表现为外观页开关点了不刷新）；经 rememberUpdatedState 中转后，
     // 缓存的 lambda 每次重组都能读到最新值。
     val currentAppearance by rememberUpdatedState(appearance)
-    val currentFloatingNavigation by rememberUpdatedState(floatingNavigation)
     val currentFloatingLabels by rememberUpdatedState(floatingLabels)
     val writeStyle = rememberMeowPreferenceWriter(SamplePreferences.Style)
     val writeThemeMode = rememberMeowPreferenceWriter(SamplePreferences.ThemeMode)
@@ -248,6 +246,8 @@ private fun SampleSettings(
     val writeAmoledDark = rememberMeowPreferenceWriter(SamplePreferences.AmoledDark)
     val writePredictiveBack = rememberMeowPreferenceWriter(SamplePreferences.PredictiveBack)
     val writeInterfaceScale = rememberMeowPreferenceWriter(SamplePreferences.InterfaceScale)
+    val writeBlur = rememberMeowPreferenceWriter(SamplePreferences.Blur)
+    val writeFloatingNavigation = rememberMeowPreferenceWriter(SamplePreferences.FloatingNavigation)
     // MeowNavHost 的返回栈就是调用侧的一个普通列表:推入/弹出即换一个列表,
     // 转场、预测式返回拖拽与页面层级全部由宿主接管。
     // 顶栏菜单形态（照 miuix 官方示例首页）：级联（下钻 / 下沉堆叠两种样式）
@@ -310,6 +310,12 @@ private fun SampleSettings(
             }
             if (updated.interfaceScale != current.interfaceScale) {
                 writeInterfaceScale(updated.interfaceScale)
+            }
+            if (updated.blurEnabled != current.blurEnabled) {
+                writeBlur(updated.blurEnabled)
+            }
+            if (updated.floatingNavigationBarEnabled != current.floatingNavigationBarEnabled) {
+                writeFloatingNavigation(updated.floatingNavigationBarEnabled)
             }
         }
     }
@@ -511,7 +517,7 @@ private fun SampleSettings(
                             items = navigationItems,
                             selectedIndex = selectedPage,
                             onItemSelected = { selectedPage = it },
-                            style = if (currentFloatingNavigation) {
+                            style = if (currentAppearance.floatingNavigationBarEnabled) {
                                 MeowNavigationBarStyle.Floating
                             } else {
                                 MeowNavigationBarStyle.Standard
@@ -1239,7 +1245,6 @@ private fun MaterialPreview() {
         MeowTheme(appearance = appearance) {
             SampleSettings(
                 appearance = appearance,
-                floatingNavigation = true,
                 floatingLabels = true,
             )
         }
@@ -1260,7 +1265,6 @@ private fun MiuixPreview() {
         MeowTheme(appearance = appearance) {
             SampleSettings(
                 appearance = appearance,
-                floatingNavigation = true,
                 floatingLabels = true,
             )
         }

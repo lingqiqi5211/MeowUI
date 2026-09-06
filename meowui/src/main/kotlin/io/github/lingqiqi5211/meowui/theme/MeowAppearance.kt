@@ -42,6 +42,12 @@ data class MeowAppearance(
      * 模糊基于 RuntimeShader,只在支持的设备上生效;不支持时自动退回不透明底色。
      */
     val blurEnabled: Boolean = true,
+    /**
+     * 底栏是否用悬浮胶囊形态。
+     *
+     * 只保存偏好：应用的底栏按它选择 `MeowNavigationBarStyle.Floating` 或 `Standard`。
+     */
+    val floatingNavigationBarEnabled: Boolean = true,
     val predictiveBackEnabled: Boolean = true,
     val interfaceScale: Float = 1f,
 )

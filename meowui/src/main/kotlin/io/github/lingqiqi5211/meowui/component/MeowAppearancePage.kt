@@ -35,6 +35,7 @@ import io.github.lingqiqi5211.meowui.theme.MeowThemeMode
 import io.github.lingqiqi5211.meowui.theme.supportsSpec2025
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 
 /** 可替换的外观设置页文字。 */
 @Immutable
@@ -54,6 +55,10 @@ data class MeowAppearanceLabels(
     val miuixMonetSummary: String = "Generate colors from wallpaper or a custom seed color",
     val interfaceSettings: String = "Interface",
     val interfaceStyle: String = "Interface style",
+    val floatingNavigationBar: String = "Floating bottom bar",
+    val floatingNavigationBarSummary: String = "Show the bottom bar as a floating pill",
+    val blur: String = "Background blur",
+    val blurSummary: String = "Frosted top bar and floating bottom bar",
     val predictiveBack: String = "Predictive back gesture",
     val predictiveBackSummary: String = "Preview the destination while swiping back",
     val interfaceScale: String = "Interface scale",
@@ -257,6 +262,24 @@ fun ColumnScope.MeowAppearanceContent(
                 onAppearanceChange(appearance.copy(style = style))
             },
         )
+        MeowSwitchPreference(
+            title = labels.floatingNavigationBar,
+            summary = labels.floatingNavigationBarSummary,
+            checked = appearance.floatingNavigationBarEnabled,
+            onCheckedChange = { enabled ->
+                onAppearanceChange(appearance.copy(floatingNavigationBarEnabled = enabled))
+            },
+        )
+        // 不支持 RuntimeShader 时开关只显示偏好，不可改。
+        MeowSwitchPreference(
+            title = labels.blur,
+            summary = labels.blurSummary,
+            checked = appearance.blurEnabled,
+            enabled = isRuntimeShaderSupported(),
+            onCheckedChange = { enabled ->
+                onAppearanceChange(appearance.copy(blurEnabled = enabled))
+            },
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             MeowSwitchPreference(
                 title = labels.predictiveBack,
@@ -271,10 +294,11 @@ fun ColumnScope.MeowAppearanceContent(
             title = labels.interfaceScale,
             summary = labels.interfaceScaleSummary,
             value = draftScale,
-            // 拖动期间只更新本地草稿并量化到 1%，不显示档位点；松手后才提交生效。
-            onValueChange = { draftScale = (it * 100).roundToInt() / 100f },
+            // 拖动期间不量化，滑块才连续跟手；松手时量化到 1% 再提交。
+            onValueChange = { draftScale = it },
             onValueChangeFinished = {
-                onAppearanceChange(appearance.copy(interfaceScale = draftScale))
+                val committed = (draftScale * 100).roundToInt() / 100f
+                onAppearanceChange(appearance.copy(interfaceScale = committed))
             },
             valueRange = MeowAppearanceDefaults.MinInterfaceScale..MeowAppearanceDefaults.MaxInterfaceScale,
             valueText = { "${(it * 100).roundToInt()}%" },
