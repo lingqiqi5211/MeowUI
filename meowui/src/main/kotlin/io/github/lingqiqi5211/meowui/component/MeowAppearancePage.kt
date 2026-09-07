@@ -89,6 +89,13 @@ data class MeowAppearanceOptions(
     /** Material / Miuix 界面风格切换。 */
     val interfaceStyle: Boolean = true,
     val floatingNavigationBar: Boolean = true,
+    /**
+     * 这个应用宽屏时是否把底栏换成侧边导航栏。
+     *
+     * 不对应设置里的任何一行，它说的是应用自己有没有接这个特性；头图据此决定画不画侧栏。
+     * 外壳没接就置 false，否则头图会画出一个应用里根本不存在的样子。
+     */
+    val sideNavigationRail: Boolean = true,
     val blur: Boolean = true,
     val predictiveBack: Boolean = true,
     val interfaceScale: Boolean = true,
@@ -105,6 +112,7 @@ data class MeowAppearanceOptions(
             amoledDark = false,
             interfaceStyle = false,
             floatingNavigationBar = false,
+            sideNavigationRail = false,
             blur = false,
             predictiveBack = false,
             interfaceScale = false,
@@ -191,7 +199,10 @@ fun ColumnScope.MeowAppearanceContent(
         showBlur || showPredictiveBack || options.interfaceScale || interfaceItems != null
 
     if (showPreview && options.preview) {
-        previewContent?.invoke(appearance) ?: MeowAppearancePreview(appearance)
+        previewContent?.invoke(appearance) ?: MeowAppearancePreview(
+            appearance = appearance,
+            sideNavigationRail = options.sideNavigationRail,
+        )
     }
 
     if (options.themeColor) {
