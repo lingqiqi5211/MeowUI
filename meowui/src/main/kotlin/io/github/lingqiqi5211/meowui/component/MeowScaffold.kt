@@ -3,8 +3,13 @@ package io.github.lingqiqi5211.meowui.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -155,6 +160,11 @@ fun MeowScaffold(
     navigationIcon: (@Composable () -> Unit)? = null,
     actionItems: List<MeowTopBarAction> = emptyList(),
     bottomBar: @Composable () -> Unit = {},
+    /**
+     * 侧边导航栏。给了它就贴在页面左侧，顶栏与内容让开这一列；宽屏用它代替 [bottomBar]。
+     * 两者同时给不会报错，但同一层级出现两套导航入口，通常是调用侧忘了按宽度二选一。
+     */
+    navigationRail: (@Composable () -> Unit)? = null,
     snackbarState: MeowSnackbarState? = null,
     effect: MeowScaffoldEffect = MeowScaffoldEffect(),
     content: @Composable (PaddingValues) -> Unit,
@@ -169,82 +179,84 @@ fun MeowScaffold(
         LocalMeowBottomBarInset provides bottomBarInset,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            MeowStyleContent(
-                materialExpressive = {
-                    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-                        rememberTopAppBarState(),
-                    )
-                    CompositionLocalProvider(
-                        LocalMeowScrollContext provides MeowScrollContext(
-                            nestedScrollConnection = scrollBehavior.nestedScrollConnection,
-                            materialTopBar = scrollBehavior,
-                        ),
-                    ) {
-                        MaterialScaffold(
-                            modifier = modifier,
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            contentWindowInsets = WindowInsets.safeDrawing,
-                            topBar = {
-                                MeowTopBar(
-                                    title = title,
-                                    subtitle = subtitle,
-                                    onBackClick = onBackClick,
-                                    navigationModifier = navigationModifier,
-                                    navigationIcon = navigationIcon,
-                                    actionItems = actionItems,
-                                )
-                            },
-                            bottomBar = bottomBar,
-                            snackbarHost = {
-                                snackbarState?.let { MeowSnackbarHost(it) }
-                            },
-                            content = { paddingValues ->
-                                MeowScaffoldContent(
-                                    paddingValues = paddingValues,
-                                    backdrop = backdrop,
-                                    effect = effect,
-                                    content = content,
-                                )
-                            },
+            MeowSideRailRow(navigationRail) {
+                MeowStyleContent(
+                    materialExpressive = {
+                        val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
+                            rememberTopAppBarState(),
                         )
-                    }
-                },
-                miuix = {
-                    val scrollBehavior = MiuixScrollBehavior()
-                    CompositionLocalProvider(
-                        LocalMeowScrollContext provides MeowScrollContext(
-                            nestedScrollConnection = scrollBehavior.nestedScrollConnection,
-                            miuixTopBar = scrollBehavior,
-                        ),
-                    ) {
-                        MiuixScaffold(
-                            modifier = modifier,
-                            topBar = {
-                                MeowTopBar(
-                                    title = title,
-                                    subtitle = subtitle,
-                                    onBackClick = onBackClick,
-                                    navigationModifier = navigationModifier,
-                                    navigationIcon = navigationIcon,
-                                    actionItems = actionItems,
-                                )
-                            },
-                            bottomBar = bottomBar,
-                            snackbarHost = {
-                                snackbarState?.let { MeowSnackbarHost(it) }
-                            },
-                            content = { paddingValues ->
-                                MeowScaffoldContent(
-                                    paddingValues = paddingValues,
-                                    backdrop = backdrop,
-                                    effect = effect,
-                                    content = content,
-                                )
-                            },
-                        )
-                    }
-                },
-            )
+                        CompositionLocalProvider(
+                            LocalMeowScrollContext provides MeowScrollContext(
+                                nestedScrollConnection = scrollBehavior.nestedScrollConnection,
+                                materialTopBar = scrollBehavior,
+                            ),
+                        ) {
+                            MaterialScaffold(
+                                modifier = modifier,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                contentWindowInsets = WindowInsets.safeDrawing,
+                                topBar = {
+                                    MeowTopBar(
+                                        title = title,
+                                        subtitle = subtitle,
+                                        onBackClick = onBackClick,
+                                        navigationModifier = navigationModifier,
+                                        navigationIcon = navigationIcon,
+                                        actionItems = actionItems,
+                                    )
+                                },
+                                bottomBar = bottomBar,
+                                snackbarHost = {
+                                    snackbarState?.let { MeowSnackbarHost(it) }
+                                },
+                                content = { paddingValues ->
+                                    MeowScaffoldContent(
+                                        paddingValues = paddingValues,
+                                        backdrop = backdrop,
+                                        effect = effect,
+                                        content = content,
+                                    )
+                                },
+                            )
+                        }
+                    },
+                    miuix = {
+                        val scrollBehavior = MiuixScrollBehavior()
+                        CompositionLocalProvider(
+                            LocalMeowScrollContext provides MeowScrollContext(
+                                nestedScrollConnection = scrollBehavior.nestedScrollConnection,
+                                miuixTopBar = scrollBehavior,
+                            ),
+                        ) {
+                            MiuixScaffold(
+                                modifier = modifier,
+                                topBar = {
+                                    MeowTopBar(
+                                        title = title,
+                                        subtitle = subtitle,
+                                        onBackClick = onBackClick,
+                                        navigationModifier = navigationModifier,
+                                        navigationIcon = navigationIcon,
+                                        actionItems = actionItems,
+                                    )
+                                },
+                                bottomBar = bottomBar,
+                                snackbarHost = {
+                                    snackbarState?.let { MeowSnackbarHost(it) }
+                                },
+                                content = { paddingValues ->
+                                    MeowScaffoldContent(
+                                        paddingValues = paddingValues,
+                                        backdrop = backdrop,
+                                        effect = effect,
+                                        content = content,
+                                    )
+                                },
+                            )
+                        }
+                    },
+                )
+            }
             // 浮层最后画，因此盖在顶栏、底栏与内容之上。
             overlayHost.content?.invoke()
         }
@@ -277,6 +289,34 @@ private fun MeowScaffoldContent(
     ) {
         CompositionLocalProvider(LocalMeowScaffoldContentPadding provides paddingValues) {
             content(paddingValues)
+        }
+    }
+}
+
+/**
+ * 侧边栏与页面并排。侧栏自己吃掉起始侧的系统栏内边距，所以这里把这一段从右侧内容的
+ * 约束里扣掉，否则内容会再让一次，左边多出一条空白。
+ */
+@Composable
+private fun MeowSideRailRow(
+    navigationRail: (@Composable () -> Unit)?,
+    content: @Composable () -> Unit,
+) {
+    if (navigationRail == null) {
+        content()
+        return
+    }
+    Row(modifier = Modifier.fillMaxSize()) {
+        navigationRail()
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .consumeWindowInsets(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Start),
+                ),
+        ) {
+            content()
         }
     }
 }
