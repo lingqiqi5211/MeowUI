@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon as MaterialIcon
+import androidx.compose.material3.LoadingIndicator as MaterialLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.material3.Text as MaterialText
@@ -40,6 +41,7 @@ import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardColors as MiuixCardColors
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator as MiuixCircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.PullToRefresh as MiuixPullToRefresh
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
@@ -222,6 +224,27 @@ fun MeowPullToRefresh(
         },
     )
 }
+
+/**
+ * 忙碌指示器。内容还没读出来时摆在正中，比一行「读取中」更说明它在动。
+ *
+ * Material 一侧用 Expressive 的形变指示器，与下拉刷新那个是同一套动效；Miuix 一侧用它自己的圆环。
+ * 两端尺寸对齐，换风格时这块不会跳大小。
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun MeowLoadingIndicator(modifier: Modifier = Modifier) {
+    MeowStyleContent(
+        materialExpressive = {
+            MaterialLoadingIndicator(modifier = modifier.size(LoadingIndicatorSize))
+        },
+        miuix = {
+            MiuixCircularProgressIndicator(modifier = modifier, size = LoadingIndicatorSize)
+        },
+    )
+}
+
+private val LoadingIndicatorSize = 40.dp
 
 @Composable
 private fun TipContent(
