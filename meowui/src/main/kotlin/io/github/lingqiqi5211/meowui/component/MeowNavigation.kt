@@ -2,17 +2,14 @@ package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,21 +32,21 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.MenuOpen
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.Badge as MaterialBadge
 import androidx.compose.material3.BadgedBox as MaterialBadgedBox
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon as MaterialIcon
+import androidx.compose.material3.IconButton as MaterialIconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.material3.ShortNavigationBar as MaterialShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarDefaults
 import androidx.compose.material3.ShortNavigationBarItem as MaterialShortNavigationBarItem
@@ -57,9 +54,13 @@ import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.ToggleButton as MaterialToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleButtonShapes
+import androidx.compose.material3.WideNavigationRail
+import androidx.compose.material3.WideNavigationRailDefaults
+import androidx.compose.material3.WideNavigationRailItem
+import androidx.compose.material3.WideNavigationRailValue
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -90,13 +91,11 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.lerp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.LocalMeowBlurEnabled
 import io.github.lingqiqi5211.meowui.theme.LocalMeowDarkTheme
@@ -105,6 +104,7 @@ import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.anim.folmeSpring
 import top.yukonga.miuix.kmp.basic.Badge as MiuixBadge
 import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
@@ -761,56 +761,100 @@ fun MeowNavigationRail(
 
     MeowStyleContent(
         materialExpressive = {
-            // 这一侧不用 Material 的 WideNavigationRail：它的图标在收起时居中、展开时靠左，
-            // 一次重组就换位置，宽度又是它自己另一条曲线，展开那下是跳的。
-            // 这里照 Miuix 那套几何自己排：图标钉在一条竖线上不动，药丸从图标外圈长成整条，
-            // 文字淡入。颜色、字体仍旧取 Material。
-            val progress = animateFloatAsState(
-                targetValue = if (expanded) 1f else 0f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
+            // 照 KernelSU 那套 md3e 侧栏：用官方的 WideNavigationRail，展开按钮放进 header 槽。
+            // 宽度、图标位置、文字显隐都归它一套动画管；外面再包一层弹簧只会跟它抢，展开那下就是跳的。
+            //
+            // 它自带的状态是内部的，这里双向跟 [state] 对齐：初值照 [state] 给，
+            // 不然切换风格或者转屏之后，已经展开的那份会被它按回收起。
+            val railState = rememberWideNavigationRailState(
+                initialValue = if (expanded) {
+                    WideNavigationRailValue.Expanded
+                } else {
+                    WideNavigationRailValue.Collapsed
+                },
+            )
+            val scope = rememberCoroutineScope()
+            // 展开与否只看 rail 自己的状态：外面那份点下去就变，同步到 rail 还要过一帧。
+            val showExpanded = railState.targetValue == WideNavigationRailValue.Expanded
+            // 文字要比宽度晚一步。rail 的宽度是动画，文字却是直接换的，一起放出去的话
+            // 文字先在折叠时的位置闪一下，再被动画推到最终位置。这条进度线与 rail 同规格，
+            // 过了门限才给文字；收起时它先掉下来，文字也就先撤走。
+            val motionScheme = MaterialTheme.motionScheme
+            val expandSpec = remember(motionScheme) { motionScheme.defaultSpatialSpec<Float>() }
+            val expandProgress = animateFloatAsState(
+                targetValue = if (showExpanded) 1f else 0f,
+                animationSpec = expandSpec,
                 label = "meowNavigationRailExpand",
             )
-            Column(
-                modifier = modifier
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    // 先让开系统栏再定宽：反过来的话，横屏时起始侧的状态栏会从这 80dp 里扣，
-                    // 图标那一列只剩三十来 dp，整条侧栏看着像是空的。
-                    .windowInsetsPadding(RailInsets())
-                    .railWidth(progress)
-                    .padding(vertical = RailVerticalPadding),
-            ) {
-                header?.invoke(this)
-                state?.let { rail ->
-                    MaterialRailItem(
-                        icon = Icons.Rounded.Menu,
-                        label = null,
-                        iconDescription = if (expanded) {
-                            collapseContentDescription
-                        } else {
-                            expandContentDescription
-                        },
-                        selected = false,
-                        enabled = true,
-                        progress = progress,
-                        onClick = rail::toggle,
-                        modifier = Modifier.semantics { role = Role.Button },
-                    )
-                    Spacer(Modifier.height(RailHeaderSpacing))
+            val showLabel by remember(expandProgress) {
+                derivedStateOf { expandProgress.value > RailLabelRevealFraction }
+            }
+            if (state != null) {
+                LaunchedEffect(state, railState) {
+                    snapshotFlow { railState.targetValue == WideNavigationRailValue.Expanded }
+                        .collect { state.isExpanded = it }
                 }
+                LaunchedEffect(state, railState) {
+                    snapshotFlow { state.isExpanded }.collect {
+                        if (it) railState.expand() else railState.collapse()
+                    }
+                }
+            }
+            val defaultRailColors = WideNavigationRailDefaults.colors()
+            val railContainerColor = MaterialTheme.colorScheme.surfaceContainer
+            val railColors = remember(defaultRailColors, railContainerColor) {
+                defaultRailColors.copy(containerColor = railContainerColor)
+            }
+            WideNavigationRail(
+                modifier = modifier,
+                state = railState,
+                colors = railColors,
+                windowInsets = RailInsets(),
+                contentPadding = PaddingValues(vertical = RailVerticalPadding),
+                header = if (state != null || header != null) {
+                    {
+                        Column {
+                            state?.let {
+                                MaterialIconButton(
+                                    onClick = { scope.launch { railState.toggle() } },
+                                    modifier = Modifier.padding(start = RailHeaderStartPadding),
+                                ) {
+                                    MaterialIcon(
+                                        imageVector = if (showExpanded) {
+                                            Icons.AutoMirrored.Rounded.MenuOpen
+                                        } else {
+                                            Icons.Rounded.Menu
+                                        },
+                                        contentDescription = if (showExpanded) {
+                                            collapseContentDescription
+                                        } else {
+                                            expandContentDescription
+                                        },
+                                    )
+                                }
+                            }
+                            header?.invoke(this)
+                        }
+                    }
+                } else {
+                    null
+                },
+            ) {
                 items.forEachIndexed { index, item ->
-                    MaterialRailItem(
-                        icon = item.icon,
-                        label = item.label,
+                    WideNavigationRailItem(
+                        railExpanded = showExpanded,
                         selected = index == selectedIndex,
-                        enabled = item.enabled,
-                        progress = progress,
                         onClick = { selectItem(index) },
+                        icon = { RailIcon(item.icon, item.badge, item.label) },
+                        // 收起来只留图标。M3E 折叠态本来在图标下还排一行小字，那行字
+                        // 跟 Miuix 那边收起后的样子对不上，这里一律不要。
+                        label = if (showLabel) {
+                            { MaterialText(item.label) }
+                        } else {
+                            null
+                        },
                         modifier = item.modifier,
-                        badge = item.badge,
+                        enabled = item.enabled,
                     )
                 }
             }
@@ -840,6 +884,25 @@ fun MeowNavigationRail(
                     }
                 }
             }
+            // 排版同样看 rail 自己的状态，进度线也照它那条弹簧的规格来。
+            // 文字得等宽度基本到位才出现：Miuix 的 item 是在布局期把文字从图标下方挪到右边，
+            // 一按下去就给文字的话，它会先在图标下面闪一次再被挪过去。
+            val showExpanded = railState?.isExpanded == true
+            val expandSpec = remember {
+                folmeSpring<Float>(
+                    damping = MiuixRailSpringDamping,
+                    response = MiuixRailSpringResponse,
+                    visibilityThreshold = MiuixRailSpringThreshold,
+                )
+            }
+            val expandProgress = animateFloatAsState(
+                targetValue = if (showExpanded) 1f else 0f,
+                animationSpec = expandSpec,
+                label = "meowNavigationRailExpand",
+            )
+            val showLabel by remember(expandProgress) {
+                derivedStateOf { expandProgress.value > RailLabelRevealFraction }
+            }
             // 宽度按 Miuix 自己的来：它的图标在折叠中线与展开起始缩进上是同一条竖线，
             // 那条线由它的默认宽度算出来，改宽度会让图标在展开动画里横着漂。
             MiuixNavigationRail(
@@ -856,8 +919,8 @@ fun MeowNavigationRail(
                         icon = item.icon,
                         // 折叠时不显示文字。Miuix 的 item 没有「不要文字」这个选项，只能给空串，
                         // 那一行的高度它照样留着。
-                        label = if (expanded) item.label else "",
-                        modifier = if (expanded) {
+                        label = if (showLabel) item.label else "",
+                        modifier = if (showLabel) {
                             item.modifier
                         } else {
                             item.modifier.semantics { contentDescription = item.label }
@@ -871,91 +934,11 @@ fun MeowNavigationRail(
     )
 }
 
-/**
- * Material 一侧的侧栏入口。
- *
- * 药丸左右各留 [RailItemMargin]，图标再进 [RailIconInset]。这两段加起来正好是折叠宽度的一半，
- * 所以图标折叠时在正中、展开后在药丸的起始缩进上，是同一条竖线，整个过程它不动。
- * 文字始终按完整宽度排好，靠 alpha 淡入、靠外层裁切收起；不这么做的话动画中间它会一路省略号。
- */
+/** 侧栏入口的图标。角标叠在右上角；颜色由 Material 的入口通过 LocalContentColor 给。 */
 @Composable
-private fun MaterialRailItem(
-    icon: ImageVector,
-    label: String?,
-    selected: Boolean,
-    enabled: Boolean,
-    progress: State<Float>,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    badge: String? = null,
-    iconDescription: String? = label,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val contentColor = when {
-        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = DisabledAlpha)
-        selected -> MaterialTheme.colorScheme.onSecondaryContainer
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val shape = RoundedCornerShape(RailItemCorner)
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = RailItemMargin, vertical = RailItemSpacing)
-            .height(RailItemHeight)
-            .clip(shape)
-            .selectable(
-                selected = selected,
-                onClick = onClick,
-                enabled = enabled,
-                role = Role.Tab,
-                interactionSource = interactionSource,
-                indication = LocalIndication.current,
-            ),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Box(
-            modifier = Modifier
-                .railIndicatorWidth(progress)
-                .fillMaxHeight()
-                .clip(shape)
-                .background(
-                    if (selected) {
-                        MaterialTheme.colorScheme.secondaryContainer
-                    } else {
-                        Color.Transparent
-                    },
-                ),
-        )
-        Row(
-            modifier = Modifier
-                .padding(start = RailIconInset)
-                .wrapContentWidth(Alignment.Start, unbounded = true),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RailIcon(icon = icon, badge = badge, description = iconDescription, tint = contentColor)
-            label ?: return@Row
-            Spacer(Modifier.width(RailIconTextSpacing))
-            MaterialText(
-                text = label,
-                modifier = Modifier.graphicsLayer { alpha = progress.value },
-                color = contentColor,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-private fun RailIcon(
-    icon: ImageVector,
-    badge: String?,
-    description: String?,
-    tint: Color,
-) {
+private fun RailIcon(icon: ImageVector, badge: String?, description: String?) {
     val content = @Composable {
-        MaterialIcon(imageVector = icon, contentDescription = description, tint = tint)
+        MaterialIcon(imageVector = icon, contentDescription = description)
     }
     if (badge.isNullOrEmpty()) {
         content()
@@ -964,51 +947,26 @@ private fun RailIcon(
     MaterialBadgedBox(badge = { MaterialBadge { MaterialText(badge) } }) { content() }
 }
 
-/** 侧栏宽度。在布局期读进度，展开动画因此只重新布局。 */
-private fun Modifier.railWidth(progress: State<Float>): Modifier = layout { measurable, constraints ->
-    val width = lerp(
-        MeowNavigationRailDefaults.CollapsedWidth.roundToPx(),
-        MeowNavigationRailDefaults.ExpandedWidth.roundToPx(),
-        progress.value,
-    ).coerceIn(constraints.minWidth, constraints.maxWidth)
-    val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
-    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-}
-
-/** 选中药丸的宽度：折叠时只包住图标，展开后铺满整条。 */
-private fun Modifier.railIndicatorWidth(progress: State<Float>): Modifier =
-    layout { measurable, constraints ->
-        val collapsed = RailIndicatorCollapsedWidth.roundToPx()
-        val width = lerp(collapsed, constraints.maxWidth, progress.value)
-            .coerceIn(0, constraints.maxWidth)
-        val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
-        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-    }
-
-/** 展开按钮与第一个入口之间的间距。 */
-private val RailHeaderSpacing = 16.dp
-
 /** 侧栏上下的内边距。短窗口（手机横屏）也要装得下所有入口，侧栏本身不滚动。 */
-private val RailVerticalPadding = 12.dp
+private val RailVerticalPadding = 20.dp
 
-/** 药丸与侧栏两边的距离。 */
-private val RailItemMargin = 12.dp
+/** 展开按钮离侧栏起始边的距离。这个数让它落在入口图标那条竖线上。 */
+private val RailHeaderStartPadding = 24.dp
 
-/** 图标在药丸里的起始缩进。与 [RailItemMargin] 之和是折叠宽度的一半。 */
-private val RailIconInset = 16.dp
+/** 文字露出来的门限：展开进度过了这条线才给文字，收起时掉回线下就撤走。 */
+private const val RailLabelRevealFraction = 0.6f
 
-private val RailIconTextSpacing = 16.dp
+/** Miuix 侧栏展开那条弹簧的参数，抄自它的 RailExpandSpring，好让上面的门限跟它同一条曲线。 */
+private const val MiuixRailSpringDamping = 1f
+private const val MiuixRailSpringResponse = 0.35f
+private const val MiuixRailSpringThreshold = 0.001f
 
-private val RailItemHeight = 52.dp
-
-private val RailItemSpacing = 4.dp
-
-private val RailItemCorner = 16.dp
-
-/** 折叠时药丸只包住图标：图标 24dp，两边各 [RailIconInset]。 */
-private val RailIndicatorCollapsedWidth = 56.dp
-
-private const val DisabledAlpha = 0.38f
+/**
+ * Material 侧栏的宽度。M3E 规范是折叠 96dp、展开 220dp，官方把这两个数留在了内部，
+ * 调用侧要给侧栏留位置只能照抄一份。
+ */
+private val MaterialCollapsedRailWidth = 96.dp
+private val MaterialExpandedRailWidth = 220.dp
 
 /** 侧边导航栏的展开状态。展开与收起要跨风格一致，所以状态放在这里，不用两端各自的。 */
 @Stable
@@ -1045,15 +1003,25 @@ fun rememberMeowNavigationRailState(
 }
 
 /**
- * 侧边导航栏的宽度。两种风格同一组数，取自 Miuix：图标那条竖线是从这两个值算出来的。
- * 调用侧要给侧栏留位置时读这里，别自己写死。
+ * 侧边导航栏的宽度。调用侧要给侧栏留位置时读这里，别自己写死。
+ *
+ * 两种风格各一组：Material 照 M3E 规范，Miuix 照它自己的默认值。取错了留白就差一截，
+ * 展开时旁边的内容会被挤掉一块。
  */
 object MeowNavigationRailDefaults {
     /** 折叠宽度，只放图标。 */
-    val CollapsedWidth: Dp = MiuixNavigationRailDefaults.MinWidth
+    val CollapsedWidth: Dp
+        @Composable get() = when (MeowTheme.style) {
+            MeowUiStyle.MaterialExpressive -> MaterialCollapsedRailWidth
+            MeowUiStyle.Miuix -> MiuixNavigationRailDefaults.MinWidth
+        }
 
     /** 展开成图标加文字后的宽度。 */
-    val ExpandedWidth: Dp = MiuixNavigationRailDefaults.ExpandedWidth
+    val ExpandedWidth: Dp
+        @Composable get() = when (MeowTheme.style) {
+            MeowUiStyle.MaterialExpressive -> MaterialExpandedRailWidth
+            MeowUiStyle.Miuix -> MiuixNavigationRailDefaults.ExpandedWidth
+        }
 }
 
 /**
