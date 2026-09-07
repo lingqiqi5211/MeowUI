@@ -191,7 +191,7 @@ fun ColumnScope.MeowAppearanceContent(
         showBlur || showPredictiveBack || options.interfaceScale || interfaceItems != null
 
     if (showPreview && options.preview) {
-        previewContent?.invoke(appearance) ?: MeowAppearancePreview()
+        previewContent?.invoke(appearance) ?: MeowAppearancePreview(appearance)
     }
 
     if (options.themeColor) {

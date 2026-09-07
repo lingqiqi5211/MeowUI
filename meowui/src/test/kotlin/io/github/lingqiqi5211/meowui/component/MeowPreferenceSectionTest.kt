@@ -2,6 +2,9 @@ package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -116,6 +119,40 @@ class MeowPreferenceSectionTest {
         compose.onAllNodesWithTag("$SECTION.row.always").assertCountEquals(1)
     }
 
+    @Test
+    fun sectionKeepsRowsWhenOnlyANestedSlotReRuns() {
+        var value by mutableStateOf(0)
+        var title by mutableStateOf("A")
+        compose.setContent {
+            MeowTheme(appearance = appearance(MeowUiStyle.MaterialExpressive)) {
+                CompositionLocalProvider(nestedSlotValue provides value) {
+                    MeowPreferenceSection(title = title, modifier = Modifier.testTag(SECTION)) {
+                        item(key = "fixed") {
+                            Text(
+                                text = "fixed",
+                                modifier = Modifier.testTag(FIXED_ROW).padding(8.dp),
+                            )
+                        }
+                        NestedSlot()
+                    }
+                }
+            }
+        }
+
+        compose.onNodeWithTag(FIXED_ROW).assertIsDisplayed()
+        compose.onNodeWithTag(NESTED_ROW).assertIsDisplayed()
+
+        // 主体因为 title 重组，content 整组可复用，只有槽因为读的值变了而单独重跑。
+        compose.runOnIdle {
+            title = "B"
+            value = 1
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithTag(FIXED_ROW).assertIsDisplayed()
+        compose.onNodeWithTag(NESTED_ROW).assertIsDisplayed()
+    }
+
     /** Fixed light theme with no dynamic colour: what is under test is the row set. */
     private fun appearance(style: MeowUiStyle): MeowAppearance =
         MeowAppearance(
@@ -128,3 +165,26 @@ class MeowPreferenceSectionTest {
         const val SECTION = "meowui.preferenceSection"
     }
 }
+
+/**
+ * 分区里嵌着一个自己会重跑的槽：调用侧传进来的 items、读了 CompositionLocal 的行，都是这种。
+ *
+ * 这种槽失效时，Compose 会复用 content 整组、只重跑槽本身。那一趟只有槽里的行会进来，
+ * 把它当成完整的一趟提交，分组就只剩那一行——真机上表现为转屏之后一整块配置项没了。
+ */
+private val nestedSlotValue = compositionLocalOf { 0 }
+
+@Composable
+private fun MeowPreferenceSectionScope.NestedSlot() {
+    val value = nestedSlotValue.current
+    item(key = "nested") {
+        Text(
+            text = "nested $value",
+            modifier = Modifier.testTag(NESTED_ROW).padding(8.dp),
+        )
+    }
+}
+
+private const val FIXED_ROW = "meowui.preferenceSection.row.fixed"
+
+private const val NESTED_ROW = "meowui.preferenceSection.row.nested"

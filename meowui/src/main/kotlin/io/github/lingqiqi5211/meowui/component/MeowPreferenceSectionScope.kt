@@ -44,8 +44,7 @@ class MeowPreferenceSectionScope internal constructor() {
     // 后在 [collectionEpoch] 这个新 key 下重组 content。新 key 下没有旧组可复用，content
     // 必然完整重跑，于是提交的一定是当前该有的那一整份。
     private var collectingInBody = false
-    private var bodyContentRan = false
-    private var recollectRequested = false
+    private var pendingRecollect = false
     private val bodyEntries = mutableListOf<MeowPreferenceSectionEntry>()
     private var committedEntries: List<MeowPreferenceSectionEntry> = emptyList()
 
@@ -55,19 +54,31 @@ class MeowPreferenceSectionScope internal constructor() {
 
     internal fun beginCollection() {
         collectingInBody = true
-        bodyContentRan = false
         bodyEntries.clear()
     }
 
     internal fun endCollection(): List<MeowPreferenceSectionEntry> {
         collectingInBody = false
-        // 主体这趟真正执行了 content（哪怕条目全部 visible = false）：以本趟收集为准。
-        // 没执行（被跳过）就沿用上一份，等 epoch 换 key 后的那趟重收。
-        if (bodyContentRan) {
-            committedEntries = bodyEntries.toList()
-            recollectRequested = false
+        val collected = bodyEntries.toList()
+        // 条目只多不少：正常的一趟，直接换上。
+        //
+        // 变少了有两种可能，在这里分不出来：主体复用了 content 整组、只重跑了其中一个嵌套
+        // 作用域（拿到的是残缺的一份），或者真有行被隐藏了。先按前者处理——留着上一份、换个
+        // key 重收一趟；重收那趟没有旧组可复用，content 必然完整跑，那时仍然变少就是真删了。
+        if (collected.size >= committedEntries.size || pendingRecollect) {
+            committedEntries = collected
+            pendingRecollect = false
+        } else {
+            requestRecollect()
         }
         return committedEntries
+    }
+
+    /** 让主体在新的轮次下把 content 整趟重跑一遍。 */
+    private fun requestRecollect() {
+        if (pendingRecollect) return
+        pendingRecollect = true
+        collectionEpoch++
     }
 
     /**
@@ -85,9 +96,6 @@ class MeowPreferenceSectionScope internal constructor() {
         content: @Composable () -> Unit,
     ) {
         if (collectingInBody) {
-            // 在 visible 判断之前记录“content 确实执行过”，
-            // 让全部隐藏时也能提交空列表，而不是沿用旧条目。
-            bodyContentRan = true
             if (!visible) return
             bodyEntries += MeowPreferenceSectionEntry(
                 key = key ?: bodyEntries.size,
@@ -96,13 +104,9 @@ class MeowPreferenceSectionScope internal constructor() {
             )
             return
         }
-        // lambda 在自己的作用域里单独重跑了。这一趟的条目一概不要（可能只是其中一部分），
+        // content 在主体之外单独重跑了。这一趟的条目一概不要（可能只是其中一部分），
         // 只记下“要重收”：主体读到新的轮次后会在新 key 下把 content 整趟跑一遍。
-        // 条目全部隐藏时同样要重收，否则结构性删除永远渲染不出来。
-        if (!recollectRequested) {
-            recollectRequested = true
-            collectionEpoch++
-        }
+        requestRecollect()
     }
 
     fun MeowActionPreference(
