@@ -461,8 +461,12 @@ fun MeowSliderPreference(
     /** 值正好等于 [defaultValue] 时，行尾显示这段文字而不是数值；null 一直显示数值。 */
     defaultText: String? = "Default",
 ) {
-    val keyPoints = remember(valueRange, steps, showSteps, defaultValue) {
-        sliderKeyPoints(valueRange, steps, showSteps, defaultValue)
+    // 默认值正好落在两端时不标：拖到底就是它，点画出来只会跟滑块糊在一起。
+    val marker = defaultValue?.takeIf {
+        it in valueRange && it != valueRange.start && it != valueRange.endInclusive
+    }
+    val keyPoints = remember(valueRange, steps, showSteps, marker) {
+        sliderKeyPoints(valueRange, steps, showSteps, marker)
     }
     val displayText = if (defaultText != null && defaultValue != null && value == defaultValue) {
         defaultText
@@ -483,7 +487,7 @@ fun MeowSliderPreference(
                 valueText = displayText,
                 onValueChangeFinished = onValueChangeFinished,
                 onClick = onClick,
-                defaultValue = defaultValue?.takeIf { it in valueRange },
+                defaultValue = marker,
                 snapToDefault = snapToDefault,
                 showSteps = showSteps,
             )
