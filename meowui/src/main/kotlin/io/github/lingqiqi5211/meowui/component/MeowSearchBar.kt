@@ -48,6 +48,8 @@ import androidx.compose.material3.IconButtonDefaults as MaterialIconButtonDefaul
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.currentCompositionLocalContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -59,12 +61,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -76,6 +80,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
@@ -133,6 +138,8 @@ fun MeowSearchBar(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val isExpanded by rememberUpdatedState(expanded)
+    val overlayHost = LocalMeowOverlayHost.current
+    val hostTop = with(density) { (overlayHost?.positionInWindow?.y ?: 0f).toDp() }
 
     // 折叠输入条在窗口中的位置：浮层里的输入条以它为动画起点，两者重合才不会有跳变。
     var collapsedTop by remember { mutableStateOf(0.dp) }
@@ -141,13 +148,17 @@ fun MeowSearchBar(
     LaunchedEffect(expanded) { if (expanded) overlayMounted = true }
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val barTop by animateDpAsState(
-        targetValue = if (expanded) statusBarTop + OverlayBarTopGap else collapsedTop,
+    val barTop = animateDpAsState(
+        targetValue = if (expanded) {
+            (statusBarTop - hostTop).coerceAtLeast(0.dp) + OverlayBarTopGap
+        } else {
+            (collapsedTop - hostTop).coerceAtLeast(0.dp)
+        },
         animationSpec = tween(LiftMillis, easing = LinearOutSlowInEasing),
         label = "MeowSearchBarLift",
         finishedListener = { if (!isExpanded) overlayMounted = false },
     )
-    val surfaceAlpha by animateFloatAsState(
+    val surfaceAlpha = animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
         animationSpec = tween(SurfaceFadeMillis, easing = FastOutSlowInEasing),
         label = "MeowSearchBarSurface",
@@ -189,12 +200,14 @@ fun MeowSearchBar(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clickable(interactionSource = null, indication = null) { onExpandedChange(true) },
+                .clickable(enabled = !overlayMounted, interactionSource = null, indication = null) {
+                    onExpandedChange(true)
+                },
         )
     }
 
-    val overlayHost = LocalMeowOverlayHost.current
-    val overlay: @Composable () -> Unit = {
+    val localContext = currentCompositionLocalContext
+    val overlayContent: @Composable () -> Unit = {
         BackHandler(enabled = expanded, onBack = collapse)
         // 焦点在浮层自己的组合里要：输入框属于宿主的子树，搜索框那边发起的
         // requestFocus 会快一拍，报 FocusRequester is not initialized 并静默失败（键盘不弹）。
@@ -207,8 +220,9 @@ fun MeowSearchBar(
                 SearchOverlay(
                     // 底面用与 MeowScaffold 页面同一个 role，结果卡片才能沿用库里已有的
                     // 页面/卡片对比（surfaceContainer 上放 surfaceBright）；刷 surface 的话卡片与底面同色。
-                    surfaceColor = colorScheme.surfaceContainer.copy(alpha = surfaceAlpha),
-                    barTop = barTop,
+                    surfaceColor = colorScheme.surfaceContainer,
+                    surfaceAlpha = { surfaceAlpha.value },
+                    barTop = { barTop.value },
                     expanded = expanded,
                     content = content,
                 ) {
@@ -292,8 +306,9 @@ fun MeowSearchBar(
             miuix = {
                 val colorScheme = MiuixTheme.colorScheme
                 SearchOverlay(
-                    surfaceColor = colorScheme.surface.copy(alpha = surfaceAlpha),
-                    barTop = barTop,
+                    surfaceColor = colorScheme.surface,
+                    surfaceAlpha = { surfaceAlpha.value },
+                    barTop = { barTop.value },
                     expanded = expanded,
                     content = content,
                 ) {
@@ -375,6 +390,9 @@ fun MeowSearchBar(
             },
         )
     }
+    val overlay: @Composable () -> Unit = {
+        CompositionLocalProvider(localContext) { overlayContent() }
+    }
 
     // 插槽是整个 scaffold 一份，而搜索框可能同时组合着好几个（页面常驻的 pager 里
     // 每个页面一个）。KernelSU 每个屏幕自带浮层不存在争抢；这里把同一语义搬进插槽：
@@ -411,7 +429,8 @@ fun MeowSearchBar(
 @Composable
 private fun SearchOverlay(
     surfaceColor: Color,
-    barTop: Dp,
+    surfaceAlpha: () -> Float,
+    barTop: () -> Dp,
     expanded: Boolean,
     content: @Composable ColumnScope.() -> Unit,
     bar: @Composable () -> Unit,
@@ -419,12 +438,18 @@ private fun SearchOverlay(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(surfaceColor)
+            .drawBehind { drawRect(surfaceColor.copy(alpha = surfaceAlpha())) }
             // 整层参与命中测试：没落在交互子节点上的触摸（尤其收起动画期间
             // 取消按钮正在退场那几帧）在这里被吞掉，不会穿透到下面的顶栏按钮。
             .pointerInput(Unit) {},
     ) {
-        Box(modifier = Modifier.padding(top = barTop)) { bar() }
+        Box(
+            modifier = Modifier.layout { measurable, constraints ->
+                val top = barTop().roundToPx().coerceIn(0, constraints.maxHeight)
+                val placeable = measurable.measure(constraints.offset(vertical = -top))
+                layout(placeable.width, placeable.height + top) { placeable.placeRelative(0, top) }
+            },
+        ) { bar() }
         AnimatedVisibility(
             visible = expanded,
             enter = fadeIn(tween(ResultsFadeMillis)),

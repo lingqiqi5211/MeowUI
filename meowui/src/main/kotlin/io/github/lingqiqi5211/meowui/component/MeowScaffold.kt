@@ -28,12 +28,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
+import io.github.lingqiqi5211.meowui.theme.LocalMeowBlurEnabled
+import io.github.lingqiqi5211.meowui.theme.MeowBlur
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
@@ -89,6 +94,7 @@ internal val MeowBlurRadius = 25.dp
 @Stable
 internal class MeowOverlayHostState {
     var content: (@Composable () -> Unit)? by mutableStateOf(null)
+    var positionInWindow: Offset by mutableStateOf(Offset.Zero)
 }
 
 internal val LocalMeowOverlayHost = staticCompositionLocalOf<MeowOverlayHostState?> { null }
@@ -169,7 +175,11 @@ fun MeowScaffold(
     effect: MeowScaffoldEffect = MeowScaffoldEffect(),
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val backdrop = rememberLayerBackdrop()
+    val backdrop = if (LocalMeowBlurEnabled.current && MeowBlur.isSupported) {
+        rememberLayerBackdrop()
+    } else {
+        null
+    }
     val overlayHost = remember { MeowOverlayHostState() }
     val bottomBarInset = remember { MeowBottomBarInset() }
     CompositionLocalProvider(
@@ -178,7 +188,11 @@ fun MeowScaffold(
         LocalMeowOverlayHost provides overlayHost,
         LocalMeowBottomBarInset provides bottomBarInset,
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = modifier.fillMaxSize().onGloballyPositioned {
+                overlayHost.positionInWindow = it.positionInWindow()
+            },
+        ) {
             MeowSideRailRow(navigationRail) {
                 MeowStyleContent(
                     materialExpressive = {
@@ -192,7 +206,6 @@ fun MeowScaffold(
                             ),
                         ) {
                             MaterialScaffold(
-                                modifier = modifier,
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 contentWindowInsets = WindowInsets.safeDrawing,
                                 topBar = {
@@ -229,7 +242,6 @@ fun MeowScaffold(
                             ),
                         ) {
                             MiuixScaffold(
-                                modifier = modifier,
                                 topBar = {
                                     MeowTopBar(
                                         title = title,
@@ -266,7 +278,7 @@ fun MeowScaffold(
 @Composable
 private fun MeowScaffoldContent(
     paddingValues: PaddingValues,
-    backdrop: LayerBackdrop,
+    backdrop: LayerBackdrop?,
     effect: MeowScaffoldEffect,
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -283,7 +295,7 @@ private fun MeowScaffoldContent(
         modifier = Modifier
             .fillMaxSize()
             // 悬浮底栏与顶栏的背景模糊取自这份图层快照。
-            .layerBackdrop(backdrop)
+            .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier)
             .background(pageColor)
             .then(effect.contentModifier),
     ) {

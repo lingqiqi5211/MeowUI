@@ -117,19 +117,17 @@ fun <T : Any> MeowNavHost(
             content = entries,
         )
     }
-    if (onBack == null) {
-        // NavDisplay 的返回处理是内建的、没有开关，但它注册到哪条分发器上是由
-        // CompositionLocal 决定的。这里给它一条**孤立**的分发器：没有父级，系统返回事件
-        // 永远送不进来，于是这个宿主的返回处理形同虚设，而外层注册在真实分发器上的处理器
-        // 照常收到返回——转场、层级、状态管理都不受影响。
-        //
-        // 置 null 行不通：provides 只收非空，而且 current 取不到时还会回落到 view tree 上
-        // 的 owner，等于没断。
-        val inert = rememberInertNavigationEventDispatcherOwner()
-        CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides inert) {
-            display()
-        }
-    } else {
+    val activeOwner = LocalNavigationEventDispatcherOwner.current
+    val inert = rememberInertNavigationEventDispatcherOwner()
+    // 同一组合位置保留 NavDisplay：后台页重新获得返回处理权时不重建页面与 remember 状态。
+    // 无 onBack 时使用孤立分发器，让系统返回事件交给外层处理器。
+    CompositionLocalProvider(
+        LocalNavigationEventDispatcherOwner provides if (onBack == null) {
+            inert
+        } else {
+            checkNotNull(activeOwner) { "MeowNavHost requires a NavigationEventDispatcherOwner" }
+        },
+    ) {
         display()
     }
 }

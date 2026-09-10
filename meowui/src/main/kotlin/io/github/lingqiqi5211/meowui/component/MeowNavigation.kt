@@ -430,6 +430,7 @@ private fun MeowFloatingNavigationBar(
         var dragging by remember { mutableStateOf(false) }
         val currentSelectedIndex by rememberUpdatedState(selectedIndex)
         val currentOnItemSelected by rememberUpdatedState(onItemSelected)
+        val currentItems by rememberUpdatedState(items)
 
         // 点击或外部改变选中项时把胶囊动画到目标位；拖动期间由手势直接驱动。
         LaunchedEffect(selectedIndex) {
@@ -530,7 +531,7 @@ private fun MeowFloatingNavigationBar(
                                 val target = releasedProgress
                                     .roundToInt()
                                     .coerceIn(0, items.lastIndex)
-                                val resolved = if (items[target].enabled) {
+                                val resolved = if (currentItems.getOrNull(target)?.enabled == true) {
                                     target
                                 } else {
                                     currentSelectedIndex

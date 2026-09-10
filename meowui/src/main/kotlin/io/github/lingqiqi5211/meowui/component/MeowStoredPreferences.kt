@@ -1,10 +1,10 @@
 package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.github.lingqiqi5211.meowui.core.preference.PreferenceConnectionState
@@ -12,6 +12,8 @@ import io.github.lingqiqi5211.meowui.core.preference.PreferenceKey
 import io.github.lingqiqi5211.meowui.preference.rememberMeowPreferenceConnectionState
 import io.github.lingqiqi5211.meowui.preference.rememberMeowPreferenceValue
 import io.github.lingqiqi5211.meowui.preference.rememberMeowPreferenceWriter
+import io.github.lingqiqi5211.meowui.preference.rememberMeowPreferenceSuspendingWriter
+import kotlinx.coroutines.launch
 
 /** A switch row that reads and writes [key] through the nearest preference provider. */
 @Composable
@@ -93,20 +95,18 @@ fun MeowSliderPreference(
 ) {
     val storedValue by rememberMeowPreferenceValue(key)
     val connectionState by rememberMeowPreferenceConnectionState()
-    val write = rememberMeowPreferenceWriter(key)
+    val write = rememberMeowPreferenceSuspendingWriter(key)
+    val scope = rememberCoroutineScope()
 
     // 拖动期间用本地值回显，抬手才提交一次，避免每帧写入远程存储并等待值回环。
-    var draftValue by remember { mutableStateOf<Float?>(null) }
-    var dragging by remember { mutableStateOf(false) }
-    LaunchedEffect(storedValue) {
-        if (!dragging) draftValue = null
-    }
+    var draftValue by remember(write) { mutableStateOf<Float?>(null) }
+    val editVersion = remember(write) { longArrayOf(0L) }
 
     MeowSliderPreference(
         title = title,
         value = draftValue ?: storedValue,
         onValueChange = { newValue ->
-            dragging = true
+            editVersion[0]++
             draftValue = newValue
             onValueChange(newValue)
         },
@@ -117,8 +117,17 @@ fun MeowSliderPreference(
         enabled = enabled && connectionState !is PreferenceConnectionState.Disconnected,
         valueText = valueText,
         onValueChangeFinished = {
-            dragging = false
-            draftValue?.let(write)
+            draftValue?.let { value ->
+                val version = editVersion[0]
+                scope.launch {
+                    try {
+                        write(value)
+                    } finally {
+                        // 失败或没有产生新值的写入也要退出草稿；旧写入不覆盖新一轮拖动。
+                        if (version == editVersion[0]) draftValue = null
+                    }
+                }
+            }
         },
         onClick = onClick,
         defaultValue = if (showDefaultValue) key.defaultValue else null,

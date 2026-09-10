@@ -6,6 +6,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -15,6 +16,8 @@ import io.github.lingqiqi5211.meowui.core.preference.PreferenceKey
 import io.github.lingqiqi5211.meowui.core.preference.PreferenceStore
 import io.github.lingqiqi5211.meowui.core.preference.PreferenceWriteResult
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private val LocalPreferenceStore = staticCompositionLocalOf<PreferenceStore?> { null }
 
@@ -49,7 +52,7 @@ fun <T : Any> rememberMeowPreferenceValue(
     val values = remember(resolvedStore, key) { resolvedStore.observe(key) }
     // initial 只读一次；observe 首次发射当前值，重组时不再触发同步读取。
     val initialValue = remember(resolvedStore, key) { resolvedStore.read(key) }
-    return values.collectAsState(initial = initialValue)
+    return key(resolvedStore, key) { values.collectAsState(initial = initialValue) }
 }
 
 @Composable
@@ -78,7 +81,7 @@ fun rememberMeowPreferenceConnectionState(
     store: PreferenceStore? = null,
 ): State<PreferenceConnectionState> {
     val resolvedStore = store ?: currentMeowPreferenceStore()
-    return resolvedStore.connectionState.collectAsState()
+    return key(resolvedStore) { resolvedStore.connectionState.collectAsState() }
 }
 
 @Composable
@@ -87,17 +90,31 @@ fun <T : Any> rememberMeowPreferenceWriter(
     store: PreferenceStore? = null,
     onWriteResult: ((PreferenceWriteResult) -> Unit)? = null,
 ): (T) -> Unit {
+    val write = rememberMeowPreferenceSuspendingWriter(key, store, onWriteResult)
+    val scope = rememberCoroutineScope()
+    return remember(write, scope) {
+        { value -> scope.launch { write(value) } }
+    }
+}
+
+/** Shares result reporting with components that also need to await a write. */
+@Composable
+internal fun <T : Any> rememberMeowPreferenceSuspendingWriter(
+    key: PreferenceKey<T>,
+    store: PreferenceStore? = null,
+    onWriteResult: ((PreferenceWriteResult) -> Unit)? = null,
+): suspend (T) -> PreferenceWriteResult {
     val resolvedStore = store ?: currentMeowPreferenceStore()
     val providerCallback = LocalPreferenceWriteResultHandler.current
-    val scope = rememberCoroutineScope()
-    val latestCallback by rememberUpdatedState(onWriteResult ?: providerCallback)
-
-    return remember(resolvedStore, key, scope) {
-        { value ->
-            scope.launch {
-                latestCallback(resolvedStore.write(key, value))
+    return key(resolvedStore, key) {
+        val latestCallback by rememberUpdatedState(onWriteResult ?: providerCallback)
+        val writes = remember { Mutex() }
+        remember {
+            { value: T ->
+                writes.withLock {
+                    resolvedStore.write(key, value).also { latestCallback(it) }
+                }
             }
         }
     }
 }
-

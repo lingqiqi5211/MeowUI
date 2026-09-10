@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -26,7 +27,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 /**
@@ -70,8 +74,7 @@ object MeowNavigationPagerDefaults {
     const val SnapThreshold = 0.65f
 
     /**
-     * 一次甩动最多翻一页。Compose 默认允许一甩跨多页，快速划一下就掠过了中间那页，
-     * 使用者看不清自己去了哪。
+     * 一次甩动最多翻一页，与 Compose 默认的 PagerSnapDistance.atMost(1) 一致。
      *
      * 管不到手指按着一路拖过好几页：那是直接操纵，中间页本来就该跟着手走。
      */
@@ -109,6 +112,11 @@ class MeowNavigationSelection internal constructor(
     /** 跨页跳转期间的整页不透明度，[MeowNavigationPager] 在绘制期读它。 */
     internal val jumpAlpha = Animatable(1f)
 
+    internal var selecting by mutableStateOf(false)
+        private set
+    private var selectionJob: Job? = null
+    private var selectionVersion = 0
+
     /**
      * 切到第 [target] 页。导航栏立刻显示为选中。
      *
@@ -117,15 +125,28 @@ class MeowNavigationSelection internal constructor(
      */
     fun select(target: Int) {
         if (target !in 0 until pagerState.pageCount) return
+        val version = ++selectionVersion
+        val previousJob = selectionJob
+        previousJob?.cancel()
+        selecting = true
         index = target
-        scope.launch {
-            if (abs(target - pagerState.currentPage) <= 1) {
-                pagerState.slideToAdjacent(target)
-                return@launch
+        selectionJob = scope.launch {
+            try {
+                previousJob?.join()
+                jumpAlpha.snapTo(1f)
+                if (abs(target - pagerState.currentPage) <= 1) {
+                    pagerState.slideToAdjacent(target)
+                } else {
+                    jumpAlpha.animateTo(0f, tween(JumpFadeOutMillis, easing = EaseInOut))
+                    pagerState.scrollToPage(target)
+                    jumpAlpha.animateTo(1f, tween(JumpFadeInMillis, easing = EaseInOut))
+                }
+            } finally {
+                if (version == selectionVersion) {
+                    withContext(NonCancellable) { jumpAlpha.snapTo(1f) }
+                    selecting = false
+                }
             }
-            jumpAlpha.animateTo(0f, tween(JumpFadeOutMillis, easing = EaseInOut))
-            pagerState.scrollToPage(target)
-            jumpAlpha.animateTo(1f, tween(JumpFadeInMillis, easing = EaseInOut))
         }
     }
 }
@@ -145,7 +166,7 @@ fun rememberMeowNavigationSelection(
     val currentOnSettled by rememberUpdatedState(onSettled)
     LaunchedEffect(state, selection) {
         var settled = state.currentPage
-        snapshotFlow { state.isScrollInProgress to state.currentPage }
+        snapshotFlow { (selection.selecting || state.isScrollInProgress) to state.currentPage }
             .collect { (scrolling, page) ->
                 if (scrolling) return@collect
                 selection.index = page
