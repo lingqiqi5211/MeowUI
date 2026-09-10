@@ -54,7 +54,7 @@ setMeowContent {
 
 ### 源码级接入（composite build）
 
-不想依赖二进制也可以整棵源码接入——miuix 以 git submodule + 复合构建方式内嵌，宿主项目无需任何仓库凭据：
+可以通过 composite build 接入 MeowUI 源码，Miuix 依赖从 Maven Central 解析：
 
 ```bash
 git clone --recurse-submodules https://github.com/lingqiqi5211/MeowUI.git
@@ -66,22 +66,23 @@ git clone --recurse-submodules https://github.com/lingqiqi5211/MeowUI.git
 includeBuild("../MeowUI")
 ```
 
-依赖坐标保持不变，Gradle 会把 `io.github.lingqiqi5211.meowui:*` 与 `top.yukonga.miuix.kmp:*` 全部替换为源码工程。
+依赖坐标保持不变，Gradle 会把 `io.github.lingqiqi5211.meowui:*` 替换为源码工程。只有直接构建本仓库时，Miuix 才通过 submodule 参与源码构建。
 
 **注意事项：**
 
-- **submodule 必须先拉出来**：已 clone 的仓库补一句 `git submodule update --init`。漏了会在配置期收到指路的报错，不会静默失败。
+- **submodule 必须先拉出来**：已 clone 的仓库执行 `git submodule update --init --recursive`；当前配置会检查 submodule 是否存在。
 - **Android SDK 定位**：MeowUI 会把自己 `local.properties` 里的 `sdk.dir` 播种给 miuix；若 MeowUI 目录下没有这份文件（如 CI 环境），请保证 `ANDROID_HOME` 已设置。
-- **工具链对齐**：整棵复合构建运行在宿主的 Gradle 上——宿主 Gradle 需 ≥ 9.6、JDK 21+，AGP 与 Kotlin 建议与本仓库 `gradle/libs.versions.toml` 同代（当前 AGP 9.3.x / Kotlin 2.4.x），差一大代可能因插件类路径冲突在配置期失败。
-- **坐标替换是全局的**：宿主自己再声明 `top.yukonga.miuix.kmp:*` 的其它版本会被源码工程覆盖，写什么版本号都会被忽略。
-- **首次构建更慢**：miuix 从源码编译，冷构建时间明显高于二进制依赖；后续有构建缓存兜底。
+- **工具链对齐**：复合构建运行在宿主 Gradle 上。以本仓库的 `gradle/wrapper/gradle-wrapper.properties`、`.java-version` 与 `gradle/libs.versions.toml` 为准；当前验证组合为 Gradle 9.7.1、JDK 25、AGP 9.4.0、Kotlin 2.4.20，字节码目标仍为 JVM 21。
+- **宿主的 Miuix 版本**：按 Maven 依赖解析规则选择；宿主另行声明版本可能改变最终解析结果，需要核对兼容性。
+- **源码冷构建**：直接构建本仓库时包含 Miuix 源码编译；宿主 `includeBuild` 接入不包含这一层源码构建。
 - **工程名避让**：复合构建树内的工程名不要与 `meowui`、`miuix` 只差大小写（Windows 不区分大小写，类型安全访问器的生成文件会撞名）。
 
 ### 依赖的 miuix 版本
 
-当前钉的是 **v0.9.4-rc01**——`MeowBreadcrumbBar` 用到的 `BreadcrumbBar` 和两套风格共用的
-`miuix-nav` 都随这一版首次进入 Maven Central。二进制接入时按 POM 从 Central 解析；
-源码接入时 submodule 指针钉在同一个 tag 上，两条路径拿到的 miuix 完全一致。
+- **本仓库根构建**：submodule 固定到上游 main 提交 `18590f7cdcbba6bed6d6ba8d21ceb0124e4c399b`，包含 TabRow 横向嵌套滚动修复和导航项颜色配置。
+- **宿主 `includeBuild` 接入**：Maven 版本仍为 **0.9.4-rc01**，包含 `BreadcrumbBar` 和 `miuix-nav`。二进制接入按对应版本的 POM 解析。
+
+两条路径使用的 Miuix 版本不同；main 的新增修复不会自动进入 Maven 依赖。
 
 ## 最小示例
 

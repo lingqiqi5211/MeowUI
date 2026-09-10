@@ -8,13 +8,13 @@ MeowUI 的公共组件只暴露一套业务 API。`MeowTheme` 根据 `MeowUiStyl
 | --- | --- |
 | 页面 | `MeowPreferencePage`、`MeowAppearancePage`、`MeowPreferenceScreen`、`MeowPreferenceSection`、`MeowScaffold` |
 | 设置项 | `MeowSwitchPreference`、`MeowCheckboxPreference`、`MeowSliderPreference`、`MeowPopupPreference`、`MeowTextInputPreference`、`MeowActionPreference`、`MeowButton` |
-| Dialog | `MeowAlertDialog`、`MeowSingleChoiceDialog`、`MeowTextInputDialog`、`MeowLoadingDialog` |
+| Dialog | `MeowAlertDialog`、`MeowSingleChoiceDialog`、`MeowMultiChoiceDialog`、`MeowTextInputDialog`、`MeowLoadingDialog` |
 | 顶栏 | `MeowTopBar`、`MeowTopBarAction`、`MeowMenuItem` |
-| 导航 | `MeowTabRow`、`MeowNavigationBar`、`MeowNavigationItem` |
+| 导航 | `MeowTabRow`、`MeowNavigationBar`、`MeowNavigationRail`、`MeowNavigationItem`、`MeowNavigationPager`、`MeowBreadcrumbBar` |
 | 搜索 | `MeowSearchBar` |
 | 页面栈 | `MeowNavHost`（调用侧持有返回栈 `List`；宿主负责推入/弹出转场、预测式返回拖拽与页面层级） |
 | 容器 | `MeowBottomSheet`、`MeowAdaptiveLayout`、`MeowCard`（KernelSU 首页式状态卡/信息卡；`containerColor` 给状态色调，`index`/`count` 让相邻卡片在 Material 下拼成分组卡片） |
-| 提示与刷新 | `MeowTip`、`MeowPullToRefresh`、`rememberMeowSnackbarState` |
+| 提示与刷新 | `MeowTip`、`MeowPullToRefresh`、`MeowLoadingIndicator`、`rememberMeowSnackbarState` |
 | 取色 | `MeowColorPicker`、`MeowColorPickerDialog`、`MeowColorPickerDefaults`、`MeowColorPalette`、`MeowColorPaletteDialog` |
 | 效果 | `MeowScaffoldEffect` |
 
@@ -47,12 +47,9 @@ MeowPreferenceSection(title = "功能") {
 自定义内容必须通过 `item` 加入分组，并提供稳定 key：
 
 ```kotlin
-MeowPreferenceSection(title = "操作") {
-    item(key = "reset-button") {
-        MeowButton(
-            text = "恢复默认设置",
-            onClick = onReset,
-        )
+MeowPreferenceSection(title = "说明") {
+    item(key = "notice") {
+        Text("更改设置后重新启动目标应用。", modifier = Modifier.padding(16.dp))
     }
 }
 ```
@@ -88,7 +85,9 @@ MeowCheckboxPreference(
 
 当前 key 必须是 `PreferenceKey<Float>`。可设置范围、步数和显示文本。拖到两端时有一次触觉反馈；`steps > 0` 时每换一档轻响一下，两种风格相同。
 
-`showDefaultValue = true` 让绑定 key 的滑条在轨道上标出 key 的默认值；不绑定 key 时用 `defaultValue` 传入。标出默认值后拖到附近会吸上去，`snapToDefault = false` 只标不吸。值正好在默认值上时行尾显示 `defaultText`（默认 "Default"）而不是数值，传 null 一直显示数值。分档滑条默认只吸附、不画刻度点，`showSteps = true` 画出来。
+`showDefaultValue = true` 让绑定 key 的滑条标出位于范围内部的默认值，范围端点不画标记；不绑定 key 时用 `defaultValue` 传入。标出默认值后拖到附近会吸上去，`snapToDefault = false` 只标不吸。值正好在默认值上时行尾显示 `defaultText`（默认 "Default"）而不是数值，传 null 一直显示数值。分档滑条默认只吸附、不画刻度点，`showSteps = true` 画出来。
+
+绑定 key 的滑条在拖动时显示草稿，松手后写入；写入结束后恢复显示存储值，失败通过 `PreferenceWriteResult` 上报。单个绑定实例的连续写入按顺序执行，旧写入完成不会清除新一轮拖动的草稿。
 
 `onClick` 让整行（标题、副文本、数值）可点，滑条本身仍归拖动，两种风格都不追加行尾箭头；用来打开精确输入之类的对话框。
 
@@ -389,14 +388,14 @@ MeowSearchBar(
 - 展开时的「取消」：Material 是输入条内前导位淡出换成的返回按钮，Miuix 是从右侧滑入的 `cancelText` 文字按钮；两者与系统返回键等效——清空查询词并回调 `onExpandedChange(false)`；
 - 查询词非空且已展开时，行内出现清空按钮（缩放淡入），只清词不收起，焦点保留；
 - 键盘上的搜索键回调 `onSearch(query)` 后**只收键盘、不收起**（结果就在下方，收起反而看不到）。需要提交即收起，在 `onSearch` 里自己置 `expanded = false`；
-- 调用侧程序化把 `expanded` 置回 `false`（例如点中某条结果）不会清词，收起后输入条里仍留着这次的查询词——与组件自己的「取消」是两条不同的路径。
+- 调用侧程序化把 `expanded` 置回 `false`（例如点中某条结果）不会清词，再次展开时保留查询词；折叠输入条始终显示 `placeholder`。
 
 两端差异只在视觉：Material 为 `surfaceContainerHigh` 药丸容器、56dp 高、前导槽位在放大镜与返回按钮间淡入淡出；Miuix 为 45dp 圆角输入条、miuix 原生放大镜与清空图标，取消文字按钮从右侧挤进来。
 
 ## 页面栈
 
 ```kotlin
-var backStack by rememberSaveable { mutableStateOf(listOf(Route.Home)) }
+var backStack by remember { mutableStateOf(listOf(Route.Home)) }
 
 MeowNavHost(
     backStack = backStack,
@@ -410,7 +409,9 @@ MeowNavHost(
 }
 ```
 
-返回栈由调用侧持有——一个普通 `List`，入栈/出栈就是换一个列表传进来。宿主负责经典 activity 式推入/弹出转场（新页全宽滑入、旧页约 1/4 视差并轻微压暗）、预测式返回手势直接拖拽弹出转场进度（`predictiveBackEnabled = false` 时退化为普通返回键），以及由栈深度决定的方向与层级。`onBack` 为 null 时完全不注册返回处理，只做转场。被盖住页面的 `rememberSaveable` 状态（滚动位置、pager 页等）在弹回时原样恢复；页面对象需要稳定且互不相同的 `toString`（枚举、data object/data class 天然满足）。
+返回栈由调用侧持有——一个普通 `List`，入栈/出栈就是换一个列表传进来。宿主负责经典 activity 式推入/弹出转场（新页全宽滑入、旧页约 1/4 视差并轻微压暗）、预测式返回手势直接拖拽弹出转场进度（`predictiveBackEnabled = false` 时退化为普通返回键），以及由栈深度决定的方向与层级。`onBack` 为 null 时不接管系统返回；切换返回处理权不会重建页面组合。页面身份按对象的 `equals` / `hashCode` 判断，同一栈内不可出现相等的页面对象；同一路由的多个实例需带不同 ID。
+
+页面的 `rememberSaveable` 状态与调用侧的返回栈保存是两回事。需要跨 Activity 重建保存返回栈时，使用可保存的路由类型，或为自定义类型提供 `Saver`。
 
 ## Scaffold 与滚动顶栏
 
@@ -436,6 +437,8 @@ MeowPreferencePage(
 ```
 
 页面内容滚动时，Material 3 Expressive 与 Miuix 会分别使用各自的顶栏滚动行为。顶栏展开、过渡和收起期间，背景应始终与正文表面连续。
+
+`MeowPreferenceScreen` 使用 `Column` + `verticalScroll`，分组也会收集并组合全部可见项，适合数量有限的设置页。大量动态数据应使用 `MeowScaffold` + `LazyColumn`，每条数据放进独立且带稳定 key 的 lazy item；把整份长列表放进一个 `MeowPreferenceSection` 不会获得懒加载。
 
 `MeowPreferenceScreen`、`MeowPullToRefresh` 等库内容器自动接入顶栏滚动行为，调用侧不必重复接。自建滚动容器（`LazyColumn` / `verticalScroll`）想让顶栏跟随折叠时，在其祖先上加 `Modifier.meowScaffoldScroll()`（不在 `MeowScaffold` 内时为空操作）。`MeowPullToRefresh` 还会在顶栏折叠着时把下拉增量先喂给顶栏展开，展开完毕剩余才进入下拉刷新。
 
@@ -475,11 +478,17 @@ MeowNavigationBar(
 ```
 
 - `MeowNavigationBarStyle.Standard`：Material 使用 Expressive `ShortNavigationBar`，Miuix 使用原生普通底栏。
-- `MeowNavigationBarStyle.Floating`：Material 使用 64 dp 胶囊底栏，选中指示器随选中项平滑滑动，并支持直接拖动指示器切页；Miuix 使用原生悬浮底栏容器并补充名称显示。两者都保留图标、单行文字、选中状态与安全区间距。
+- `MeowNavigationBarStyle.Floating`：两种风格共用库内的滑动胶囊布局，并分别取用当前风格的配色、形状与反馈；Material 高度为 64 dp。选中指示器支持直接拖动切页，两者都保留图标、单行文字、选中状态与安全区间距。
 - `showFloatingLabels = false` 可隐藏悬浮底栏图标下方的名称，仅悬浮样式受影响。
 - sample 的“Floating bottom bar”开关可直接比较普通与悬浮样式。
 - `badge` 为空时不显示；`enabled = false` 时该项不可操作。
 - 重复点击当前项不会再次触发切页；悬浮指示器拖动时会接管并取消旧动画，松手后只提交一次最终目标。
+
+## 导航分页
+
+`rememberMeowNavigationSelection(pagerState, onSettled)` 提供导航选中态与 `select(index)`；配合 `MeowNavigationPager(selection)` 使用。相邻页滑动，跨页淡出后跳转再淡入；连续选择以最后一次为准。
+
+`keepPagesAlive` 默认为 `true`，会保留全部页面的组合，适合少量固定导航页。页面较多或后台页面有持续工作时，可设为 `false`；页面自身的长期任务仍应按业务可见状态管理。当前页面保存身份按索引区分，不适用于依赖稳定业务 key 的动态重排。
 
 ## Bottom Sheet
 
@@ -518,6 +527,7 @@ KernelSU 首页式状态卡/信息卡。默认是当前风格的普通卡面；`
 
 ```kotlin
 val snackbarState = rememberMeowSnackbarState()
+val scope = rememberCoroutineScope()
 
 MeowScaffold(
     title = "模块设置",
@@ -533,6 +543,8 @@ scope.launch {
 ```
 
 `show` 挂起到 snackbar 消失并返回 `MeowSnackbarResult`；Material 与 Miuix 分别使用各自的原生 Snackbar 宿主与滑动关闭手势。`snackbarState` 也可传给 `MeowPreferencePage`。
+
+切换 UI 风格时，当前消息以 `Dismissed` 结束，等待中的消息按新风格显示。使用与宿主同生命周期的协程作用域调用 `show`，页面移除时一并取消等待。
 
 ## Tip
 
@@ -673,7 +685,7 @@ fun MyAppearancePage(
 
 要点：
 
-- 把同一份 `MeowAppearance` 同时交给 `MeowTheme(appearance = …)` 和自定义页面，每次变更通过回调回传并持久化（sample 用 `PreferenceKey` 逐字段存取，见 `sample/MainActivity.kt` 的 `updateAppearance`）。
+- 把同一份 `MeowAppearance` 同时交给 `MeowTheme(appearance = …)` 和自定义页面，每次变更通过回调回传并持久化（sample 用 `PreferenceKey` 逐字段存取，见 [MainActivity.kt](../sample/src/main/kotlin/io/github/lingqiqi5211/meowui/sample/MainActivity.kt) 的 `updateAppearance`）。
 - 所有积木都是风格自适应的，页面代码不需要出现任何 Material 或 Miuix 类型。
 - Miuix 关闭 Monet 时种子色与调色板不生效，自定义页面建议参照默认页用 `appearance.style != MeowUiStyle.Miuix || appearance.miuixMonetEnabled` 控制相关选项的显隐。
 - 旧的 `MeowTheme(style = …)` 与 `MeowColorPickerDialog` 用法继续保留。

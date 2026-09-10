@@ -25,8 +25,8 @@ Projects/
 includeBuild("../MeowUI")
 ```
 
-路径按实际目录调整。若 MeowUI 是已有的 clone，先补 `git submodule update --init` 拉出
-miuix。工具链要求、SDK 定位与坐标替换行为等注意事项见 [README「源码级接入」](../README.md#源码级接入composite-build)。
+路径按实际目录调整。已有 clone 使用 `git submodule update --init --recursive` 初始化子模块。
+宿主接入时 MeowUI 走源码，Miuix 走 Maven Central；直接构建 MeowUI 仓库才使用 Miuix 子模块源码。版本与工具链说明见 [README「源码级接入」](../README.md#源码级接入composite-build)。
 
 ### 设置页模块
 
@@ -157,8 +157,8 @@ Material 3 Expressive 分支的配色始终由种子色展开为完整的 MD3 to
   例如 `Expressive`、`Vibrant`、`Monochrome`；支持 2025 color spec 的风格会自动启用。
 - 浅深色或种子切换时所有色 role 平滑过渡。
 
-Miuix 分支经 Miuix Monet 引擎生成同源配色：`dynamicColor = true` 时以系统主色为种子，
-关闭时同样使用 `seedColor` 与 `paletteStyle`，两种风格的主题色保持一致。
+Miuix 分支默认经 Miuix Monet 引擎生成配色：`dynamicColor = true` 且系统支持动态取色时以系统主色为种子，
+否则使用 `seedColor` 与 `paletteStyle`。通过 `MeowAppearance.miuixMonetEnabled = false` 可切回 Miuix 原生配色，此时种子色与调色板不生效。
 
 ## 传入文本与 key
 
@@ -200,7 +200,7 @@ private fun SettingsPage() {
 }
 ```
 
-这些组件会自动读取、观察并写回最近的 `PreferenceStore`。连接不可用时，写入型组件会进入不可操作状态，写入结果由 `onWriteResult` 统一接收。
+这些组件会自动读取、观察并写回最近的 `PreferenceStore`。连接状态为 `Disconnected` 时写入型组件不可操作；`Connecting` 不会自动禁用。写入结果由 `onWriteResult` 统一接收，调用侧应处理 `NotConnected` 与 `Failure`。
 
 ## Popup 与 Dialog 的选择
 
