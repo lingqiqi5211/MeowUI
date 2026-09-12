@@ -1,6 +1,7 @@
 package io.github.lingqiqi5211.meowui.component
 
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +48,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -56,6 +59,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -243,7 +247,7 @@ private fun MaterialPreferenceSection(
         }
         Column(
             // 分区内条目增减（如外观页隐藏调色板选项）时高度平滑过渡。
-            modifier = Modifier.animateContentSize(),
+            modifier = Modifier.animateSectionHeight(),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
             entries.forEachIndexed { index, entry ->
@@ -300,7 +304,7 @@ private fun MiuixPreferenceSection(
         MiuixCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize(),
+                .animateSectionHeight(),
             insideMargin = PaddingValues(0.dp),
             colors = cardColors,
         ) {
@@ -1325,3 +1329,38 @@ internal fun MeowText(
         overflow = TextOverflow.Ellipsis,
     )
 }
+
+/**
+ * 只过渡高度，宽度立即跟随。
+ *
+ * [androidx.compose.animation.animateContentSize] 连宽度一起做动画，并按动画中的尺寸裁剪。
+ * 外层宽度一变——侧边导航栏展开收起就是——分区会有几帧比实际窄一截：行内右侧的开关被裁掉
+ * 半个，右边露出页面底色，等侧栏动画走完才一起回位。分区要的只是条目增减时那段高度过渡。
+ *
+ * 高度在测量后写回状态，只有真的变了才写，所以不会自激。第一次量到直接落位：没有起点可
+ * 过渡，走动画会让分区从零展开一次。
+ */
+@Composable
+internal fun Modifier.animateSectionHeight(): Modifier {
+    var measured by remember { mutableIntStateOf(UnmeasuredSectionHeight) }
+    val height = remember { Animatable(UnmeasuredSectionHeight, Int.VectorConverter) }
+    LaunchedEffect(measured) {
+        if (measured == UnmeasuredSectionHeight) return@LaunchedEffect
+        if (height.value == UnmeasuredSectionHeight) {
+            height.snapTo(measured)
+        } else {
+            height.animateTo(measured)
+        }
+    }
+    return this
+        .clipToBounds()
+        .layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
+            if (measured != placeable.height) measured = placeable.height
+            val resolved = height.value.takeIf { it != UnmeasuredSectionHeight }
+                ?: placeable.height
+            layout(placeable.width, resolved) { placeable.place(0, 0) }
+        }
+}
+
+private const val UnmeasuredSectionHeight = -1
