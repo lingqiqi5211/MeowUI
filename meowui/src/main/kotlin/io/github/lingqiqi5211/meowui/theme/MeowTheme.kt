@@ -70,6 +70,14 @@ data class MeowColorScheme(
     /** 比 [surfaceVariant] 再高一档的中性底,用于卡片里还要再分一层的小色块。 */
     val surfaceContainerHighest: Color,
     val onSurfaceContainerHighest: Color,
+    /**
+     * 一整页的底色 —— MeowScaffold 与 MeowNavHost 给页面刷的就是它。
+     *
+     * 两套体系取的不是同一个角色(Material 的 surfaceContainer 对 Miuix 的 surface),而这两个
+     * 在本调色板里又落在不同的名字下,调用侧自己按风格拼一遍既啰嗦又容易挑错档。要画一块与页面
+     * 齐平的底(分栏布局里还没有内容的那一栏、自绘的占位)时读这里。
+     */
+    val page: Color,
     // 「成功」「警告」两档语义色。两套设计体系都没有定义它们:Material 只有 primary/
     // secondary/tertiary/error 四组,Miuix 连 tertiary 都只是一档蓝。而「正常 / 已降级」
     // 这种状态是应用普遍需要表达的,把它硬塞进 tertiary 会和「信息」撞色,塞进 error 又
@@ -388,6 +396,7 @@ private fun MaterialExpressiveContent(
                 onErrorContainer = colors.onErrorContainer,
                 surfaceContainerHighest = colors.surfaceContainerHighest,
                 onSurfaceContainerHighest = colors.onSurface,
+                page = colors.surfaceContainer,
                 successContainer = status.successContainer,
                 onSuccessContainer = status.onSuccessContainer,
                 warningContainer = status.warningContainer,
@@ -507,6 +516,7 @@ private fun MiuixContentInner(
                 onErrorContainer = colors.onErrorContainer,
                 surfaceContainerHighest = colors.surfaceContainerHighest,
                 onSurfaceContainerHighest = colors.onSurfaceContainerHighest,
+                page = colors.surface,
                 successContainer = status.successContainer,
                 onSuccessContainer = status.onSuccessContainer,
                 warningContainer = status.warningContainer,

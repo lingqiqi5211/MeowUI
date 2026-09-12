@@ -284,13 +284,7 @@ private fun MeowScaffoldContent(
 ) {
     // 页面底色必须画进被捕获的图层:scaffold 自己刷的背景不在快照里,只采内容
     // 会让模糊混入透明底,磨砂出来发灰发暗、和页面色不搭。
-    // 颜色必须与两个分支 scaffold 实际的 containerColor 一致:Material 分支上面
-    // 传的是 surfaceContainer,Miuix 分支用 MiuixScaffold 的默认值 surface。刷错
-    // role 会盖掉页面本来的底色(比如 Miuix 浅色下 background 更白,整页发白)。
-    val pageColor = when (MeowTheme.style) {
-        MeowUiStyle.MaterialExpressive -> MaterialTheme.colorScheme.surfaceContainer
-        MeowUiStyle.Miuix -> MiuixTheme.colorScheme.surface
-    }
+    val pageColor = MeowTheme.colors.page
     Box(
         modifier = Modifier
             .fillMaxSize()

@@ -4,7 +4,6 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -33,7 +32,6 @@ import top.yukonga.miuix.kmp.nav.transition.NavTransitionScope as MiuixNavTransi
 import top.yukonga.miuix.kmp.nav.transition.NavTransitions as MiuixNavTransitions
 import top.yukonga.miuix.kmp.nav.transition.navDirectionalTransition as miuixNavDirectionalTransition
 import top.yukonga.miuix.kmp.nav.transition.navGraphicsTransition as miuixNavGraphicsTransition
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 页面栈宿主：按当前风格渲染 [backStack] 栈顶的页面，并接管页面间的转场与返回。
@@ -164,11 +162,7 @@ private data class MeowNavRoute(val value: Any) : MiuixNavKey
  * 无缝衔接。
  */
 @Composable
-private fun navPageColor(): Color = when (MeowTheme.style) {
-    MeowUiStyle.MaterialExpressive -> MaterialTheme.colorScheme.surfaceContainer
-    // MiuixScaffold 的 containerColor 默认值；background 在浅色下更白，会跳色。
-    MeowUiStyle.Miuix -> MiuixTheme.colorScheme.surface
-}
+private fun navPageColor(): Color = MeowTheme.colors.page
 
 // 快出极缓入：前段快速让位、尾段长收敛，是各家 activity 转场共用的曲线形状。
 private val NavEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
