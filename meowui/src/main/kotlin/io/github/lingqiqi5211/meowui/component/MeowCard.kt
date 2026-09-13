@@ -1,5 +1,6 @@
 package io.github.lingqiqi5211.meowui.component
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,6 +10,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor as MaterialLocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Surface as MaterialSurface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -38,6 +40,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 在项间留出标准缝隙。数据列表（条目数由数据决定、还要放进 `LazyColumn`）走不了
  * [MeowPreferenceSection] 那条编译期收集的 DSL，用这两个参数即可；默认的 `0 to 1` 就是
  * 一张独立卡片。Miuix 分支不做拼接，每项仍是一张独立卡片，那是 miuix 列表本来的样子。
+ *
+ * [onLongClick] 让卡片同时接长按，两种风格都走各自卡片本体的点击区，涟漪不会溢到
+ * 组内留给下一项的缝隙里。
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -49,6 +54,7 @@ fun MeowCard(
     contentColor: Color = Color.Unspecified,
     contentPadding: PaddingValues = PaddingValues(20.dp),
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     // 组内非末项在下方留缝，调用侧因此不需要知道两种风格各自的间距。
@@ -75,24 +81,49 @@ fun MeowCard(
             } else {
                 ListItemDefaults.segmentedShapes(index, count).shape
             }
-            if (onClick != null) {
-                MaterialSurface(
-                    onClick = onClick,
-                    modifier = outerModifier,
-                    shape = shape,
-                    color = color,
-                    contentColor = resolvedContentColor,
-                ) {
-                    Column(modifier = Modifier.padding(contentPadding), content = content)
+            when {
+                onLongClick != null -> {
+                    // Material 的 Surface 只收单击，长按得自己接，因此这一支自己挂手势。
+                    // 挂在 Surface 内层而不是 outerModifier 上——涟漪要被卡片形状裁住，挂在
+                    // 外层会画进组内留给下一项的缝隙里。最小触达尺寸原本由 Surface 的可点重载
+                    // 提供，这里一并补上。
+                    MaterialSurface(
+                        modifier = outerModifier.minimumInteractiveComponentSize(),
+                        shape = shape,
+                        color = color,
+                        contentColor = resolvedContentColor,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .combinedClickable(
+                                    onClick = { onClick?.invoke() },
+                                    onLongClick = onLongClick,
+                                )
+                                .padding(contentPadding),
+                            content = content,
+                        )
+                    }
                 }
-            } else {
-                MaterialSurface(
-                    modifier = outerModifier,
-                    shape = shape,
-                    color = color,
-                    contentColor = resolvedContentColor,
-                ) {
-                    Column(modifier = Modifier.padding(contentPadding), content = content)
+                onClick != null -> {
+                    MaterialSurface(
+                        onClick = onClick,
+                        modifier = outerModifier,
+                        shape = shape,
+                        color = color,
+                        contentColor = resolvedContentColor,
+                    ) {
+                        Column(modifier = Modifier.padding(contentPadding), content = content)
+                    }
+                }
+                else -> {
+                    MaterialSurface(
+                        modifier = outerModifier,
+                        shape = shape,
+                        color = color,
+                        contentColor = resolvedContentColor,
+                    ) {
+                        Column(modifier = Modifier.padding(contentPadding), content = content)
+                    }
                 }
             }
         },
@@ -109,6 +140,7 @@ fun MeowCard(
                 insideMargin = contentPadding,
                 colors = colors,
                 onClick = onClick,
+                onLongPress = onLongClick,
             ) {
                 // 给定容器色时 miuix Card 不会跟着换内容色,状态卡的错误/警告色调下
                 // 文字会不可读,所以内容色一并提供下去。
