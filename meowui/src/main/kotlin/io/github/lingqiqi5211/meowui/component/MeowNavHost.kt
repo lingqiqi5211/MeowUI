@@ -1,7 +1,6 @@
 package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -12,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigationevent.NavigationEventDispatcher
@@ -91,7 +91,8 @@ fun <T : Any> MeowNavHost(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(currentPageColor),
+                        // 只在绘制期读取动画颜色，背景变色不必重跑页面 entry。
+                        .drawBehind { drawRect(currentPageColor) },
                 ) {
                     @Suppress("UNCHECKED_CAST")
                     currentContent(route.value as T)

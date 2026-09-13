@@ -366,7 +366,7 @@ private fun MaterialExpressiveContent(
 
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
-        motionScheme = MotionScheme.expressive(),
+        motionScheme = remember { MotionScheme.expressive() },
     ) {
         val colors = MaterialTheme.colorScheme
         val status = meowStatusColors(darkTheme)

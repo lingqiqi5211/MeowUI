@@ -87,12 +87,7 @@ fun MeowAdaptiveLayout(
                 ) {
                     listPane()
                 }
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(MeowTheme.colors.divider),
-                )
+                PaneDivider()
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -111,6 +106,17 @@ fun MeowAdaptiveLayout(
             }
         }
     }
+}
+
+// 颜色动画只让分隔线重组，不让 BoxWithConstraints 的两个页面槽位每帧重跑。
+@Composable
+private fun PaneDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .fillMaxHeight()
+            .background(MeowTheme.colors.divider),
+    )
 }
 
 /**
