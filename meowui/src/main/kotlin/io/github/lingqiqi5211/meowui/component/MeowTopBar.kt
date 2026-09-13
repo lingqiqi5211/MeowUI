@@ -180,6 +180,49 @@ data class MeowMenuItem(
     val children: List<MeowMenuItem> = emptyList(),
 )
 
+/**
+ * 锚定在调用处的菜单，样式与顶栏菜单（[MeowTopBarAction.Menu]）同一套。
+ *
+ * 顶栏菜单自带入口按钮，这个不带：何时展开由调用侧决定，用于列表项长按、内容区某个
+ * 控件旁边这类顶栏管不到的位置。放进锚点自己的布局节点里，两种风格都据此定位。
+ *
+ * [items] 是单组写法，[groups] 非空时按分组渲染；条目模型、子菜单、选中标记、收起
+ * 动画与触感都与顶栏菜单一致。
+ */
+@Composable
+fun MeowAnchoredMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    items: List<MeowMenuItem> = emptyList(),
+    groups: List<List<MeowMenuItem>> = emptyList(),
+    cascade: MeowMenuCascade = MeowMenuCascade.Drill,
+    collapseOnSelection: Boolean = true,
+) {
+    val resolvedGroups = groups.filter { it.isNotEmpty() }.ifEmpty {
+        if (items.isEmpty()) emptyList() else listOf(items)
+    }
+    if (resolvedGroups.isEmpty()) return
+    MeowStyleContent(
+        materialExpressive = {
+            MaterialAnchoredMenu(
+                expanded = expanded,
+                onDismissRequest = onDismissRequest,
+                groups = resolvedGroups,
+                cascade = cascade,
+                collapseOnSelection = collapseOnSelection,
+            )
+        },
+        miuix = {
+            MiuixAnchoredMenu(
+                expanded = expanded,
+                onDismissRequest = onDismissRequest,
+                groups = resolvedGroups,
+                collapseOnSelection = collapseOnSelection,
+            )
+        },
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MeowTopBar(
@@ -360,19 +403,12 @@ internal fun MeowMaterialMenuPopup(
 @Composable
 private fun MaterialTopBarMenu(action: MeowTopBarAction.Menu) {
     var expanded by remember { mutableStateOf(false) }
-    // 展开状态存的是稳定键（组序:项序）而不是条目对象：对象是展开那一刻的数据快照，
-    // 选完后调用侧重建了带新勾选态的 groups，拿旧对象继续渲染子菜单勾选永远不会变；
-    // 每轮重组用键从最新 groups 里解析。
-    // 归位在打开时而不是关闭时：关闭时归位会让回到主菜单的动画和收起淡出叠在一起播，
-    // 收回那一下内容闪一次；冻结原样淡出才平。
-    var submenuKey by remember { mutableStateOf<String?>(null) }
     val groups = action.resolvedGroups
     val haptics = rememberMeowHaptics()
 
     MaterialIconButton(
         onClick = {
             haptics.menuOpened()
-            submenuKey = null
             expanded = true
         },
         modifier = action.modifier,
@@ -382,37 +418,70 @@ private fun MaterialTopBarMenu(action: MeowTopBarAction.Menu) {
             imageVector = action.icon,
             contentDescription = action.contentDescription,
         )
-        // Expressive 菜单:每个分组一个大圆角容器 + 按位置计算的分段 item 形状，
-        // 与 miuix 的 DropdownEntry 分组语义对齐。
-        MeowMaterialMenuPopup(
+        MaterialAnchoredMenu(
             expanded = expanded,
-            // 下沉堆叠展开时，点外部空白（或返回键）先收回一级，再点一次才关掉弹窗——
-            // 和 miuix 级联弹窗一致：二级是叠在一级上的一层，不是另一个弹窗。
-            onDismissRequest = {
-                if (action.cascade == MeowMenuCascade.Sink && submenuKey != null) {
-                    submenuKey = null
-                } else {
-                    expanded = false
-                }
-            },
-        ) {
-            when (action.cascade) {
-                MeowMenuCascade.Drill -> MaterialMenuDrillContent(
-                    groups = groups,
-                    submenuKey = submenuKey,
-                    collapseOnSelection = action.collapseOnSelection,
-                    onSubmenuKeyChange = { submenuKey = it },
-                    onCollapsePopup = { expanded = false },
-                )
+            onDismissRequest = { expanded = false },
+            groups = groups,
+            cascade = action.cascade,
+            collapseOnSelection = action.collapseOnSelection,
+        )
+    }
+}
 
-                MeowMenuCascade.Sink -> MaterialMenuSinkContent(
-                    groups = groups,
-                    submenuKey = submenuKey,
-                    collapseOnSelection = action.collapseOnSelection,
-                    onSubmenuKeyChange = { submenuKey = it },
-                    onCollapsePopup = { expanded = false },
-                )
+/**
+ * MD3E 菜单弹窗的主体：顶栏菜单与 [MeowAnchoredMenu] 共用，区别只在谁提供锚点。
+ *
+ * Expressive 菜单：每个分组一个大圆角容器 + 按位置计算的分段 item 形状，与 miuix 的
+ * DropdownEntry 分组语义对齐。
+ */
+@Composable
+private fun MaterialAnchoredMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    groups: List<List<MeowMenuItem>>,
+    cascade: MeowMenuCascade,
+    collapseOnSelection: Boolean,
+) {
+    // 展开状态存的是稳定键（组序:项序）而不是条目对象：对象是展开那一刻的数据快照，
+    // 选完后调用侧重建了带新勾选态的 groups，拿旧对象继续渲染子菜单勾选永远不会变；
+    // 每轮重组用键从最新 groups 里解析。
+    var submenuKey by remember { mutableStateOf<String?>(null) }
+    // 归位在打开时而不是关闭时：关闭时归位会让回到主菜单的动画和收起淡出叠在一起播，
+    // 收回那一下内容闪一次；冻结原样淡出才平。就地归位而不是挂副作用：副作用晚一帧，
+    // 重新打开会先闪一下上次停在的子菜单。
+    var wasExpanded by remember { mutableStateOf(expanded) }
+    if (expanded != wasExpanded) {
+        wasExpanded = expanded
+        if (expanded) submenuKey = null
+    }
+    MeowMaterialMenuPopup(
+        expanded = expanded,
+        // 下沉堆叠展开时，点外部空白（或返回键）先收回一级，再点一次才关掉弹窗——
+        // 和 miuix 级联弹窗一致：二级是叠在一级上的一层，不是另一个弹窗。
+        onDismissRequest = {
+            if (cascade == MeowMenuCascade.Sink && submenuKey != null) {
+                submenuKey = null
+            } else {
+                onDismissRequest()
             }
+        },
+    ) {
+        when (cascade) {
+            MeowMenuCascade.Drill -> MaterialMenuDrillContent(
+                groups = groups,
+                submenuKey = submenuKey,
+                collapseOnSelection = collapseOnSelection,
+                onSubmenuKeyChange = { submenuKey = it },
+                onCollapsePopup = onDismissRequest,
+            )
+
+            MeowMenuCascade.Sink -> MaterialMenuSinkContent(
+                groups = groups,
+                submenuKey = submenuKey,
+                collapseOnSelection = collapseOnSelection,
+                onSubmenuKeyChange = { submenuKey = it },
+                onCollapsePopup = onDismissRequest,
+            )
         }
     }
 }
@@ -930,16 +999,7 @@ private fun MiuixTopBarAction(action: MeowTopBarAction) {
 @Composable
 private fun MiuixTopBarMenu(action: MeowTopBarAction.Menu) {
     val groups = action.resolvedGroups
-    // miuix 的级联弹窗自己不响；照它的下拉入口（Spinner / DropdownMenu）与下拉弹窗的做法：
-    // 展开响 ContextClick，选中一项响 Confirm。
     val haptics = rememberMeowHaptics()
-    val entries = remember(groups, haptics) {
-        groups.map { group ->
-            DropdownEntry(items = group.map { it.toMiuixDropdownItem(haptics) })
-        }
-    }
-    val collapseOnSelection = action.collapseOnSelection
-
     var expanded by remember { mutableStateOf(false) }
     MiuixIconButton(
         onClick = {
@@ -953,14 +1013,38 @@ private fun MiuixTopBarMenu(action: MeowTopBarAction.Menu) {
             imageVector = action.icon,
             contentDescription = action.contentDescription,
         )
-        OverlayCascadingListPopup(
-            show = expanded,
-            entries = entries,
+        MiuixAnchoredMenu(
+            expanded = expanded,
             onDismissRequest = { expanded = false },
-            renderInRootScaffold = false,
-            collapseOnSelection = collapseOnSelection,
+            groups = groups,
+            collapseOnSelection = action.collapseOnSelection,
         )
     }
+}
+
+/** miuix 菜单弹窗的主体：顶栏菜单与 [MeowAnchoredMenu] 共用，区别只在谁提供锚点。 */
+@Composable
+private fun MiuixAnchoredMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    groups: List<List<MeowMenuItem>>,
+    collapseOnSelection: Boolean,
+) {
+    // miuix 的级联弹窗自己不响；照它的下拉入口（Spinner / DropdownMenu）与下拉弹窗的做法：
+    // 展开响 ContextClick，选中一项响 Confirm。
+    val haptics = rememberMeowHaptics()
+    val entries = remember(groups, haptics) {
+        groups.map { group ->
+            DropdownEntry(items = group.map { it.toMiuixDropdownItem(haptics) })
+        }
+    }
+    OverlayCascadingListPopup(
+        show = expanded,
+        entries = entries,
+        onDismissRequest = onDismissRequest,
+        renderInRootScaffold = false,
+        collapseOnSelection = collapseOnSelection,
+    )
 }
 
 /**
