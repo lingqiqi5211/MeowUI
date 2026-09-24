@@ -95,21 +95,22 @@ data class MeowColorScheme(
  * 与调色板无关:它们表达的是「好 / 要注意」，不是主题强调色，跟着 seed 变会让绿色变成
  * 紫色,状态也就读不出来了。
  */
-internal fun meowStatusColors(darkTheme: Boolean): MeowStatusColors = if (darkTheme) {
-    MeowStatusColors(
-        successContainer = Color(0xFF1E3B2A),
-        onSuccessContainer = Color(0xFF8FD9A8),
-        warningContainer = Color(0xFF3B2F14),
-        onWarningContainer = Color(0xFFF0C069),
-    )
-} else {
-    MeowStatusColors(
-        successContainer = Color(0xFFDCF0E2),
-        onSuccessContainer = Color(0xFF1B5E38),
-        warningContainer = Color(0xFFFBEBD2),
-        onWarningContainer = Color(0xFF7A4E07),
-    )
-}
+internal fun meowStatusColors(darkTheme: Boolean): MeowStatusColors =
+    if (darkTheme) DarkStatusColors else LightStatusColors
+
+private val DarkStatusColors = MeowStatusColors(
+    successContainer = Color(0xFF1E3B2A),
+    onSuccessContainer = Color(0xFF8FD9A8),
+    warningContainer = Color(0xFF3B2F14),
+    onWarningContainer = Color(0xFFF0C069),
+)
+
+private val LightStatusColors = MeowStatusColors(
+    successContainer = Color(0xFFDCF0E2),
+    onSuccessContainer = Color(0xFF1B5E38),
+    warningContainer = Color(0xFFFBEBD2),
+    onWarningContainer = Color(0xFF7A4E07),
+)
 
 @Immutable
 internal data class MeowStatusColors(
@@ -134,6 +135,12 @@ data class MeowShapes(
     val section: Shape,
     val item: Shape,
     val dialog: Shape,
+)
+
+private val MiuixShapes = MeowShapes(
+    section = RoundedCornerShape(18.dp),
+    item = RoundedCornerShape(14.dp),
+    dialog = RoundedCornerShape(24.dp),
 )
 
 @Immutable
@@ -371,6 +378,24 @@ private fun MaterialExpressiveContent(
         val colors = MaterialTheme.colorScheme
         val status = meowStatusColors(darkTheme)
         val typography = MaterialTheme.typography
+        val meowTypography = remember(typography) {
+            MeowTypography(
+                pageTitle = typography.headlineMedium,
+                sectionTitle = typography.titleSmall,
+                title = typography.bodyLarge,
+                summary = typography.bodyMedium,
+                value = typography.labelLarge,
+                button = typography.labelLarge,
+            )
+        }
+        val shapes = MaterialTheme.shapes
+        val meowShapes = remember(shapes) {
+            MeowShapes(
+                section = shapes.extraLarge,
+                item = shapes.large,
+                dialog = shapes.extraLarge,
+            )
+        }
         CompositionLocalProvider(
             LocalMeowUiStyle provides MeowUiStyle.MaterialExpressive,
             LocalMeowColors provides MeowColorScheme(
@@ -402,19 +427,8 @@ private fun MaterialExpressiveContent(
                 warningContainer = status.warningContainer,
                 onWarningContainer = status.onWarningContainer,
             ),
-            LocalMeowTypography provides MeowTypography(
-                pageTitle = typography.headlineMedium,
-                sectionTitle = typography.titleSmall,
-                title = typography.bodyLarge,
-                summary = typography.bodyMedium,
-                value = typography.labelLarge,
-                button = typography.labelLarge,
-            ),
-            LocalMeowShapes provides MeowShapes(
-                section = MaterialTheme.shapes.extraLarge,
-                item = MaterialTheme.shapes.large,
-                dialog = MaterialTheme.shapes.extraLarge,
-            ),
+            LocalMeowTypography provides meowTypography,
+            LocalMeowShapes provides meowShapes,
             LocalMeowDimensions provides dimensions,
             content = content,
         )
@@ -491,6 +505,22 @@ private fun MiuixContentInner(
         // 这层拿不到 darkTheme 参数，读上游已经写入的 local，避免为一个布尔再穿一层参数。
         val status = meowStatusColors(LocalMeowDarkTheme.current)
         val typography = MiuixTheme.textStyles
+        val meowTypography = remember(
+            typography.title2,
+            typography.subtitle,
+            typography.main,
+            typography.body2,
+            typography.button,
+        ) {
+            MeowTypography(
+                pageTitle = typography.title2,
+                sectionTitle = typography.subtitle,
+                title = typography.main,
+                summary = typography.body2,
+                value = typography.body2,
+                button = typography.button,
+            )
+        }
         CompositionLocalProvider(
             LocalMeowUiStyle provides MeowUiStyle.Miuix,
             LocalMeowColors provides MeowColorScheme(
@@ -522,19 +552,8 @@ private fun MiuixContentInner(
                 warningContainer = status.warningContainer,
                 onWarningContainer = status.onWarningContainer,
             ),
-            LocalMeowTypography provides MeowTypography(
-                pageTitle = typography.title2,
-                sectionTitle = typography.subtitle,
-                title = typography.main,
-                summary = typography.body2,
-                value = typography.body2,
-                button = typography.button,
-            ),
-            LocalMeowShapes provides MeowShapes(
-                section = RoundedCornerShape(18.dp),
-                item = RoundedCornerShape(14.dp),
-                dialog = RoundedCornerShape(24.dp),
-            ),
+            LocalMeowTypography provides meowTypography,
+            LocalMeowShapes provides MiuixShapes,
             LocalMeowDimensions provides dimensions,
             content = content,
         )

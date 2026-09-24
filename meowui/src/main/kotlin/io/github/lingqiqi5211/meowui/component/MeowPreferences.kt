@@ -2,6 +2,7 @@ package io.github.lingqiqi5211.meowui.component
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -132,6 +133,7 @@ fun MeowPreferenceScreen(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
+    val scrollState = rememberScrollState()
     val scrollConnection = LocalMeowScrollContext.current.nestedScrollConnection
     val mergedPadding = PaddingValues(
         start = contentPadding.calculateStartPadding(layoutDirection) +
@@ -152,6 +154,7 @@ fun MeowPreferenceScreen(
                     .then(nestedScrollModifier),
                 contentPadding = mergedPadding,
                 sectionSpacing = 13.dp,
+                scrollState = scrollState,
                 content = content,
             )
         },
@@ -163,6 +166,7 @@ fun MeowPreferenceScreen(
                     .then(nestedScrollModifier),
                 contentPadding = mergedPadding,
                 sectionSpacing = 12.dp,
+                scrollState = scrollState,
                 content = content,
             )
         },
@@ -174,12 +178,13 @@ private fun PreferenceColumn(
     modifier: Modifier,
     contentPadding: PaddingValues,
     sectionSpacing: Dp,
+    scrollState: ScrollState,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(sectionSpacing),
         content = content,

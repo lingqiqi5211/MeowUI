@@ -70,19 +70,19 @@ includeBuild("../MeowUI")
 
 **注意事项：**
 
-- **submodule 必须先拉出来**：已 clone 的仓库执行 `git submodule update --init --recursive`；当前配置会检查 submodule 是否存在。
-- **Android SDK 定位**：MeowUI 会把自己 `local.properties` 里的 `sdk.dir` 播种给 miuix；若 MeowUI 目录下没有这份文件（如 CI 环境），请保证 `ANDROID_HOME` 已设置。
-- **工具链对齐**：复合构建运行在宿主 Gradle 上。以本仓库的 `gradle/wrapper/gradle-wrapper.properties`、`.java-version` 与 `gradle/libs.versions.toml` 为准；当前验证组合为 Gradle 9.7.1、JDK 25、AGP 9.4.0、Kotlin 2.4.20，字节码目标仍为 JVM 21。
+- **submodule 初始化**：直接构建本仓库前执行 `git submodule update --init --recursive`；宿主 `includeBuild` 接入不要求检出 Miuix 子模块。
+- **Android SDK 定位**：直接构建本仓库时，MeowUI 会把自己 `local.properties` 里的 `sdk.dir` 同步给 miuix，保留其中其他属性；若 MeowUI 目录下没有这份文件（如 CI 环境），请保证 `ANDROID_HOME` 已设置。
+- **工具链对齐**：复合构建运行在宿主 Gradle 上。以本仓库的 `gradle/wrapper/gradle-wrapper.properties`、`.java-version` 与 `gradle/libs.versions.toml` 为准；当前配置为 Gradle 9.7.1、JDK 25、AGP 9.4.1、Kotlin 2.4.20，字节码目标仍为 JVM 21。
 - **宿主的 Miuix 版本**：按 Maven 依赖解析规则选择；宿主另行声明版本可能改变最终解析结果，需要核对兼容性。
 - **源码冷构建**：直接构建本仓库时包含 Miuix 源码编译；宿主 `includeBuild` 接入不包含这一层源码构建。
 - **工程名避让**：复合构建树内的工程名不要与 `meowui`、`miuix` 只差大小写（Windows 不区分大小写，类型安全访问器的生成文件会撞名）。
 
 ### 依赖的 miuix 版本
 
-- **本仓库根构建**：submodule 固定到上游 main 提交 `18590f7cdcbba6bed6d6ba8d21ceb0124e4c399b`，包含 TabRow 横向嵌套滚动修复和导航项颜色配置。
-- **宿主 `includeBuild` 接入**：Maven 版本仍为 **0.9.4-rc01**，包含 `BreadcrumbBar` 和 `miuix-nav`。二进制接入按对应版本的 POM 解析。
+- **本仓库根构建**：submodule 固定到 `v0.9.4` 提交 `39c40f99844227b853f0049a0933b1f3ae6c00ba`。
+- **宿主 `includeBuild` 接入**：Maven 版本为 **0.9.4**。二进制接入按对应 MeowUI 版本的 POM 解析。
 
-两条路径使用的 Miuix 版本不同；main 的新增修复不会自动进入 Maven 依赖。
+根构建使用源码，宿主接入使用 Maven 依赖；两者对齐同一 Miuix 发布版本，包含导航状态恢复、侧栏选中高亮与分页手势修复。
 
 ## 最小示例
 

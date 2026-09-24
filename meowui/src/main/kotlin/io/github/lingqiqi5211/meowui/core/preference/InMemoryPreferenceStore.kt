@@ -56,6 +56,10 @@ class InMemoryPreferenceStore(
             return@withLock PreferenceWriteResult.Failure(cause)
         }
 
+        if (currentValue?.value == storedValue) {
+            return@withLock PreferenceWriteResult.Success
+        }
+
         values.value = currentValues + (
             key.name to StoredPreference(
                 type = key.type,

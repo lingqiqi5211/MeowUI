@@ -1,5 +1,5 @@
 [versions]
-agp = "9.4.0"
+agp = "9.4.1"
 kotlin = "2.4.20"
 compileSdk = "37"
 minSdk = "26"
@@ -10,10 +10,10 @@ activity-compose = "1.13.0"
 lifecycle = "2.11.0"
 compose = "1.12.0"
 material3 = "1.5.0-alpha26"
-miuix = "0.9.4-rc01"
+miuix = "0.9.4"
 mavenPublish = "0.37.0"
 kotlinx-serialization = "1.11.0"
-materialKolor = "5.0.0"
+materialKolor = "5.0.1"
 coroutines = "1.11.0"
 libxposed-api = "102.0.0"
 libxposed-service = "102.0.0"
@@ -33,6 +33,7 @@ compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics", version.ref 
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "compose" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "compose" }
 compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose" }
+# Icons 独立停留在最后发布的 1.7.8，不跟随 Compose UI 的版本号。
 compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version = "1.7.8" }
 compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 

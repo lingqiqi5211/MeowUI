@@ -906,13 +906,7 @@ fun MeowNavigationRail(
             }
             // 宽度按 Miuix 自己的来：它的图标在折叠中线与展开起始缩进上是同一条竖线，
             // 那条线由它的默认宽度算出来，改宽度会让图标在展开动画里横着漂。
-            MiuixNavigationRail(
-                modifier = modifier,
-                state = railState,
-                header = header,
-                expandContentDescription = expandContentDescription,
-                collapseContentDescription = collapseContentDescription,
-            ) {
+            val railContent: @Composable ColumnScope.() -> Unit = {
                 items.forEachIndexed { index, item ->
                     MiuixNavigationRailItem(
                         selected = index == selectedIndex,
@@ -930,6 +924,22 @@ fun MeowNavigationRail(
                         badge = { MiuixNavigationBadge(item.badge) },
                     )
                 }
+            }
+            if (railState == null) {
+                MiuixNavigationRail(
+                    modifier = modifier,
+                    header = header,
+                    content = railContent,
+                )
+            } else {
+                MiuixNavigationRail(
+                    state = railState,
+                    modifier = modifier,
+                    header = header,
+                    expandContentDescription = expandContentDescription,
+                    collapseContentDescription = collapseContentDescription,
+                    content = railContent,
+                )
             }
         },
     )
