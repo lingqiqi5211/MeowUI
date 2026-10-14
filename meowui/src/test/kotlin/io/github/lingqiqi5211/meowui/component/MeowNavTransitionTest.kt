@@ -1,5 +1,8 @@
 package io.github.lingqiqi5211.meowui.component
 
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
@@ -40,6 +43,35 @@ class MeowNavTransitionTest {
         source.progress = null
         source.depth = -0.25f
         assertEquals(-0.25f, deferredScope.relativeDepth, 0.00001f)
+    }
+
+    @Test
+    fun frameChangesInvalidateDeferredReadsButNotModifierConstruction() {
+        val frame = mutableFloatStateOf(-0.4f)
+        val source = object : NavTransitionScope by TestScope() {
+            override val relativeDepth: Float get() = frame.floatValue
+        }
+        lateinit var deferred: NavTransitionScope
+        val transition = navNoPredictiveTransition(NavTransition { scope -> deferred = scope; this })
+        var constructionInvalidations = 0
+        var layerInvalidations = 0
+        val observer = SnapshotStateObserver { it() }
+        observer.start()
+        try {
+            observer.observeReads(Any(), { _: Any -> constructionInvalidations++ }) {
+                with(transition) { Modifier.transformEntry(source) }
+            }
+            observer.observeReads(Any(), { _: Any -> layerInvalidations++ }) {
+                deferred.relativeDepth
+            }
+            frame.floatValue = -0.7f
+            Snapshot.sendApplyNotifications()
+            assertEquals(0, constructionInvalidations)
+            assertEquals(1, layerInvalidations)
+        } finally {
+            observer.stop()
+            observer.clear()
+        }
     }
 
     @Test

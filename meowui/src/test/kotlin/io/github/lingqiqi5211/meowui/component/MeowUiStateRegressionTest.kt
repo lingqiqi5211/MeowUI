@@ -277,6 +277,34 @@ class MeowUiStateRegressionTest {
     }
 
     @Test
+    @Config(sdk = [26])
+    fun unsupportedBlurKeepsTopBarContentAvailable() {
+        compose.setContent {
+            MeowTheme(appearance = appearance.copy(blurEnabled = true)) {
+                check(!io.github.lingqiqi5211.meowui.theme.LocalMeowBlurEnabled.current)
+                MeowTopBar(title = "Blur fallback")
+            }
+        }
+        compose.onNodeWithText("Blur fallback").assertExists()
+    }
+
+    @Test
+    fun rtlNavigationAndMissingBackdropKeepContentAvailable() {
+        compose.setContent {
+            CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl,
+            ) {
+                MeowTheme(appearance = appearance.copy(blurEnabled = true)) {
+                    MeowNavHost(listOf("RTL page")) {
+                        MeowTopBar(title = it)
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("RTL page").assertExists()
+    }
+
+    @Test
     fun changingBackHandlingPreservesNavigationContentAndDispatcher() {
         var handlesBack by mutableStateOf(false)
         var showHost by mutableStateOf(true)
