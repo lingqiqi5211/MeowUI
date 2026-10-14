@@ -6,7 +6,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.TargetedFlingBehavior
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
@@ -54,9 +53,10 @@ fun MeowNavigationPager(
     HorizontalPager(
         state = state,
         // 跨页跳转的淡入淡出。在绘制期读，动画帧不触发重组。
-        modifier = modifier
-            .fillMaxSize()
-            .graphicsLayer { alpha = selection.jumpAlpha.value },
+        modifier =
+            modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = selection.jumpAlpha.value },
         beyondViewportPageCount = if (keepPagesAlive) (state.pageCount - 1).coerceAtLeast(0) else 0,
         flingBehavior = MeowNavigationPagerDefaults.flingBehavior(state),
     ) { page ->
@@ -79,20 +79,22 @@ object MeowNavigationPagerDefaults {
      * 管不到手指按着一路拖过好几页：那是直接操纵，中间页本来就该跟着手走。
      */
     @Composable
-    fun flingBehavior(state: PagerState): TargetedFlingBehavior = PagerDefaults.flingBehavior(
-        state = state,
-        pagerSnapDistance = SnapDistance,
-        snapAnimationSpec = SnapSpec,
-        snapPositionalThreshold = SnapThreshold,
-    )
+    fun flingBehavior(state: PagerState): TargetedFlingBehavior =
+        PagerDefaults.flingBehavior(
+            state = state,
+            pagerSnapDistance = SnapDistance,
+            snapAnimationSpec = SnapSpec,
+            snapPositionalThreshold = SnapThreshold,
+        )
 
     // 两个都是无状态的规格对象，提到外面按常量存，省得每趟重组各新建一个。
     private val SnapDistance = PagerSnapDistance.atMost(1)
 
-    private val SnapSpec = spring<Float>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMediumLow,
-    )
+    private val SnapSpec =
+        spring<Float>(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        )
 }
 
 /**
@@ -130,24 +132,25 @@ class MeowNavigationSelection internal constructor(
         previousJob?.cancel()
         selecting = true
         index = target
-        selectionJob = scope.launch {
-            try {
-                previousJob?.join()
-                jumpAlpha.snapTo(1f)
-                if (abs(target - pagerState.currentPage) <= 1) {
-                    pagerState.slideToAdjacent(target)
-                } else {
-                    jumpAlpha.animateTo(0f, tween(JumpFadeOutMillis, easing = EaseInOut))
-                    pagerState.scrollToPage(target)
-                    jumpAlpha.animateTo(1f, tween(JumpFadeInMillis, easing = EaseInOut))
-                }
-            } finally {
-                if (version == selectionVersion) {
-                    withContext(NonCancellable) { jumpAlpha.snapTo(1f) }
-                    selecting = false
+        selectionJob =
+            scope.launch {
+                try {
+                    previousJob?.join()
+                    jumpAlpha.snapTo(1f)
+                    if (abs(target - pagerState.currentPage) <= 1) {
+                        pagerState.animateScrollToPage(target, animationSpec = tween(SlideMillis, easing = EaseInOut))
+                    } else {
+                        jumpAlpha.animateTo(0f, tween(JumpFadeOutMillis, easing = EaseInOut))
+                        pagerState.scrollToPage(target)
+                        jumpAlpha.animateTo(1f, tween(JumpFadeInMillis, easing = EaseInOut))
+                    }
+                } finally {
+                    if (version == selectionVersion) {
+                        withContext(NonCancellable) { jumpAlpha.snapTo(1f) }
+                        selecting = false
+                    }
                 }
             }
-        }
     }
 }
 
@@ -177,25 +180,6 @@ fun rememberMeowNavigationSelection(
             }
     }
     return selection
-}
-
-/**
- * 滑到相邻的一页。
- *
- * 按像素滚而不是 animateScrollToPage：手指划过去和点导航栏走的是同一段距离，观感一致。
- */
-private suspend fun PagerState.slideToAdjacent(target: Int) {
-    val pageSize = layoutInfo.pageSize
-    if (pageSize <= 0 || target == currentPage) {
-        scrollToPage(target)
-        return
-    }
-    val from = currentPage + currentPageOffsetFraction
-    animateScrollBy(
-        value = (target - from) * pageSize,
-        animationSpec = tween(SlideMillis, easing = EaseInOut),
-    )
-    scrollToPage(target)
 }
 
 private const val SlideMillis = 200

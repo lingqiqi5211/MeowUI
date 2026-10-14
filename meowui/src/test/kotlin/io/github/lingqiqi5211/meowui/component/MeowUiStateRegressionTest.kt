@@ -89,6 +89,28 @@ class MeowUiStateRegressionTest {
     }
 
     @Test
+    fun latestAdjacentSelectionWinsDuringScroll() {
+        lateinit var selection: MeowNavigationSelection
+        val settled = mutableListOf<Int>()
+        compose.setContent {
+            selection = rememberMeowNavigationSelection(rememberPagerState { 3 }, settled::add)
+            MeowNavigationPager(selection) { Box(Modifier.fillMaxSize()) }
+        }
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { selection.select(1) }
+        compose.mainClock.advanceTimeBy(64)
+        compose.runOnIdle { selection.select(0) }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.runOnIdle {
+            assertEquals(0, selection.index)
+            assertEquals(0, selection.pagerState.currentPage)
+            assertEquals(0f, selection.pagerState.currentPageOffsetFraction, 0.001f)
+            assertFalse(selection.selecting)
+            assertTrue(settled.isEmpty())
+        }
+    }
+
+    @Test
     fun switchingStoreNeverPublishesThePreviousStoresValue() {
         val key = PreferenceKey("value", 0)
         val first = InMemoryPreferenceStore()
