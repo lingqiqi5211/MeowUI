@@ -11,4 +11,10 @@ plugins {
 allprojects {
     group = property("GROUP") as String
     version = property("VERSION_NAME") as String
+    // release 与发布 POM 的 Maven 版本一致，避免未发布源码的二进制 API 混入产物。
+    configurations.configureEach {
+        if (name.startsWith("release", ignoreCase = true)) {
+            resolutionStrategy.useGlobalDependencySubstitutionRules = false
+        }
+    }
 }

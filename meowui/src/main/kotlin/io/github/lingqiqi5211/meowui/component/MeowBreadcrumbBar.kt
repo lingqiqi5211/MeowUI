@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,9 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material3.Icon as MaterialIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -53,7 +52,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
-import top.yukonga.miuix.kmp.basic.BreadcrumbBar as MiuixBreadcrumbBar
+import androidx.compose.material3.Icon as MaterialIcon
+import androidx.compose.material3.Text as MaterialText
 import top.yukonga.miuix.kmp.basic.BreadcrumbItem as MiuixBreadcrumbItem
 
 /**
@@ -105,15 +105,15 @@ fun MeowBreadcrumbBar(
     edgeFadeWidth: Dp = MeowBreadcrumbBarDefaults.EdgeFadeWidth,
     edgeFadeInset: Dp = 0.dp,
 ) {
-    // 滚动状态由外面持有：渐隐要知道两边还剩多少没露出来，两套风格共用同一份。
-    val scrollState = rememberScrollState()
-    Box(modifier = modifier.breadcrumbEdgeFade(scrollState, edgeFadeWidth, edgeFadeInset)) {
+    Box(modifier = modifier) {
         MeowStyleContent(
             materialExpressive = {
+                val scrollState = rememberScrollState()
                 MaterialBreadcrumbBar(
                     items = items,
                     onItemClick = onItemClick,
                     scrollState = scrollState,
+                    modifier = Modifier.breadcrumbEdgeFade(scrollState, edgeFadeWidth, edgeFadeInset),
                     highlightIndex = highlightIndex,
                     enabled = enabled,
                     itemMaxWidth = itemMaxWidth,
@@ -121,17 +121,19 @@ fun MeowBreadcrumbBar(
                 )
             },
             miuix = {
-                val miuixItems = remember(items) {
-                    items.map { item -> MiuixBreadcrumbItem(item.path, item.text) }
-                }
-                MiuixBreadcrumbBar(
+                val miuixItems =
+                    remember(items) {
+                        items.map { item -> MiuixBreadcrumbItem(item.path, item.text) }
+                    }
+                MiuixBreadcrumbContent(
                     items = miuixItems,
                     onItemClick = onItemClick,
                     highlightIndex = highlightIndex,
                     enabled = enabled,
                     itemMaxWidth = itemMaxWidth,
-                    insideMargin = contentPadding,
-                    scrollState = scrollState,
+                    contentPadding = contentPadding,
+                    edgeFadeWidth = edgeFadeWidth,
+                    edgeFadeInset = edgeFadeInset,
                 )
             },
         )
@@ -144,63 +146,65 @@ fun MeowBreadcrumbBar(
  * 只在该侧确实还有没露出来的内容时才画，所以路径短到不用滚动时两边都是干净的。用
  * `DstIn` 抠掉 alpha 而不是盖一层背景色——面包屑底下是什么颜色由调用侧决定，盖色会穿帮。
  */
-private fun Modifier.breadcrumbEdgeFade(
-    scrollState: ScrollState,
+internal fun Modifier.breadcrumbEdgeFade(
+    scrollState: ScrollableState,
     fadeWidth: Dp,
     inset: Dp,
-): Modifier = this
-    // DstIn 要在离屏层上做，否则会把底下已经画好的东西一起抠掉。
-    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-    .drawWithContent {
-        drawContent()
-        val fade = fadeWidth.toPx().coerceAtMost(size.width / 2f)
-        if (fade <= 0f) return@drawWithContent
-        val gap = inset.toPx().coerceAtMost(size.width / 2f - fade).coerceAtLeast(0f)
-        if (scrollState.value > 0) {
-            // 先把最边上那条整段抹掉：渐隐的透明端因此落在离屏幕边缘 [inset] 的位置，
-            // 而不是贴着边。
-            if (gap > 0f) {
+): Modifier =
+    this
+        // DstIn 要在离屏层上做，否则会把底下已经画好的东西一起抠掉。
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val fade = fadeWidth.toPx().coerceAtMost(size.width / 2f)
+            if (fade <= 0f) return@drawWithContent
+            val gap = inset.toPx().coerceAtMost(size.width / 2f - fade).coerceAtLeast(0f)
+            if (scrollState.canScrollBackward) {
+                // 先把最边上那条整段抹掉：渐隐的透明端因此落在离屏幕边缘 [inset] 的位置，
+                // 而不是贴着边。
+                if (gap > 0f) {
+                    drawRect(
+                        color = Color.Transparent,
+                        size = Size(gap, size.height),
+                        blendMode = BlendMode.DstIn,
+                    )
+                }
                 drawRect(
-                    color = Color.Transparent,
-                    size = Size(gap, size.height),
+                    brush =
+                        Brush.horizontalGradient(
+                            colors = listOf(Color.Transparent, Color.Black),
+                            startX = gap,
+                            endX = gap + fade,
+                        ),
+                    topLeft = Offset(gap, 0f),
+                    size = Size(fade, size.height),
                     blendMode = BlendMode.DstIn,
                 )
             }
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(Color.Transparent, Color.Black),
-                    startX = gap,
-                    endX = gap + fade,
-                ),
-                topLeft = Offset(gap, 0f),
-                size = Size(fade, size.height),
-                blendMode = BlendMode.DstIn,
-            )
-        }
-        if (scrollState.value < scrollState.maxValue) {
-            if (gap > 0f) {
+            if (scrollState.canScrollForward) {
+                if (gap > 0f) {
+                    drawRect(
+                        color = Color.Transparent,
+                        topLeft = Offset(size.width - gap, 0f),
+                        size = Size(gap, size.height),
+                        blendMode = BlendMode.DstIn,
+                    )
+                }
                 drawRect(
-                    color = Color.Transparent,
-                    topLeft = Offset(size.width - gap, 0f),
-                    size = Size(gap, size.height),
+                    brush =
+                        Brush.horizontalGradient(
+                            colors = listOf(Color.Black, Color.Transparent),
+                            startX = size.width - gap - fade,
+                            endX = size.width - gap,
+                        ),
+                    topLeft = Offset(size.width - gap - fade, 0f),
+                    size = Size(fade, size.height),
                     blendMode = BlendMode.DstIn,
                 )
             }
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(Color.Black, Color.Transparent),
-                    startX = size.width - gap - fade,
-                    endX = size.width - gap,
-                ),
-                topLeft = Offset(size.width - gap - fade, 0f),
-                size = Size(fade, size.height),
-                blendMode = BlendMode.DstIn,
-            )
         }
-    }
 
 object MeowBreadcrumbBarDefaults {
-
     /** 单段胶囊的最大宽度。 */
     val ItemMaxWidth: Dp = 160.dp
 
@@ -223,7 +227,6 @@ object MeowBreadcrumbBarDefaults {
      * 调用侧要让第一段的**文字**与正文左缘对齐时，把条的 `contentPadding` 减掉这里的水平值。
      */
     val ItemPadding: PaddingValues = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-
 }
 
 @Composable
@@ -231,6 +234,7 @@ private fun MaterialBreadcrumbBar(
     items: List<MeowBreadcrumbItem>,
     onItemClick: (Int) -> Unit,
     scrollState: ScrollState,
+    modifier: Modifier,
     highlightIndex: Int,
     enabled: Boolean,
     itemMaxWidth: Dp,
@@ -248,19 +252,21 @@ private fun MaterialBreadcrumbBar(
         if (!hasHighlight || !positioned || highlightWidth <= 0f) return@LaunchedEffect
         val viewport = scrollState.viewportSize.toFloat()
         if (viewport <= 0f) return@LaunchedEffect
-        val target = (highlightX - (viewport - highlightWidth) / 2f)
-            .coerceIn(0f, scrollState.maxValue.toFloat())
+        val target =
+            (highlightX - (viewport - highlightWidth) / 2f)
+                .coerceIn(0f, scrollState.maxValue.toFloat())
         scrollState.animateScrollTo(target.toInt())
     }
 
     Row(
-        modifier = Modifier
-            .horizontalScroll(scrollState)
-            // 宽度跟着层级变化平滑收放。整条滑动的转场看着别扭：列表在手势里已经跟着
-            // 手指走，而路径只在提交那一刻才换，一滑就晚一拍，还和「高亮段自动滚到中间」
-            // 抢同一个方向。只让受影响的那一段自己动，其余原地不动，才是文件管理器的样子。
-            .animateContentSize(tween(LevelChangeMillis, easing = LevelChangeEasing))
-            .padding(contentPadding),
+        modifier =
+            modifier
+                .horizontalScroll(scrollState)
+                // 宽度跟着层级变化平滑收放。整条滑动的转场看着别扭：列表在手势里已经跟着
+                // 手指走，而路径只在提交那一刻才换，一滑就晚一拍，还和「高亮段自动滚到中间」
+                // 抢同一个方向。只让受影响的那一段自己动，其余原地不动，才是文件管理器的样子。
+                .animateContentSize(tween(LevelChangeMillis, easing = LevelChangeEasing))
+                .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items.forEachIndexed { index, item ->
@@ -270,9 +276,10 @@ private fun MaterialBreadcrumbBar(
                         imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         modifier = Modifier.padding(horizontal = 2.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                            alpha = if (enabled) 1f else DisabledAlpha,
-                        ),
+                        tint =
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = if (enabled) 1f else DisabledAlpha,
+                            ),
                     )
                 }
                 val highlighted = hasHighlight && index == highlightIndex
@@ -283,11 +290,12 @@ private fun MaterialBreadcrumbBar(
                 appearance.targetState = true
                 AnimatedVisibility(
                     visibleState = appearance,
-                    enter = fadeIn(tween(LevelChangeMillis, easing = LevelChangeEasing)) +
-                        expandHorizontally(
-                            animationSpec = tween(LevelChangeMillis, easing = LevelChangeEasing),
-                            expandFrom = Alignment.Start,
-                        ),
+                    enter =
+                        fadeIn(tween(LevelChangeMillis, easing = LevelChangeEasing)) +
+                            expandHorizontally(
+                                animationSpec = tween(LevelChangeMillis, easing = LevelChangeEasing),
+                                expandFrom = Alignment.Start,
+                            ),
                     exit = ExitTransition.None,
                 ) {
                     MaterialBreadcrumbSegment(
@@ -295,15 +303,16 @@ private fun MaterialBreadcrumbBar(
                         highlighted = highlighted,
                         enabled = enabled,
                         itemMaxWidth = itemMaxWidth,
-                        onPositioned = if (highlighted) {
-                            { x, width ->
-                                highlightX = x
-                                highlightWidth = width
-                                if (!positioned) positioned = true
-                            }
-                        } else {
-                            null
-                        },
+                        onPositioned =
+                            if (highlighted) {
+                                { x, width ->
+                                    highlightX = x
+                                    highlightWidth = width
+                                    if (!positioned) positioned = true
+                                }
+                            } else {
+                                null
+                            },
                         onClick = { onItemClick(index) },
                     )
                 }
@@ -322,37 +331,39 @@ private fun MaterialBreadcrumbSegment(
     onClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val background = when {
-        !enabled -> colorScheme.surfaceContainerHighest.copy(alpha = DisabledAlpha)
-        highlighted -> colorScheme.secondaryContainer
-        else -> colorScheme.surfaceContainerHighest
-    }
-    val content = when {
-        !enabled -> colorScheme.onSurfaceVariant.copy(alpha = DisabledAlpha)
-        highlighted -> colorScheme.onSecondaryContainer
-        else -> colorScheme.onSurfaceVariant
-    }
+    val background =
+        when {
+            !enabled -> colorScheme.surfaceContainerHighest.copy(alpha = DisabledAlpha)
+            highlighted -> colorScheme.secondaryContainer
+            else -> colorScheme.surfaceContainerHighest
+        }
+    val content =
+        when {
+            !enabled -> colorScheme.onSurfaceVariant.copy(alpha = DisabledAlpha)
+            highlighted -> colorScheme.onSecondaryContainer
+            else -> colorScheme.onSurfaceVariant
+        }
     MaterialText(
         text = text,
-        modifier = Modifier
-            .then(
-                if (onPositioned == null) {
-                    Modifier
-                } else {
-                    Modifier.onGloballyPositioned { coordinates ->
-                        onPositioned(
-                            coordinates.positionInParent().x,
-                            coordinates.size.width.toFloat(),
-                        )
-                    }
-                },
-            )
-            .clip(CircleShape)
-            .background(background)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .defaultMinSize(minHeight = MeowBreadcrumbBarDefaults.ItemHeight)
-            .widthIn(max = itemMaxWidth)
-            .padding(MeowBreadcrumbBarDefaults.ItemPadding),
+        modifier =
+            Modifier
+                .then(
+                    if (onPositioned == null) {
+                        Modifier
+                    } else {
+                        Modifier.onGloballyPositioned { coordinates ->
+                            onPositioned(
+                                coordinates.positionInParent().x,
+                                coordinates.size.width.toFloat(),
+                            )
+                        }
+                    },
+                ).clip(CircleShape)
+                .background(background)
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .defaultMinSize(minHeight = MeowBreadcrumbBarDefaults.ItemHeight)
+                .widthIn(max = itemMaxWidth)
+                .padding(MeowBreadcrumbBarDefaults.ItemPadding),
         color = content,
         style = MaterialTheme.typography.labelLarge,
         fontWeight = if (highlighted) FontWeight.Medium else FontWeight.Normal,
@@ -365,8 +376,7 @@ private fun MaterialBreadcrumbSegment(
 private const val DisabledAlpha = 0.38f
 
 /** 把面包屑重新拼成一条路径。 */
-fun List<MeowBreadcrumbItem>.joinToPath(separator: String = "/"): String =
-    joinToString(separator = separator) { item -> item.path }
+fun List<MeowBreadcrumbItem>.joinToPath(separator: String = "/"): String = joinToString(separator = separator) { item -> item.path }
 
 // 层级变化的转场：比列表内容的更替短，这只是一条导航条在换内容。
 private const val LevelChangeMillis = 200

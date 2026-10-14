@@ -10,6 +10,13 @@ kotlin {
     }
 }
 
+// 发布产物与 POM 中的 Maven 版本对齐；根构建 debug 验证固定的上游源码。
+androidComponents.onVariants { variant ->
+    val useMiuixSource = gradle.parent == null && variant.buildType != "release"
+    variant.sources.kotlin?.addStaticSourceDirectory(
+        if (useMiuixSource) "src/miuixSource/kotlin" else "src/miuixPublished/kotlin",
+    )
+}
 mavenPublishing {
     publishToMavenCentral()
     signAllPublications()
@@ -17,11 +24,17 @@ mavenPublishing {
 
 android {
     namespace = "io.github.lingqiqi5211.meowui"
-    compileSdk = libs.versions.compileSdk.get().toInt()
+    compileSdk =
+        libs.versions.compileSdk
+            .get()
+            .toInt()
     compileSdkMinor = 0
 
     defaultConfig {
-        minSdk = libs.versions.minSdk.get().toInt()
+        minSdk =
+            libs.versions.minSdk
+                .get()
+                .toInt()
     }
 
     compileOptions {

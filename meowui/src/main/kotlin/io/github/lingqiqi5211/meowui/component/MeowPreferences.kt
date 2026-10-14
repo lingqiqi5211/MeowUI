@@ -26,41 +26,31 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button as MaterialButton
-import androidx.compose.material3.Checkbox as MaterialCheckbox
-import androidx.compose.material3.DropdownMenuGroup as MaterialDropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem as MaterialDropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon as MaterialIcon
 import androidx.compose.material3.ListItemColors
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.SegmentedListItem as MaterialSegmentedListItem
-import androidx.compose.material3.Slider as MaterialSlider
-import androidx.compose.material3.SliderDefaults as MaterialSliderDefaults
-import androidx.compose.material3.Surface as MaterialSurface
-import androidx.compose.material3.Switch as MaterialSwitch
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -79,26 +69,37 @@ import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.preference.CheckboxLocation
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import top.yukonga.miuix.kmp.basic.BasicComponent
+import androidx.compose.material3.Button as MaterialButton
+import androidx.compose.material3.Checkbox as MaterialCheckbox
+import androidx.compose.material3.DropdownMenuGroup as MaterialDropdownMenuGroup
+import androidx.compose.material3.Icon as MaterialIcon
+import androidx.compose.material3.SegmentedListItem as MaterialSegmentedListItem
+import androidx.compose.material3.SelectableDropdownMenuItem as MaterialDropdownMenuItem
+import androidx.compose.material3.Slider as MaterialSlider
+import androidx.compose.material3.SliderDefaults as MaterialSliderDefaults
+import androidx.compose.material3.Surface as MaterialSurface
+import androidx.compose.material3.Switch as MaterialSwitch
+import androidx.compose.material3.Text as MaterialText
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
-import top.yukonga.miuix.kmp.basic.DropdownEntry
-import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Slider as MiuixSlider
 import top.yukonga.miuix.kmp.basic.SliderDefaults as MiuixSliderDefaults
 import top.yukonga.miuix.kmp.basic.SmallTitle as MiuixSmallTitle
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.preference.ArrowPreference as MiuixArrowPreference
-import top.yukonga.miuix.kmp.preference.CheckboxLocation
 import top.yukonga.miuix.kmp.preference.CheckboxPreference as MiuixCheckboxPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference as MiuixSwitchPreference
 import top.yukonga.miuix.kmp.preference.WindowSpinnerPreference as MiuixWindowSpinnerPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 private val LocalMaterialPreferenceItemShapes = staticCompositionLocalOf<ListItemShapes?> { null }
 
@@ -111,16 +112,20 @@ object MeowPreferenceScreenDefaults {
     fun contentPadding(): PaddingValues {
         val dimensions = MeowTheme.dimensions
         return when (MeowTheme.style) {
-            MeowUiStyle.MaterialExpressive -> PaddingValues(
-                start = dimensions.pageHorizontalPadding,
-                end = dimensions.pageHorizontalPadding,
-                bottom = dimensions.pageVerticalPadding,
-            )
+            MeowUiStyle.MaterialExpressive -> {
+                PaddingValues(
+                    start = dimensions.pageHorizontalPadding,
+                    end = dimensions.pageHorizontalPadding,
+                    bottom = dimensions.pageVerticalPadding,
+                )
+            }
 
-            MeowUiStyle.Miuix -> PaddingValues(
-                horizontal = dimensions.pageHorizontalPadding,
-                vertical = dimensions.pageVerticalPadding,
-            )
+            MeowUiStyle.Miuix -> {
+                PaddingValues(
+                    horizontal = dimensions.pageHorizontalPadding,
+                    vertical = dimensions.pageVerticalPadding,
+                )
+            }
         }
     }
 }
@@ -135,23 +140,27 @@ fun MeowPreferenceScreen(
     val layoutDirection = LocalLayoutDirection.current
     val scrollState = rememberScrollState()
     val scrollConnection = LocalMeowScrollContext.current.nestedScrollConnection
-    val mergedPadding = PaddingValues(
-        start = contentPadding.calculateStartPadding(layoutDirection) +
-            scaffoldPadding.calculateStartPadding(layoutDirection),
-        top = contentPadding.calculateTopPadding() + scaffoldPadding.calculateTopPadding(),
-        end = contentPadding.calculateEndPadding(layoutDirection) +
-            scaffoldPadding.calculateEndPadding(layoutDirection),
-        bottom = contentPadding.calculateBottomPadding() + scaffoldPadding.calculateBottomPadding(),
-    )
+    val mergedPadding =
+        PaddingValues(
+            start =
+                contentPadding.calculateStartPadding(layoutDirection) +
+                    scaffoldPadding.calculateStartPadding(layoutDirection),
+            top = contentPadding.calculateTopPadding() + scaffoldPadding.calculateTopPadding(),
+            end =
+                contentPadding.calculateEndPadding(layoutDirection) +
+                    scaffoldPadding.calculateEndPadding(layoutDirection),
+            bottom = contentPadding.calculateBottomPadding() + scaffoldPadding.calculateBottomPadding(),
+        )
     val nestedScrollModifier = scrollConnection?.let { Modifier.nestedScroll(it) } ?: Modifier
 
     MeowStyleContent(
         materialExpressive = {
             // 甩到列表尽头轻响一下，与 Miuix 分支同一处反馈；overscroll 仍是 Material 自己的拉伸。
             PreferenceColumn(
-                modifier = modifier
-                    .scrollEndHaptic()
-                    .then(nestedScrollModifier),
+                modifier =
+                    modifier
+                        .scrollEndHaptic()
+                        .then(nestedScrollModifier),
                 contentPadding = mergedPadding,
                 sectionSpacing = 13.dp,
                 scrollState = scrollState,
@@ -160,10 +169,11 @@ fun MeowPreferenceScreen(
         },
         miuix = {
             PreferenceColumn(
-                modifier = modifier
-                    .scrollEndHaptic()
-                    .overScrollVertical()
-                    .then(nestedScrollModifier),
+                modifier =
+                    modifier
+                        .scrollEndHaptic()
+                        .overScrollVertical()
+                        .then(nestedScrollModifier),
                 contentPadding = mergedPadding,
                 sectionSpacing = 12.dp,
                 scrollState = scrollState,
@@ -182,10 +192,11 @@ private fun PreferenceColumn(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(contentPadding),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(sectionSpacing),
         content = content,
     )
@@ -220,17 +231,21 @@ fun MeowPreferenceSection(
     // entries 每趟收集都会重建，经 lambda 捕获后会被跳过更新，
     // 导致条目内容（如受控开关的 checked）停留在旧值，直到页面整体重建。
     when (MeowTheme.style) {
-        MeowUiStyle.MaterialExpressive -> MaterialPreferenceSection(
-            modifier = modifier,
-            title = title,
-            entries = entries,
-        )
+        MeowUiStyle.MaterialExpressive -> {
+            MaterialPreferenceSection(
+                modifier = modifier,
+                title = title,
+                entries = entries,
+            )
+        }
 
-        MeowUiStyle.Miuix -> MiuixPreferenceSection(
-            modifier = modifier,
-            title = title,
-            entries = entries,
-        )
+        MeowUiStyle.Miuix -> {
+            MiuixPreferenceSection(
+                modifier = modifier,
+                title = title,
+                entries = entries,
+            )
+        }
     }
 }
 
@@ -292,24 +307,27 @@ private fun MiuixPreferenceSection(
         title?.takeIf(String::isNotBlank)?.let {
             MiuixSmallTitle(
                 text = it,
-                insideMargin = PaddingValues(
-                    start = 12.dp,
-                    top = 8.dp,
-                    end = 12.dp,
-                    bottom = 12.dp,
-                ),
+                insideMargin =
+                    PaddingValues(
+                        start = 12.dp,
+                        top = 8.dp,
+                        end = 12.dp,
+                        bottom = 12.dp,
+                    ),
             )
         }
         // 抽屉底色与卡片默认底色同档,贴在一起看不出边界,所以抽屉里的分组抬高一档。
-        val cardColors = if (LocalMeowOnSheet.current) {
-            MiuixCardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainerHigh)
-        } else {
-            MiuixCardDefaults.defaultColors()
-        }
+        val cardColors =
+            if (LocalMeowOnSheet.current) {
+                MiuixCardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainerHigh)
+            } else {
+                MiuixCardDefaults.defaultColors()
+            }
         MiuixCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateSectionHeight(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .animateSectionHeight(),
             insideMargin = PaddingValues(0.dp),
             colors = cardColors,
         ) {
@@ -471,17 +489,20 @@ fun MeowSliderPreference(
     defaultText: String? = "Default",
 ) {
     // 默认值正好落在两端时不标：拖到底就是它，点画出来只会跟滑块糊在一起。
-    val marker = defaultValue?.takeIf {
-        it in valueRange && it != valueRange.start && it != valueRange.endInclusive
-    }
-    val keyPoints = remember(valueRange, steps, showSteps, marker) {
-        sliderKeyPoints(valueRange, steps, showSteps, marker)
-    }
-    val displayText = if (defaultText != null && defaultValue != null && value == defaultValue) {
-        defaultText
-    } else {
-        valueText(value)
-    }
+    val marker =
+        defaultValue?.takeIf {
+            it in valueRange && it != valueRange.start && it != valueRange.endInclusive
+        }
+    val keyPoints =
+        remember(valueRange, steps, showSteps, marker) {
+            sliderKeyPoints(valueRange, steps, showSteps, marker)
+        }
+    val displayText =
+        if (defaultText != null && defaultValue != null && value == defaultValue) {
+            defaultText
+        } else {
+            valueText(value)
+        }
     MeowStyleContent(
         materialExpressive = {
             MaterialSliderPreference(
@@ -568,15 +589,17 @@ private fun MiuixSliderRow(
         endActions = {
             MiuixText(
                 text = valueText,
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .align(Alignment.CenterVertically)
-                    .weight(1f, fill = false),
-                color = if (enabled) {
-                    MiuixTheme.colorScheme.onSurfaceVariantActions
-                } else {
-                    MiuixTheme.colorScheme.disabledOnSecondaryVariant
-                },
+                modifier =
+                    Modifier
+                        .padding(end = 8.dp)
+                        .align(Alignment.CenterVertically)
+                        .weight(1f, fill = false),
+                color =
+                    if (enabled) {
+                        MiuixTheme.colorScheme.onSurfaceVariantActions
+                    } else {
+                        MiuixTheme.colorScheme.disabledOnSecondaryVariant
+                    },
                 style = MeowTheme.typography.value,
             )
         },
@@ -590,11 +613,12 @@ private fun MiuixSliderRow(
                 steps = steps,
                 onValueChangeFinished = onValueChangeFinished,
                 // 有档或有标记点才响换档；连续滑条只响到端。
-                hapticEffect = if (steps > 0 || keyPoints != null) {
-                    MiuixSliderDefaults.SliderHapticEffect.Step
-                } else {
-                    MiuixSliderDefaults.SliderHapticEffect.Edge
-                },
+                hapticEffect =
+                    if (steps > 0 || keyPoints != null) {
+                        MiuixSliderDefaults.SliderHapticEffect.Step
+                    } else {
+                        MiuixSliderDefaults.SliderHapticEffect.Edge
+                    },
                 showKeyPoints = keyPoints != null,
                 keyPoints = keyPoints,
                 magnetThreshold = if (snapToDefault) SliderMagnetThreshold else 0f,
@@ -802,24 +826,29 @@ private fun <T> MaterialChoicePreference(
                                     MaterialDropdownMenuItem(
                                         // 选中态交给 selected 的容器样式，不自己画 ✓。
                                         text = { MaterialText(optionLabel(option)) },
-                                        supportingText = optionSummary?.invoke(option)
-                                            ?.takeIf(String::isNotBlank)
-                                            ?.let { text -> { MaterialText(text) } },
+                                        supportingText =
+                                            optionSummary
+                                                ?.invoke(option)
+                                                ?.takeIf(String::isNotBlank)
+                                                ?.let { text -> { MaterialText(text) } },
                                         onClick = {
                                             haptics.picked()
                                             onValueChange(option)
                                             if (collapseOnSelection) expanded = false
                                         },
-                                        enabled = enabled &&
-                                            (optionEnabled?.invoke(option) ?: true),
+                                        enabled =
+                                            enabled &&
+                                                (optionEnabled?.invoke(option) ?: true),
                                         selected = option == value,
-                                        leadingIcon = optionLeading?.let { leading ->
-                                            { leading(option) }
-                                        },
-                                        shapes = MenuDefaults.itemShape(
-                                            index = index,
-                                            count = groupOptions.size,
-                                        ),
+                                        leadingIcon =
+                                            optionLeading?.let { leading ->
+                                                { leading(option) }
+                                            },
+                                        shapes =
+                                            MenuDefaults.itemShape(
+                                                index = index,
+                                                count = groupOptions.size,
+                                            ),
                                     )
                                 }
                             }
@@ -850,16 +879,18 @@ private fun <T> MiuixChoicePreference(
     optionLeading: (@Composable (T) -> Unit)?,
     collapseOnSelection: Boolean,
 ) {
-    fun item(option: T): DropdownItem = DropdownItem(
-        text = optionLabel(option),
-        summary = optionSummary?.invoke(option),
-        enabled = optionEnabled?.invoke(option) ?: true,
-        selected = option == value,
-        onClick = { onValueChange(option) },
-        icon = optionLeading?.let { leading ->
-            { iconModifier -> Box(modifier = iconModifier) { leading(option) } }
-        },
-    )
+    fun item(option: T): DropdownItem =
+        DropdownItem(
+            text = optionLabel(option),
+            summary = optionSummary?.invoke(option),
+            enabled = optionEnabled?.invoke(option) ?: true,
+            selected = option == value,
+            onClick = { onValueChange(option) },
+            icon =
+                optionLeading?.let { leading ->
+                    { iconModifier -> Box(modifier = iconModifier) { leading(option) } }
+                },
+        )
 
     if (groups.size == 1 && collapseOnSelection) {
         // 单组且选完即收：经典 spinner 形态，行尾显示当前值。
@@ -911,9 +942,10 @@ private fun MaterialPreferenceRow(
         enabled = enabled,
         leadingContent = leading,
         trailingContent = materialTrailingContent(value, trailing, navigation),
-        supportingContent = summary?.takeIf(String::isNotBlank)?.let { text ->
-            { MaterialPreferenceSupportingText(text) }
-        },
+        supportingContent =
+            summary?.takeIf(String::isNotBlank)?.let { text ->
+                { MaterialPreferenceSupportingText(text) }
+            },
         verticalAlignment = Alignment.CenterVertically,
         colors = materialPreferenceItemColors(),
     ) {
@@ -945,12 +977,13 @@ private fun MaterialSwitchPreference(
     MaterialSegmentedListItem(
         onClick = { updateChecked(!checked) },
         shapes = materialPreferenceItemShapes(),
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                role = Role.Switch
-                toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
-            },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    role = Role.Switch
+                    toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+                },
         enabled = enabled,
         leadingContent = leading,
         interactionSource = interactionSource,
@@ -961,33 +994,36 @@ private fun MaterialSwitchPreference(
                 modifier = Modifier.clearAndSetSemantics {},
                 enabled = enabled,
                 interactionSource = interactionSource,
-                colors = SwitchDefaults.colors(
-                    checkedIconColor = MaterialTheme.colorScheme.primary,
-                    uncheckedIconColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    disabledCheckedThumbColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.38f),
-                    disabledCheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    disabledCheckedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    disabledUncheckedThumbColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                    disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.12f),
-                    disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                    disabledUncheckedIconColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                ),
-                thumbContent = if (checked || enabled) {
-                    {
-                        MaterialIcon(
-                            imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
-                            contentDescription = null,
-                            modifier = Modifier.size(SwitchDefaults.IconSize),
-                        )
-                    }
-                } else {
-                    null
-                },
+                colors =
+                    SwitchDefaults.colors(
+                        checkedIconColor = MaterialTheme.colorScheme.primary,
+                        uncheckedIconColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        disabledCheckedThumbColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.38f),
+                        disabledCheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                        disabledCheckedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                        disabledUncheckedThumbColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                        disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.12f),
+                        disabledUncheckedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                        disabledUncheckedIconColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    ),
+                thumbContent =
+                    if (checked || enabled) {
+                        {
+                            MaterialIcon(
+                                imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(SwitchDefaults.IconSize),
+                            )
+                        }
+                    } else {
+                        null
+                    },
             )
         },
-        supportingContent = summary?.takeIf(String::isNotBlank)?.let { text ->
-            { MaterialPreferenceSupportingText(text) }
-        },
+        supportingContent =
+            summary?.takeIf(String::isNotBlank)?.let { text ->
+                { MaterialPreferenceSupportingText(text) }
+            },
         verticalAlignment = Alignment.CenterVertically,
         colors = materialPreferenceItemColors(),
     ) {
@@ -1027,9 +1063,10 @@ private fun MaterialCheckboxPreference(
                 enabled = enabled,
             )
         },
-        supportingContent = summary?.takeIf(String::isNotBlank)?.let { text ->
-            { MaterialPreferenceSupportingText(text) }
-        },
+        supportingContent =
+            summary?.takeIf(String::isNotBlank)?.let { text ->
+                { MaterialPreferenceSupportingText(text) }
+            },
         verticalAlignment = Alignment.CenterVertically,
         colors = materialPreferenceItemColors(),
     ) {
@@ -1072,28 +1109,32 @@ private fun MaterialSliderPreference(
         }
     }
     val defaultColors = MaterialSliderDefaults.colors()
-    val sliderColors = if (showSteps) {
-        defaultColors
-    } else {
-        defaultColors.copy(
-            activeTickColor = Color.Transparent,
-            inactiveTickColor = Color.Transparent,
-            disabledActiveTickColor = Color.Transparent,
-            disabledInactiveTickColor = Color.Transparent,
-        )
-    }
+    val sliderColors =
+        if (showSteps) {
+            defaultColors
+        } else {
+            defaultColors.copy(
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+                disabledActiveTickColor = Color.Transparent,
+                disabledInactiveTickColor = Color.Transparent,
+            )
+        }
     val supportingContent: @Composable () -> Unit = {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = materialPreferenceInternalPadding()),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = materialPreferenceInternalPadding()),
         ) {
             summary?.takeIf(String::isNotBlank)?.let {
                 MaterialPreferenceSupportingText(it, bottomPadding = false)
             }
             Spacer(Modifier.height(12.dp))
+            val sliderState = remember(steps, valueRange) { SliderState(value, steps, valueRange) }
+            sliderState.value = value
             MaterialSlider(
-                value = value,
+                state = sliderState,
                 onValueChange = { rawValue ->
                     val newValue = snap(rawValue)
                     sliderHaptic.onValueChange(newValue, valueRange, steps, defaultValue, haptics)
@@ -1103,34 +1144,36 @@ private fun MaterialSliderPreference(
                 enabled = enabled,
                 onValueChangeFinished = onValueChangeFinished,
                 colors = sliderColors,
-                steps = steps,
                 track = { state ->
                     MaterialSliderDefaults.Track(
                         sliderState = state,
-                        modifier = if (defaultValue != null) {
-                            Modifier.drawDefaultValueMarker(
-                                fraction = (defaultValue - valueRange.start) /
-                                    (valueRange.endInclusive - valueRange.start),
-                                valueFraction = { state.coercedValueAsFraction },
-                                activeColor = if (enabled) {
-                                    defaultColors.activeTickColor
-                                } else {
-                                    defaultColors.disabledActiveTickColor
-                                },
-                                inactiveColor = if (enabled) {
-                                    defaultColors.inactiveTickColor
-                                } else {
-                                    defaultColors.disabledInactiveTickColor
-                                },
-                            )
-                        } else {
-                            Modifier
-                        },
+                        modifier =
+                            if (defaultValue != null) {
+                                Modifier.drawDefaultValueMarker(
+                                    fraction =
+                                        (defaultValue - valueRange.start) /
+                                            (valueRange.endInclusive - valueRange.start),
+                                    valueFraction = { state.coercedValueAsFraction },
+                                    activeColor =
+                                        if (enabled) {
+                                            defaultColors.activeTickColor
+                                        } else {
+                                            defaultColors.disabledActiveTickColor
+                                        },
+                                    inactiveColor =
+                                        if (enabled) {
+                                            defaultColors.inactiveTickColor
+                                        } else {
+                                            defaultColors.disabledInactiveTickColor
+                                        },
+                                )
+                            } else {
+                                Modifier
+                            },
                         enabled = enabled,
                         colors = sliderColors,
                     )
                 },
-                valueRange = valueRange,
             )
         }
     }
@@ -1182,17 +1225,18 @@ private fun Modifier.drawDefaultValueMarker(
     valueFraction: () -> Float,
     activeColor: Color,
     inactiveColor: Color,
-): Modifier = drawWithContent {
-    drawContent()
-    val rtl = layoutDirection == LayoutDirection.Rtl
-    val x = (if (rtl) 1f - fraction else fraction) * size.width
-    val covered = fraction <= valueFraction()
-    drawCircle(
-        color = if (covered) activeColor else inactiveColor,
-        radius = 2.dp.toPx(),
-        center = Offset(x, size.height / 2f),
-    )
-}
+): Modifier =
+    drawWithContent {
+        drawContent()
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        val x = (if (rtl) 1f - fraction else fraction) * size.width
+        val covered = fraction <= valueFraction()
+        drawCircle(
+            color = if (covered) activeColor else inactiveColor,
+            radius = 2.dp.toPx(),
+            center = Offset(x, size.height / 2f),
+        )
+    }
 
 @Composable
 private fun MaterialPreferenceHeadline(
@@ -1202,10 +1246,11 @@ private fun MaterialPreferenceHeadline(
     val padding = materialPreferenceInternalPadding()
     MaterialText(
         text = text,
-        modifier = Modifier.padding(
-            top = padding,
-            bottom = if (hasSupportingContent) 0.dp else padding,
-        ),
+        modifier =
+            Modifier.padding(
+                top = padding,
+                bottom = if (hasSupportingContent) 0.dp else padding,
+            ),
         style = MaterialTheme.typography.titleMedium,
     )
 }
@@ -1217,31 +1262,30 @@ private fun MaterialPreferenceSupportingText(
 ) {
     MaterialText(
         text = text,
-        modifier = Modifier.padding(
-            bottom = if (bottomPadding) materialPreferenceInternalPadding() else 0.dp,
-        ),
+        modifier =
+            Modifier.padding(
+                bottom = if (bottomPadding) materialPreferenceInternalPadding() else 0.dp,
+            ),
         style = MaterialTheme.typography.bodyMedium,
     )
 }
 
 @Composable
-private fun materialPreferenceInternalPadding() =
-    (4 * LocalDensity.current.fontScale).dp
+private fun materialPreferenceInternalPadding() = (4 * LocalDensity.current.fontScale).dp
 
 /**
  * Miuix 分支的 leading 图标与标题间距。
  * Miuix 原生 startAction 与文字几乎贴着，参考 KernelSU 的做法补 6dp 尾距；
  * Material 分支的间距由 SegmentedListItem 自身提供，不需要处理。
  */
-private fun miuixStartAction(
-    leading: (@Composable () -> Unit)?,
-): (@Composable () -> Unit)? = leading?.let { icon ->
-    {
-        Box(modifier = Modifier.padding(end = 6.dp)) {
-            icon()
+private fun miuixStartAction(leading: (@Composable () -> Unit)?): (@Composable () -> Unit)? =
+    leading?.let { icon ->
+        {
+            Box(modifier = Modifier.padding(end = 6.dp)) {
+                icon()
+            }
         }
     }
-}
 
 @Composable
 private fun materialTrailingContent(
@@ -1282,20 +1326,21 @@ private fun materialTrailingContent(
 private const val MaterialValueMaxWidthFraction = 0.6f
 
 /** 宽度上限取可用宽度的一部分，本身只占内容宽度：长值换行，不挤掉标题。 */
-private fun Modifier.widthAtMostFraction(fraction: Float): Modifier = layout { measurable, constraints ->
-    val cap = if (constraints.hasBoundedWidth) {
-        (constraints.maxWidth * fraction).roundToInt()
-    } else {
-        constraints.maxWidth
+private fun Modifier.widthAtMostFraction(fraction: Float): Modifier =
+    layout { measurable, constraints ->
+        val cap =
+            if (constraints.hasBoundedWidth) {
+                (constraints.maxWidth * fraction).roundToInt()
+            } else {
+                constraints.maxWidth
+            }
+        val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = cap))
+        layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
     }
-    val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = cap))
-    layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
-}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun materialPreferenceItemShapes(): ListItemShapes =
-    LocalMaterialPreferenceItemShapes.current ?: meowSegmentedItemShapes(0, 1)
+private fun materialPreferenceItemShapes(): ListItemShapes = LocalMaterialPreferenceItemShapes.current ?: meowSegmentedItemShapes(0, 1)
 
 /**
  * material3 的 `segmentedShapes(count = 1)` 会回退到普通 item 的 4dp 小圆角，
@@ -1303,7 +1348,10 @@ private fun materialPreferenceItemShapes(): ListItemShapes =
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun meowSegmentedItemShapes(index: Int, count: Int): ListItemShapes {
+private fun meowSegmentedItemShapes(
+    index: Int,
+    count: Int,
+): ListItemShapes {
     val shapes = ListItemDefaults.segmentedShapes(index, count)
     if (count != 1) return shapes
     return shapes.copy(shape = MaterialTheme.shapes.large)
@@ -1311,11 +1359,12 @@ private fun meowSegmentedItemShapes(index: Int, count: Int): ListItemShapes {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun materialPreferenceItemColors(): ListItemColors = ListItemDefaults.segmentedColors(
-    containerColor = MaterialTheme.colorScheme.surfaceBright,
-    disabledContainerColor = MaterialTheme.colorScheme.surfaceBright,
-    supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-)
+private fun materialPreferenceItemColors(): ListItemColors =
+    ListItemDefaults.segmentedColors(
+        containerColor = MaterialTheme.colorScheme.surfaceBright,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceBright,
+        supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 
 @Composable
 internal fun MeowText(
@@ -1362,8 +1411,9 @@ internal fun Modifier.animateSectionHeight(): Modifier {
         .layout { measurable, constraints ->
             val placeable = measurable.measure(constraints)
             if (measured != placeable.height) measured = placeable.height
-            val resolved = height.value.takeIf { it != UnmeasuredSectionHeight }
-                ?: placeable.height
+            val resolved =
+                height.value.takeIf { it != UnmeasuredSectionHeight }
+                    ?: placeable.height
             layout(placeable.width, resolved) { placeable.place(0, 0) }
         }
 }

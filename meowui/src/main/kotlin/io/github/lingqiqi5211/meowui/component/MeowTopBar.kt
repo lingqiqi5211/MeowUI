@@ -31,20 +31,13 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.DropdownMenuGroup as MaterialDropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem as MaterialDropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup as MaterialDropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon as MaterialIcon
-import androidx.compose.material3.IconButton as MaterialIconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar as MaterialLargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MenuItemShapes
-import androidx.compose.material3.Text as MaterialText
-import androidx.compose.material3.TextButton as MaterialTextButton
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -83,19 +76,27 @@ import androidx.compose.ui.util.lerp
 import io.github.lingqiqi5211.meowui.theme.LocalMeowBlurEnabled
 import io.github.lingqiqi5211.meowui.theme.MeowBlur
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
-import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
-import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
-import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
-import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 import top.yukonga.miuix.kmp.blur.blur
 import top.yukonga.miuix.kmp.blur.drawBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.overlay.OverlayCascadingListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import kotlin.math.roundToInt
+import androidx.compose.material3.DropdownMenuGroup as MaterialDropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem as MaterialDropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup as MaterialDropdownMenuPopup
+import androidx.compose.material3.Icon as MaterialIcon
+import androidx.compose.material3.IconButton as MaterialIconButton
+import androidx.compose.material3.LargeFlexibleTopAppBar as MaterialLargeFlexibleTopAppBar
+import androidx.compose.material3.Text as MaterialText
+import androidx.compose.material3.TextButton as MaterialTextButton
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
+import top.yukonga.miuix.kmp.basic.IconButton as MiuixIconButton
+import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
+import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
 
 /**
  * A top bar action.
@@ -161,9 +162,10 @@ enum class MeowMenuCascade {
 
 /** 菜单的分组视图：[Menu.groups] 优先，否则 [Menu.items] 作为单组。 */
 private val MeowTopBarAction.Menu.resolvedGroups: List<List<MeowMenuItem>>
-    get() = groups.filter { it.isNotEmpty() }.ifEmpty {
-        if (items.isEmpty()) emptyList() else listOf(items)
-    }
+    get() =
+        groups.filter { it.isNotEmpty() }.ifEmpty {
+            if (items.isEmpty()) emptyList() else listOf(items)
+        }
 
 /**
  * 菜单项。[children] 非空时该项成为子菜单入口（点击展开下一级，[onClick] 被忽略）：
@@ -198,9 +200,10 @@ fun MeowAnchoredMenu(
     cascade: MeowMenuCascade = MeowMenuCascade.Drill,
     collapseOnSelection: Boolean = true,
 ) {
-    val resolvedGroups = groups.filter { it.isNotEmpty() }.ifEmpty {
-        if (items.isEmpty()) emptyList() else listOf(items)
-    }
+    val resolvedGroups =
+        groups.filter { it.isNotEmpty() }.ifEmpty {
+            if (items.isEmpty()) emptyList() else listOf(items)
+        }
     if (resolvedGroups.isEmpty()) return
     MeowStyleContent(
         materialExpressive = {
@@ -240,43 +243,49 @@ fun MeowTopBar(
     // 自身底色透明,由背景模糊 + 半透明底色承担容器色。内容需要滚到顶栏下方才看
     // 得出效果,由页面把 scaffold 顶部内边距交给滚动容器实现。
     val backdrop = LocalMeowBackdrop.current
-    val useBlur = LocalMeowBlurEnabled.current &&
-        backdrop != null &&
-        MeowBlur.isSupported
+    val useBlur =
+        LocalMeowBlurEnabled.current &&
+            backdrop != null &&
+            MeowBlur.isSupported
     val effectModifier = modifier.then(effect.topBarModifier)
     // navigationIcon 优先；只给 onBackClick 时渲染风格原生的返回按钮。
     // navigationModifier 只作用于内置返回按钮；自定义 navigationIcon 由调用侧自己带 modifier。
-    val resolvedNavigationIcon: (@Composable () -> Unit)? = navigationIcon
-        ?: onBackClick?.let { back ->
-            { MeowBackIconButton(onClick = back, modifier = navigationModifier) }
-        }
+    val resolvedNavigationIcon: (@Composable () -> Unit)? =
+        navigationIcon
+            ?: onBackClick?.let { back ->
+                { MeowBackIconButton(onClick = back, modifier = navigationModifier) }
+            }
 
     MeowStyleContent(
         materialExpressive = {
-            val baseColor = effect.topBarContainerColor
-                ?: MaterialTheme.colorScheme.surfaceContainer
+            val baseColor =
+                effect.topBarContainerColor
+                    ?: MaterialTheme.colorScheme.surfaceContainer
             val containerColor = if (useBlur) Color.Transparent else baseColor
-            val colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = containerColor,
-                scrolledContainerColor = containerColor,
-            )
-            val barModifier = if (useBlur && backdrop != null) {
-                effectModifier.drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RectangleShape },
-                    effects = { blur(MeowBlurRadius.toPx(), MeowBlurRadius.toPx()) },
-                    onDrawSurface = { drawRect(baseColor.copy(alpha = MeowBlurSurfaceAlpha)) },
+            val colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = containerColor,
+                    scrolledContainerColor = containerColor,
                 )
-            } else {
-                effectModifier
-            }
+            val barModifier =
+                if (useBlur && backdrop != null) {
+                    effectModifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RectangleShape },
+                        effects = { blur(MeowBlurRadius.toPx(), MeowBlurRadius.toPx()) },
+                        onDrawSurface = { drawRect(baseColor.copy(alpha = MeowBlurSurfaceAlpha)) },
+                    )
+                } else {
+                    effectModifier
+                }
 
             MaterialLargeFlexibleTopAppBar(
                 title = { MaterialText(title) },
                 modifier = barModifier,
-                subtitle = subtitle.takeIf(String::isNotBlank)?.let { text ->
-                    { MaterialText(text) }
-                },
+                subtitle =
+                    subtitle.takeIf(String::isNotBlank)?.let { text ->
+                        { MaterialText(text) }
+                    },
                 navigationIcon = { resolvedNavigationIcon?.invoke() },
                 actions = {
                     actionItems.forEach { MaterialTopBarAction(it) }
@@ -287,16 +296,17 @@ fun MeowTopBar(
         },
         miuix = {
             val baseColor = effect.topBarContainerColor ?: MiuixTheme.colorScheme.surface
-            val barModifier = if (useBlur && backdrop != null) {
-                effectModifier.drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RectangleShape },
-                    effects = { blur(MeowBlurRadius.toPx(), MeowBlurRadius.toPx()) },
-                    onDrawSurface = { drawRect(baseColor.copy(alpha = MeowBlurSurfaceAlpha)) },
-                )
-            } else {
-                effectModifier
-            }
+            val barModifier =
+                if (useBlur && backdrop != null) {
+                    effectModifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RectangleShape },
+                        effects = { blur(MeowBlurRadius.toPx(), MeowBlurRadius.toPx()) },
+                        onDrawSurface = { drawRect(baseColor.copy(alpha = MeowBlurSurfaceAlpha)) },
+                    )
+                } else {
+                    effectModifier
+                }
             MiuixTopAppBar(
                 title = title,
                 modifier = barModifier,
@@ -364,7 +374,9 @@ private fun MaterialTopBarAction(action: MeowTopBarAction) {
             }
         }
 
-        is MeowTopBarAction.Menu -> MaterialTopBarMenu(action)
+        is MeowTopBarAction.Menu -> {
+            MaterialTopBarMenu(action)
+        }
     }
 }
 
@@ -392,8 +404,9 @@ internal fun MeowMaterialMenuPopup(
         AnimatedVisibility(
             visibleState = exitState,
             enter = EnterTransition.None,
-            exit = fadeOut(tween(MenuDismissMillis)) +
-                scaleOut(targetScale = 0.92f, animationSpec = tween(MenuDismissMillis)),
+            exit =
+                fadeOut(tween(MenuDismissMillis)) +
+                    scaleOut(targetScale = 0.92f, animationSpec = tween(MenuDismissMillis)),
         ) {
             Column { content() }
         }
@@ -467,29 +480,37 @@ private fun MaterialAnchoredMenu(
         },
     ) {
         when (cascade) {
-            MeowMenuCascade.Drill -> MaterialMenuDrillContent(
-                groups = groups,
-                submenuKey = submenuKey,
-                collapseOnSelection = collapseOnSelection,
-                onSubmenuKeyChange = { submenuKey = it },
-                onCollapsePopup = onDismissRequest,
-            )
+            MeowMenuCascade.Drill -> {
+                MaterialMenuDrillContent(
+                    groups = groups,
+                    submenuKey = submenuKey,
+                    collapseOnSelection = collapseOnSelection,
+                    onSubmenuKeyChange = { submenuKey = it },
+                    onCollapsePopup = onDismissRequest,
+                )
+            }
 
-            MeowMenuCascade.Sink -> MaterialMenuSinkContent(
-                groups = groups,
-                submenuKey = submenuKey,
-                collapseOnSelection = collapseOnSelection,
-                onSubmenuKeyChange = { submenuKey = it },
-                onCollapsePopup = onDismissRequest,
-            )
+            MeowMenuCascade.Sink -> {
+                MaterialMenuSinkContent(
+                    groups = groups,
+                    submenuKey = submenuKey,
+                    collapseOnSelection = collapseOnSelection,
+                    onSubmenuKeyChange = { submenuKey = it },
+                    onCollapsePopup = onDismissRequest,
+                )
+            }
         }
     }
 }
 
 /** "组序:项序" → 最新 groups 里的那个子菜单入口；解析不到（分组变了）就当没展开。 */
-private fun submenuParent(groups: List<List<MeowMenuItem>>, key: String?): MeowMenuItem? {
-    val indices = key?.split(':')?.mapNotNull(String::toIntOrNull)?.takeIf { it.size == 2 }
-        ?: return null
+private fun submenuParent(
+    groups: List<List<MeowMenuItem>>,
+    key: String?,
+): MeowMenuItem? {
+    val indices =
+        key?.split(':')?.mapNotNull(String::toIntOrNull)?.takeIf { it.size == 2 }
+            ?: return null
     return groups.getOrNull(indices[0])?.getOrNull(indices[1])?.takeIf { it.children.isNotEmpty() }
 }
 
@@ -523,10 +544,11 @@ private fun MaterialMenuGroups(
                     }
                     MaterialTopBarMenuItem(
                         item = item,
-                        shapes = MenuDefaults.itemShape(
-                            index = index + headerCount,
-                            count = count,
-                        ),
+                        shapes =
+                            MenuDefaults.itemShape(
+                                index = index + headerCount,
+                                count = count,
+                            ),
                         modifier = itemModifier(groupIndex, index),
                         arrowRotation = { itemArrowRotation(groupIndex, index) },
                         onOpenSubmenu = { onOpenSubmenu(groupIndex, index) },
@@ -563,9 +585,9 @@ private fun MaterialMenuDrillContent(
             val slide = if (forward) 1 else -1
             (
                 slideInHorizontally { it / 4 * slide } + fadeIn(tween(MenuDrillFadeMillis))
-                ) togetherWith (
+            ) togetherWith (
                 slideOutHorizontally { -it / 4 * slide } + fadeOut(tween(MenuDrillFadeMillis))
-                ) using SizeTransform(clip = false)
+            ) using SizeTransform(clip = false)
         },
         label = "MeowTopBarMenuDrill",
     ) { drillKey ->
@@ -578,28 +600,30 @@ private fun MaterialMenuDrillContent(
                 if (parent == null) onSubmenuKeyChange("$groupIndex:$itemIndex")
             },
             onCollapsePopup = onCollapsePopup,
-            modifier = if (menuWidthPx > 0) {
-                Modifier.width(with(density) { menuWidthPx.toDp() })
-            } else {
-                Modifier.onSizeChanged { size ->
-                    if (drillKey == null) menuWidthPx = size.width
-                }
-            },
-            header = parent?.let { item ->
-                { shape ->
-                    MaterialDropdownMenuItem(
-                        onClick = { onSubmenuKeyChange(null) },
-                        text = { MaterialText(item.text) },
-                        shape = shape,
-                        leadingIcon = {
-                            MaterialIcon(
-                                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                                contentDescription = null,
-                            )
-                        },
-                    )
-                }
-            },
+            modifier =
+                if (menuWidthPx > 0) {
+                    Modifier.width(with(density) { menuWidthPx.toDp() })
+                } else {
+                    Modifier.onSizeChanged { size ->
+                        if (drillKey == null) menuWidthPx = size.width
+                    }
+                },
+            header =
+                parent?.let { item ->
+                    { shape ->
+                        MaterialDropdownMenuItem(
+                            onClick = { onSubmenuKeyChange(null) },
+                            text = { MaterialText(item.text) },
+                            shape = shape,
+                            leadingIcon = {
+                                MaterialIcon(
+                                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                                    contentDescription = null,
+                                )
+                            },
+                        )
+                    }
+                },
         )
     }
 }
@@ -636,20 +660,22 @@ private fun MaterialMenuSinkContent(
     // 箭头另走一条更快的弹簧（response 0.2 / 0.3），旋转不跟着面板的形变拖拍子。
     val expandFraction by animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = SinkSpringDamping,
-            stiffness = if (expanded) SinkExpandStiffness else SinkCollapseStiffness,
-            visibilityThreshold = SinkSpringThreshold,
-        ),
+        animationSpec =
+            spring(
+                dampingRatio = SinkSpringDamping,
+                stiffness = if (expanded) SinkExpandStiffness else SinkCollapseStiffness,
+                visibilityThreshold = SinkSpringThreshold,
+            ),
         label = "MeowTopBarMenuSink",
     )
     val arrowFraction by animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = SinkSpringDamping,
-            stiffness = if (expanded) SinkArrowExpandStiffness else SinkArrowCollapseStiffness,
-            visibilityThreshold = SinkSpringThreshold,
-        ),
+        animationSpec =
+            spring(
+                dampingRatio = SinkSpringDamping,
+                stiffness = if (expanded) SinkArrowExpandStiffness else SinkArrowCollapseStiffness,
+                visibilityThreshold = SinkSpringThreshold,
+            ),
         label = "MeowTopBarMenuSinkArrow",
     )
     if (expandFraction == 0f && !expanded && displayedKey != null) displayedKey = null
@@ -685,26 +711,27 @@ private fun MaterialMenuSinkContent(
                         onSubmenuKeyChange(if (key == submenuKey) null else key)
                     },
                     onCollapsePopup = onCollapsePopup,
-                    modifier = Modifier
-                        .onGloballyPositioned { primaryTop = it.positionInWindow().y.roundToInt() }
-                        .graphicsLayer {
-                            // 朝弹窗生长的那个角收（顶栏菜单在末端图标底下），不是绕中心。
-                            transformOrigin = TransformOrigin(if (rtl) 0f else 1f, 0f)
-                            val sink = 1f - (1f - SinkShrunkScale) * sinkFraction
-                            scaleX = sink
-                            scaleY = sink
-                        }
-                        // 弱化靠压深卡片底色，不用模糊也不铺遮罩：SrcAtop 只染一级实际画到
-                        // 的像素（卡片本身），分组之间的空隙和圆角外面都不受影响，所以不会
-                        // 出现一块带边界的暗方块。
-                        .drawWithContent {
-                            drawContent()
-                            drawRect(
-                                color = Color.Black,
-                                alpha = SinkDarkenAmount * sinkFraction,
-                                blendMode = BlendMode.SrcAtop,
-                            )
-                        },
+                    modifier =
+                        Modifier
+                            .onGloballyPositioned { primaryTop = it.positionInWindow().y.roundToInt() }
+                            .graphicsLayer {
+                                // 朝弹窗生长的那个角收（顶栏菜单在末端图标底下），不是绕中心。
+                                transformOrigin = TransformOrigin(if (rtl) 0f else 1f, 0f)
+                                val sink = 1f - (1f - SinkShrunkScale) * sinkFraction
+                                scaleX = sink
+                                scaleY = sink
+                            }
+                            // 弱化靠压深卡片底色，不用模糊也不铺遮罩：SrcAtop 只染一级实际画到
+                            // 的像素（卡片本身），分组之间的空隙和圆角外面都不受影响，所以不会
+                            // 出现一块带边界的暗方块。
+                            .drawWithContent {
+                                drawContent()
+                                drawRect(
+                                    color = Color.Black,
+                                    alpha = SinkDarkenAmount * sinkFraction,
+                                    blendMode = BlendMode.SrcAtop,
+                                )
+                            },
                     itemArrowRotation = { groupIndex, itemIndex ->
                         if ("$groupIndex:$itemIndex" == displayedKey) {
                             -SinkArrowDegrees * arrowFraction
@@ -715,12 +742,13 @@ private fun MaterialMenuSinkContent(
                     itemModifier = { groupIndex, itemIndex ->
                         val key = "$groupIndex:$itemIndex"
                         Modifier.onGloballyPositioned { coordinates ->
-                            val anchor = SinkAnchor(
-                                top = coordinates.positionInWindow().y.roundToInt() - primaryTop,
-                                height = coordinates.size.height,
-                                index = itemIndex,
-                                count = groups[groupIndex].size,
-                            )
+                            val anchor =
+                                SinkAnchor(
+                                    top = coordinates.positionInWindow().y.roundToInt() - primaryTop,
+                                    height = coordinates.size.height,
+                                    index = itemIndex,
+                                    count = groups[groupIndex].size,
+                                )
                             // 每趟布局都会回调；没变就不写，免得白白触发一轮重组。
                             if (anchors[key] != anchor) anchors[key] = anchor
                         }
@@ -730,54 +758,56 @@ private fun MaterialMenuSinkContent(
                     // 透明的挡板：展开期间一级不可点，点它就是收回二级。没有底色——压暗
                     // 已经由上面的 alpha 完成了。
                     Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clickable(
-                                interactionSource = null,
-                                indication = null,
-                                onClick = { onSubmenuKeyChange(null) },
-                            ),
+                        modifier =
+                            Modifier
+                                .matchParentSize()
+                                .clickable(
+                                    interactionSource = null,
+                                    indication = null,
+                                    onClick = { onSubmenuKeyChange(null) },
+                                ),
                     )
                 }
             }
             if (parent != null && anchor != null) {
                 Box(
-                    modifier = Modifier
-                        .graphicsLayer {
-                            // 收回的最后几帧：裁剪只剩锚点行那么高，但它仍然实心盖在卡片上，
-                            // 归零那一刻整块摘掉就会"啪"地消失。末段补一段淡出，摘除时它
-                            // 已经透明，看不出接缝。
-                            alpha = (expandFraction / SinkFadeOutHead).coerceAtMost(1f)
-                        }
-                        .drawWithCache {
-                        val path = Path()
-                        onDrawWithContent {
-                            // 从锚点行的矩形长到整块面板：上沿从头行位置升到 0，下沿从行底
-                            // 落到面板底，圆角同步张开。第一帧正好等于那一行，所以没有跳变。
-                            val fraction = expandFraction
-                            val top = lerp(headerOffset.toFloat(), 0f, fraction)
-                            val bottom = lerp(
-                                (headerOffset + anchorHeight).toFloat(),
-                                size.height,
-                                fraction,
-                            )
-                            val radius = CornerRadius(cornerPx * fraction, cornerPx * fraction)
-                            path.rewind()
-                            path.addRoundRect(
-                                RoundRect(
-                                    left = 0f,
-                                    top = top,
-                                    right = size.width,
-                                    bottom = bottom,
-                                    topLeftCornerRadius = radius,
-                                    topRightCornerRadius = radius,
-                                    bottomRightCornerRadius = radius,
-                                    bottomLeftCornerRadius = radius,
-                                ),
-                            )
-                            clipPath(path) { this@onDrawWithContent.drawContent() }
-                        }
-                    },
+                    modifier =
+                        Modifier
+                            .graphicsLayer {
+                                // 收回的最后几帧：裁剪只剩锚点行那么高，但它仍然实心盖在卡片上，
+                                // 归零那一刻整块摘掉就会"啪"地消失。末段补一段淡出，摘除时它
+                                // 已经透明，看不出接缝。
+                                alpha = (expandFraction / SinkFadeOutHead).coerceAtMost(1f)
+                            }.drawWithCache {
+                                val path = Path()
+                                onDrawWithContent {
+                                    // 从锚点行的矩形长到整块面板：上沿从头行位置升到 0，下沿从行底
+                                    // 落到面板底，圆角同步张开。第一帧正好等于那一行，所以没有跳变。
+                                    val fraction = expandFraction
+                                    val top = lerp(headerOffset.toFloat(), 0f, fraction)
+                                    val bottom =
+                                        lerp(
+                                            (headerOffset + anchorHeight).toFloat(),
+                                            size.height,
+                                            fraction,
+                                        )
+                                    val radius = CornerRadius(cornerPx * fraction, cornerPx * fraction)
+                                    path.rewind()
+                                    path.addRoundRect(
+                                        RoundRect(
+                                            left = 0f,
+                                            top = top,
+                                            right = size.width,
+                                            bottom = bottom,
+                                            topLeftCornerRadius = radius,
+                                            topRightCornerRadius = radius,
+                                            bottomRightCornerRadius = radius,
+                                            bottomLeftCornerRadius = radius,
+                                        ),
+                                    )
+                                    clipPath(path) { this@onDrawWithContent.drawContent() }
+                                }
+                            },
                 ) {
                     // 分组容器由 M3 自己画：底色、内边距、分段形状都和一级一致，而且不透明
                     // ——一级就在正下方，透一点它的边缘就会露出来。
@@ -802,22 +832,26 @@ private fun MaterialMenuSinkContent(
                                     MaterialIcon(
                                         imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                                         contentDescription = null,
-                                        modifier = Modifier
-                                            .padding(start = 12.dp)
-                                            .graphicsLayer {
-                                                // 逆时针：右箭头转成朝上，指回它展开出来的那一行。
-                                                rotationZ = -SinkArrowDegrees * arrowFraction
-                                            },
+                                        modifier =
+                                            Modifier
+                                                .padding(start = 12.dp)
+                                                .graphicsLayer {
+                                                    // 逆时针：右箭头转成朝上，指回它展开出来的那一行。
+                                                    rotationZ = -SinkArrowDegrees * arrowFraction
+                                                },
                                     )
                                 }
                             },
-                            modifier = Modifier.onGloballyPositioned { coordinates ->
-                                headerOffset = coordinates.positionInParent().y.roundToInt()
-                            },
-                            shape = MenuDefaults.itemShape(
-                                index = anchor.index,
-                                count = anchor.count,
-                            ).shape,
+                            modifier =
+                                Modifier.onGloballyPositioned { coordinates ->
+                                    headerOffset = coordinates.positionInParent().y.roundToInt()
+                                },
+                            shape =
+                                MenuDefaults
+                                    .itemShape(
+                                        index = anchor.index,
+                                        count = anchor.count,
+                                    ).shape,
                         )
                         parent.children.forEachIndexed { index, child ->
                             Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
@@ -838,18 +872,20 @@ private fun MaterialMenuSinkContent(
     ) { measurables, constraints ->
         val primary = measurables[0].measure(constraints)
         // 二级与一级同宽：宽度一变，弹窗就要重算锚点并跳位置。
-        val secondary = measurables.getOrNull(1)?.measure(
-            constraints.copy(
-                minWidth = primary.width,
-                maxWidth = primary.width,
-                // 第一行展开时二级要盖住整张卡（上游按 union rect 测量二级，同一个意思）。
-                minHeight = if (anchorIsPopupFirst) {
-                    primary.height.coerceAtMost(constraints.maxHeight)
-                } else {
-                    constraints.minHeight
-                },
-            ),
-        )
+        val secondary =
+            measurables.getOrNull(1)?.measure(
+                constraints.copy(
+                    minWidth = primary.width,
+                    maxWidth = primary.width,
+                    // 第一行展开时二级要盖住整张卡（上游按 union rect 测量二级，同一个意思）。
+                    minHeight =
+                        if (anchorIsPopupFirst) {
+                            primary.height.coerceAtMost(constraints.maxHeight)
+                        } else {
+                            constraints.minHeight
+                        },
+                ),
+            )
         // 头行要压在锚点行上，所以面板整体上移它在面板里的偏移。
         val secondaryY = (anchorTop - headerOffset).coerceAtLeast(0)
         val secondaryBottom = if (secondary == null) 0 else secondaryY + secondary.height
@@ -887,7 +923,7 @@ private fun MaterialTopBarMenuItem(
     // 带 selected 的 Expressive 重载：选中态背景与形状由组件自己处理，对应 miuix 的 ✓。
     // ✓ / 子菜单箭头不走 trailing 槽：那个槽紧跟在文字后面，短标题的行里
     // 标记会浮在行中间；自己在 text 槽里两端对齐，标记恒定贴行右缘。
-    MaterialDropdownMenuItem(
+    SelectableDropdownMenuItem(
         selected = item.selected == true,
         modifier = modifier,
         onClick = {
@@ -916,15 +952,19 @@ private fun MaterialTopBarMenuItem(
                     }
                 }
                 when {
-                    item.children.isNotEmpty() -> MaterialIcon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .padding(start = 12.dp)
-                            // 下沉堆叠展开时这一行的箭头也在转：二级被摘掉的那一刻，底下
-                            // 这个箭头必须已经停在同一角度，否则就是一次瞬跳。
-                            .graphicsLayer { rotationZ = arrowRotation() },
-                    )
+                    item.children.isNotEmpty() -> {
+                        MaterialIcon(
+                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = null,
+                            modifier =
+                                Modifier
+                                    .padding(start = 12.dp)
+                                    // 下沉堆叠展开时这一行的箭头也在转：二级被摘掉的那一刻，底下
+                                    // 这个箭头必须已经停在同一角度，否则就是一次瞬跳。
+                                    .graphicsLayer { rotationZ = arrowRotation() },
+                        )
+                    }
+
                     // 可选中项恒定保留 ✓ 槽位（未选中时隐形）：否则切换选中会
                     // 改变行宽，不收起的菜单每点一下弹窗就重排跳位。
                     //
@@ -940,15 +980,17 @@ private fun MaterialTopBarMenuItem(
                         MaterialIcon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = null,
-                            modifier = Modifier
-                                .padding(start = 12.dp)
-                                .graphicsLayer {
-                                    alpha = selectedProgress
-                                    val scale = CheckMarkScaleFrom +
-                                        (1f - CheckMarkScaleFrom) * selectedProgress
-                                    scaleX = scale
-                                    scaleY = scale
-                                },
+                            modifier =
+                                Modifier
+                                    .padding(start = 12.dp)
+                                    .graphicsLayer {
+                                        alpha = selectedProgress
+                                        val scale =
+                                            CheckMarkScaleFrom +
+                                                (1f - CheckMarkScaleFrom) * selectedProgress
+                                        scaleX = scale
+                                        scaleY = scale
+                                    },
                         )
                     }
                 }
@@ -956,14 +998,15 @@ private fun MaterialTopBarMenuItem(
         },
         shapes = shapes,
         enabled = item.enabled,
-        leadingIcon = item.icon?.let { icon ->
-            {
-                MaterialIcon(
-                    imageVector = icon,
-                    contentDescription = null,
-                )
-            }
-        },
+        leadingIcon =
+            item.icon?.let { icon ->
+                {
+                    MaterialIcon(
+                        imageVector = icon,
+                        contentDescription = null,
+                    )
+                }
+            },
     )
 }
 
@@ -992,7 +1035,9 @@ private fun MiuixTopBarAction(action: MeowTopBarAction) {
             )
         }
 
-        is MeowTopBarAction.Menu -> MiuixTopBarMenu(action)
+        is MeowTopBarAction.Menu -> {
+            MiuixTopBarMenu(action)
+        }
     }
 }
 
@@ -1033,11 +1078,12 @@ private fun MiuixAnchoredMenu(
     // miuix 的级联弹窗自己不响；照它的下拉入口（Spinner / DropdownMenu）与下拉弹窗的做法：
     // 展开响 ContextClick，选中一项响 Confirm。
     val haptics = rememberMeowHaptics()
-    val entries = remember(groups, haptics) {
-        groups.map { group ->
-            DropdownEntry(items = group.map { it.toMiuixDropdownItem(haptics) })
+    val entries =
+        remember(groups, haptics) {
+            groups.map { group ->
+                DropdownEntry(items = group.map { it.toMiuixDropdownItem(haptics) })
+            }
         }
-    }
     OverlayCascadingListPopup(
         show = expanded,
         entries = entries,
@@ -1062,15 +1108,16 @@ private fun MeowMenuItem.toMiuixDropdownItem(haptics: MeowHaptics): DropdownItem
             haptics.picked()
             onPicked()
         },
-        icon = icon?.let { image ->
-            { modifier ->
-                MiuixIcon(
-                    imageVector = image,
-                    contentDescription = null,
-                    modifier = modifier,
-                )
-            }
-        },
+        icon =
+            icon?.let { image ->
+                { modifier ->
+                    MiuixIcon(
+                        imageVector = image,
+                        contentDescription = null,
+                        modifier = modifier,
+                    )
+                }
+            },
         children = children.takeIf { it.isNotEmpty() }?.map { it.toMiuixDropdownItem(haptics) },
     )
 }
@@ -1090,7 +1137,7 @@ private const val SinkCollapseStiffness = 987f
 private const val SinkArrowExpandStiffness = 987f
 private const val SinkArrowCollapseStiffness = 439f
 private const val SinkSpringThreshold = 0.001f
+
 // 收回末段补淡出的区间：形变到这个进度以下才开始透明，摘除时已看不见。
 private const val SinkFadeOutHead = 0.25f
 private val SinkCornerRadius = 16.dp
-
