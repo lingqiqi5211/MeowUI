@@ -18,12 +18,15 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertTopPositionInRootIsEqualTo
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.dp
+import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.NavigationEventDispatcher
 import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.NavigationEventHandler
+import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
@@ -43,7 +46,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -88,7 +93,10 @@ class MeowUiStateRegressionTest {
         val key = PreferenceKey("value", 0)
         val first = InMemoryPreferenceStore()
         val second = InMemoryPreferenceStore()
-        runBlocking { first.write(key, 1); second.write(key, 2) }
+        runBlocking {
+            first.write(key, 1)
+            second.write(key, 2)
+        }
         var store: PreferenceStore by mutableStateOf(first)
         val observed = mutableListOf<Pair<PreferenceStore, Int>>()
         compose.setContent {
@@ -109,16 +117,23 @@ class MeowUiStateRegressionTest {
         val gate = CompletableDeferred<Unit>()
         val backing = InMemoryPreferenceStore()
         val started = mutableListOf<Any>()
-        val store = object : PreferenceStore by backing {
-            override suspend fun <T : Any> write(key: PreferenceKey<T>, value: T): PreferenceWriteResult {
-                started += value
-                if (value == 1) gate.await()
-                return backing.write(key, value)
+        val store =
+            object : PreferenceStore by backing {
+                override suspend fun <T : Any> write(
+                    key: PreferenceKey<T>,
+                    value: T,
+                ): PreferenceWriteResult {
+                    started += value
+                    if (value == 1) gate.await()
+                    return backing.write(key, value)
+                }
             }
-        }
         lateinit var write: (Int) -> Unit
         compose.setContent { write = rememberMeowPreferenceWriter(key, store) }
-        compose.runOnIdle { write(1); write(2) }
+        compose.runOnIdle {
+            write(1)
+            write(2)
+        }
         compose.runOnIdle {
             assertEquals(listOf(1), started)
             gate.complete(Unit)
@@ -134,9 +149,13 @@ class MeowUiStateRegressionTest {
         val key = PreferenceKey("slider", 0.25f)
         val gate = CompletableDeferred<PreferenceWriteResult>()
         val reports = mutableListOf<PreferenceWriteResult>()
-        val store = object : PreferenceStore by InMemoryPreferenceStore() {
-            override suspend fun <T : Any> write(key: PreferenceKey<T>, value: T) = gate.await()
-        }
+        val store =
+            object : PreferenceStore by InMemoryPreferenceStore() {
+                override suspend fun <T : Any> write(
+                    key: PreferenceKey<T>,
+                    value: T,
+                ) = gate.await()
+            }
         compose.setContent {
             MeowTheme(appearance = appearance) {
                 MeowPreferenceProvider(store, reports::add) {
@@ -165,14 +184,25 @@ class MeowUiStateRegressionTest {
             scope.launch { results += state.show("second") }
         }
         compose.runOnIdle {
-            assertEquals("first", state.materialHostState.currentSnackbarData?.visuals?.message)
+            assertEquals(
+                "first",
+                state.materialHostState.currentSnackbarData
+                    ?.visuals
+                    ?.message,
+            )
             state.currentStyle = MeowUiStyle.Miuix
         }
         compose.runOnIdle {
             assertEquals(listOf(MeowSnackbarResult.Dismissed), results)
             assertNull(state.materialHostState.currentSnackbarData)
             runBlocking {
-                assertEquals("second", state.miuixHostState.newestSnackbarData()?.visuals?.message)
+                assertEquals(
+                    "second",
+                    state.miuixHostState
+                        .newestSnackbarData()
+                        ?.visuals
+                        ?.message,
+                )
                 state.miuixHostState.newestSnackbarData()?.dismiss()
             }
         }
@@ -225,32 +255,156 @@ class MeowUiStateRegressionTest {
     }
 
     @Test
-    fun changingBackHandlingDoesNotRecreateNavigationContent() {
+    fun changingBackHandlingPreservesNavigationContentAndDispatcher() {
         var handlesBack by mutableStateOf(false)
+        var showHost by mutableStateOf(true)
         var creations = 0
-        val owner = object : NavigationEventDispatcherOwner {
-            override val navigationEventDispatcher = NavigationEventDispatcher()
-        }
+        lateinit var entryDispatcher: NavigationEventDispatcher
+        val parent = NavigationEventDispatcher()
+        // 同一个父分发器的不同 owner 包装也不应使页面的分发器重建。
+        var owner by mutableStateOf(dispatcherOwner(parent))
         compose.setContent {
             MeowTheme(appearance = appearance) {
                 CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
-                    MeowNavHost(listOf("page"), onBack = if (handlesBack) ({}) else null) {
-                        val instance = remember { ++creations }
-                        Text("instance=$instance")
+                    if (showHost) {
+                        MeowNavHost(listOf("page"), onBack = if (handlesBack) ({}) else null) {
+                            val instance = remember { ++creations }
+                            val dispatcher = checkNotNull(LocalNavigationEventDispatcherOwner.current).navigationEventDispatcher
+                            SideEffect { entryDispatcher = dispatcher }
+                            Text("instance=$instance")
+                        }
                     }
                 }
             }
         }
         compose.onNodeWithText("instance=1").assertExists()
-        compose.runOnIdle { handlesBack = true }
-        compose.onNodeWithText("instance=1").assertExists()
-        compose.runOnIdle { handlesBack = false }
-        compose.runOnIdle { assertEquals(1, creations) }
+        val initial = compose.runOnIdle { entryDispatcher }
+        repeat(3) {
+            compose.runOnIdle { handlesBack = !handlesBack }
+            compose.runOnIdle {
+                assertSame(initial, entryDispatcher)
+                assertEquals(1, creations)
+                owner = dispatcherOwner(parent)
+            }
+            compose.runOnIdle { assertSame(initial, entryDispatcher) }
+        }
+        compose.runOnIdle {
+            owner = dispatcherOwner(NavigationEventDispatcher())
+            parent.dispose()
+        }
+        compose.runOnIdle {
+            assertNotSame(initial, entryDispatcher)
+            assertEquals(1, creations)
+        }
+        // 父级已释放后退出组合，子级清理不应二次释放失败。
+        compose.runOnIdle {
+            owner.navigationEventDispatcher.dispose()
+            showHost = false
+        }
+        compose.onNodeWithText("instance=1").assertDoesNotExist()
     }
 
-    private val appearance = MeowAppearance(
-        themeMode = MeowThemeMode.Light,
-        dynamicColor = false,
-        blurEnabled = false,
-    )
+    @Test
+    fun disabledNavigationHostPassesBackToOuterHandlerAndUsesLatestCallback() {
+        val parent = NavigationEventDispatcher()
+        val input = DirectNavigationEventInput().also(parent::addInput)
+        var outerBacks = 0
+        var innerBacks = 0
+        parent.addHandler(
+            object : NavigationEventHandler<NavigationEventInfo>(
+                initialInfo = NavigationEventInfo.None,
+                isBackEnabled = true,
+                isForwardEnabled = false,
+            ) {
+                override fun onBackCompleted() {
+                    outerBacks++
+                }
+            },
+        )
+        val owner = dispatcherOwner(parent)
+        var onBack: (() -> Unit)? by mutableStateOf(null)
+        compose.setContent {
+            MeowTheme(appearance = appearance) {
+                CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
+                    MeowNavHost(listOf("root", "page"), onBack = onBack) { Text(it) }
+                }
+            }
+        }
+        compose.runOnIdle { input.backCompleted() }
+        compose.runOnIdle {
+            assertEquals(1, outerBacks)
+            assertEquals(0, innerBacks)
+            onBack = { innerBacks++ }
+        }
+        compose.runOnIdle { input.backCompleted() }
+        compose.runOnIdle {
+            assertEquals(1, outerBacks)
+            assertEquals(1, innerBacks)
+            onBack = { innerBacks += 10 }
+        }
+        compose.runOnIdle { input.backCompleted() }
+        compose.runOnIdle {
+            assertEquals(11, innerBacks)
+            onBack = null
+        }
+        compose.runOnIdle { input.backCompleted() }
+        compose.runOnIdle {
+            assertEquals(2, outerBacks)
+            assertEquals(11, innerBacks)
+            parent.dispose()
+        }
+    }
+
+    @Test
+    fun nestedNavigationHostYieldsBackWhenDisabledOrAtRoot() {
+        val parent = NavigationEventDispatcher()
+        val input = DirectNavigationEventInput().also(parent::addInput)
+        val owner = dispatcherOwner(parent)
+        var innerEnabled by mutableStateOf(true)
+        var innerStack by mutableStateOf(listOf("innerRoot", "innerPage"))
+        var outerBacks = 0
+        var innerBacks = 0
+        compose.setContent {
+            MeowTheme(appearance = appearance.copy(style = MeowUiStyle.Miuix)) {
+                CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
+                    MeowNavHost(listOf("outerRoot", "outerPage"), onBack = { outerBacks++ }) {
+                        MeowNavHost(innerStack, onBack = if (innerEnabled) ({ innerBacks++ }) else null) {
+                            Text(it)
+                        }
+                    }
+                }
+            }
+        }
+        compose.runOnIdle { input.backCompleted() }
+        compose.runOnIdle {
+            assertEquals(1, innerBacks)
+            assertEquals(0, outerBacks)
+            innerEnabled = false
+        }
+        compose.runOnIdle { input.backCompleted() }
+        compose.runOnIdle {
+            assertEquals(1, innerBacks)
+            assertEquals(1, outerBacks)
+            innerEnabled = true
+            innerStack = listOf("innerRoot")
+        }
+        compose.runOnIdle { input.backCompleted() }
+        compose.runOnIdle {
+            assertEquals(1, innerBacks)
+            assertEquals(2, outerBacks)
+            parent.dispose()
+        }
+    }
+
+    private fun dispatcherOwner(dispatcher: NavigationEventDispatcher): NavigationEventDispatcherOwner =
+        object : NavigationEventDispatcherOwner {
+            override val navigationEventDispatcher = dispatcher
+        }
+
+    private val appearance =
+        MeowAppearance(
+            themeMode = MeowThemeMode.Light,
+            dynamicColor = false,
+            blurEnabled = false,
+        )
 }
