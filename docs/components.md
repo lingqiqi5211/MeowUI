@@ -618,7 +618,8 @@ MeowTheme(appearance = appearance) {
 - **按功能块裁剪**：`options: MeowAppearanceOptions` 决定显示哪些功能块——头图、主题色（色票、Monet 开关、色彩风格、色彩标准）、深浅模式、AMOLED、界面风格、悬浮底栏、模糊、预测式返回、界面缩放，默认 `All`；`None` 关掉全部，只剩调用侧自己的内容。一个分组里的功能块全关、也没有自定义条目时，整组连标题一起不显示。
 - **自定义条目**：`colorItems`、`interfaceItems` 是 `MeowPreferenceSectionScope` lambda，追加到「颜色」「界面」分组末尾，可用分组内的任何设置项；给了它们，对应分组就会显示。`extraContent` 追加在全部内置分组之后，可放整组。
 - 界面缩放范围为 80%–110%，松开 Slider 后提交；系统字体缩放比例保持不变。
-- 不支持 2025 色彩标准的色彩风格只显示并使用 2021，避免无效组合。
+- 源码 debug 路径的 `MeowPaletteStyle.Cmf` 固定使用 `MeowColorSpec.Spec2026`，两套 UI 都支持。utilities 6 对 TonalSpot、Neutral、Vibrant、Expressive 的 2026 请求会降为 2025，因此这四种风格只显示 2021 / 2025；直接传入 2026 时也归为 2025。其余风格继续使用 2021。色彩标准只有一个有效选项时不可切换，有多个选项时可打开菜单选择。色彩标准独立于 Material 3 Expressive 的组件、形状与动效。
+- release 与宿主 `includeBuild` 路径使用 Maven Miuix 0.9.4，外观页隐藏 2026 / CMF；直接传入或从设置恢复 `Spec2026` 时回退为 2025，`Cmf` 回退为 TonalSpot / 2025。不支持现代标准的其他风格仍回退为 2021。默认值不变，取色预览与实际主题采用相同规则。
 - `amoledDarkEnabled` 为 AMOLED 纯黑深色开关（背景与 surface 容器压成纯黑，保留 surfaceBright 卡片层次），叠加在深色模式上——深色生效时（含跟随系统进入深色）即应用；仅 Material 3 Expressive 分支生效并显示该开关，Miuix 分支忽略。
 - `blurEnabled`（默认开）控制顶栏与悬浮底栏的内置背景磨砂：在 `MeowScaffold` 内且设备支持 RuntimeShader 时，栏体对身后内容做模糊并叠半透明底色；关闭或设备不支持时自动回退不透明底色。该开关经 `MeowTheme(appearance = …)` 统一入口生效。模糊经 RuntimeShader 实现，Android 13 起可用（`MeowBlur.isSupported`）；更低版本外观页不显示模糊开关，主题也忽略 `blurEnabled`。
 - `floatingNavigationBarEnabled`（默认开）只保存偏好：应用的底栏按它选择 `MeowNavigationBarStyle.Floating` 或 `Standard`（sample 即如此）。外观页的界面分组有对应开关。

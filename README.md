@@ -8,7 +8,7 @@ MeowUI 是一套 **双风格 Compose UI 样式库**：业务层只编写一份�
 
 - **一次编写，两套 UI**：调用侧不维护 Material 与 Miuix 两份页面，风格分支全部封装在库内部，公共 API 不暴露任何 Material 或 Miuix 类型。
 - **成套外观设置页**：内置 `MeowAppearancePage`，包含主题预览头图（按手机/折叠屏/平板自适应，可关闭或自定义）、色票取色、深浅模式、调色板风格与色彩标准、界面风格切换、预测式返回偏好与界面缩放；也可以用同一批积木（`MeowAppearancePreview`、`MeowColorPicker`、`MeowTabRow`、偏好分组）搭建完全自定义的外观页。
-- **主题可定制**：种子色经 tonal palette 展开为完整 MD3 配色，Miuix 分支经 Monet 引擎生成同源配色（可整体关闭 Monet 回到 Miuix 原生配色）；支持多种调色板风格、2021/2025 色彩标准、系统动态取色与统一取色窗口；浅深色与配色切换在两个分支都做逐色平滑过渡，系统栏亮暗自动跟随主题。
+- **主题可定制**：种子色经 tonal palette 展开为完整 MD3 配色，Miuix 分支经 Monet 引擎生成同源配色（可整体关闭 Monet 回到 Miuix 原生配色）；支持多种调色板风格、2021/2025 色彩标准（源码 debug 另含 2026 与 CMF）、系统动态取色与统一取色窗口；浅深色与配色切换在两个分支都做逐色平滑过渡，系统栏亮暗自动跟随主题。
 - **设置项直接绑定 key**：常用组件只需传入 `title`、`key` 和必要选项，即可自动读取、观察并写回设置；写入结果通过 `PreferenceWriteResult` 统一上报。也全部提供受控（`value` + 回调）版本。
 - **各自遵循原生体系**：Material 分支使用 Material 3 Expressive 组件、segmented 圆角与 Expressive 动效（悬浮底栏为滑动胶囊指示器）；Miuix 分支使用 Miuix 官方组件、squircle 与滚动反馈。
 - **完整设置页组件**：设置分组与列表、Dialog、Popup、可滚动大标题顶栏（含返回键与图标菜单）、Tab、普通/悬浮底栏、Bottom Sheet、Tip 和下拉刷新。
@@ -79,10 +79,10 @@ includeBuild("../MeowUI")
 
 ### 依赖的 miuix 版本
 
-- **本仓库 debug 构建**：submodule 固定到上游 `main` 的提交 `6ef604ae6d53e4b241cdb89ccbf2caf86a7a33d0`，包含 0.9.4 之后尚未发布的修复。
+- **本仓库 debug 构建**：submodule 固定到上游 `main` 的提交 `292d8ec6e5850ab2af72cce2b90cbd4a6a42e175`，包含 0.9.4 之后尚未发布的修复。
 - **release 与宿主 `includeBuild` 接入**：使用 Maven **0.9.4**，release 不替换为子模块源码，保证 AAR 与发布 POM 的二进制 API 一致。
 
-debug 源码路径额外包含未发布的导航焦点、Pager 手势与 Blur 修复，Maven 0.9.4 不包含这些后续修复。BreadcrumbBar 的滚动状态 API 差异通过编译期适配隔离，两条接入路径分别验证。
+debug 源码路径额外包含未发布的导航焦点、Pager 手势与 Blur 修复，Maven 0.9.4 不包含这些后续修复。源码 debug 的 CMF 调色板使用 2026 色彩标准，两种 UI 风格均使用 utilities 6 生成配色；普通现代调色板的 2026 请求会由上游降为 2025，外观页只显示实际生效的标准。release 与宿主路径保留 MaterialKolor 5 / Miuix 0.9.4，`Spec2026` 回退为 2025，`Cmf` 回退为 TonalSpot / 2025，外观页隐藏不可用选项。其余不支持现代标准的调色板继续使用 2021。BreadcrumbBar 与配色生成器的版本差异通过编译期适配隔离。上游新增桌面窗口模块不接入 Android 组件 API。
 
 ## 最小示例
 

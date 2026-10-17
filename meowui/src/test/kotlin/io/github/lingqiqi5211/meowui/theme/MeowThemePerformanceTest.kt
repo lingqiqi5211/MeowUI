@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -25,6 +26,45 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.LEGACY)
 class MeowThemePerformanceTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun modernColorsRenderInBothStylesAndKeepContentAlive() {
+        var appearance by mutableStateOf(MeowAppearance(dynamicColor = false))
+        var primary = Color.Unspecified
+        var mounts = 0
+        compose.setContent {
+            MeowTheme(appearance = appearance) {
+                androidx.compose.runtime.DisposableEffect(Unit) {
+                    mounts++
+                    onDispose { mounts-- }
+                }
+                val color = MeowTheme.colors.primary
+                SideEffect { primary = color }
+            }
+        }
+        for (style in MeowUiStyle.entries) {
+            for (mode in listOf(MeowThemeMode.Light, MeowThemeMode.Dark)) {
+                for (palette in listOf(MeowPaletteStyle.TonalSpot, MeowPaletteStyle.Cmf)) {
+                    compose.runOnIdle {
+                        appearance =
+                            appearance.copy(style = style, themeMode = mode, paletteStyle = palette, colorSpec = MeowColorSpec.Spec2026)
+                    }
+                    compose.waitForIdle()
+                    compose.runOnIdle {
+                        val expected =
+                            meowMaterialColorScheme(
+                                seedColor = appearance.seedColor,
+                                isDark = mode == MeowThemeMode.Dark,
+                                paletteStyle = palette,
+                                colorSpec = MeowColorSpec.Spec2026,
+                            ).primary
+                        assertEquals(expected, primary)
+                        assertEquals(1, mounts)
+                    }
+                }
+            }
+        }
+    }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     @Test

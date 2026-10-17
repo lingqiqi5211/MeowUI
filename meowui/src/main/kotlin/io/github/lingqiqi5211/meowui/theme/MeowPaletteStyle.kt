@@ -33,4 +33,7 @@ enum class MeowPaletteStyle {
 
     /** 面向内容取色（如封面图）的风格。 */
     Content,
+
+    /** CMF 调色板，仅使用 2026 标准；正式版依赖路径回退为 TonalSpot / 2025。 */
+    Cmf,
 }

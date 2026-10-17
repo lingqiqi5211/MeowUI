@@ -5,15 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import com.materialkolor.PaletteStyle as MaterialKolorPaletteStyle
-import com.materialkolor.dynamicColorScheme as materialKolorDynamicColorScheme
-import com.materialkolor.dynamiccolor.ColorSpec
 
 /**
  * Material 3 Expressive 分支的配色生成。
  *
- * 用 materialKolor 从种子色展开完整的 MD3 tonal palette（含 container、surface 系列与
- * fixed 色 role）。旧主题入口会为支持的风格自动启用 2025 spec，统一外观入口可明确指定。
+ * 按构建路径选择 MaterialKolor 或 utilities 生成完整 role，回退规则由主题与预览共用。
+ * 旧主题入口仍自动使用 2025，统一外观入口可明确指定标准。
  */
 @Stable
 internal fun meowMaterialColorScheme(
@@ -23,38 +20,9 @@ internal fun meowMaterialColorScheme(
     colorSpec: MeowColorSpec? = null,
     isAmoled: Boolean = false,
 ): ColorScheme {
-    val style = when (paletteStyle) {
-        MeowPaletteStyle.TonalSpot -> MaterialKolorPaletteStyle.TonalSpot
-        MeowPaletteStyle.Neutral -> MaterialKolorPaletteStyle.Neutral
-        MeowPaletteStyle.Vibrant -> MaterialKolorPaletteStyle.Vibrant
-        MeowPaletteStyle.Expressive -> MaterialKolorPaletteStyle.Expressive
-        MeowPaletteStyle.Rainbow -> MaterialKolorPaletteStyle.Rainbow
-        MeowPaletteStyle.FruitSalad -> MaterialKolorPaletteStyle.FruitSalad
-        MeowPaletteStyle.Monochrome -> MaterialKolorPaletteStyle.Monochrome
-        MeowPaletteStyle.Fidelity -> MaterialKolorPaletteStyle.Fidelity
-        MeowPaletteStyle.Content -> MaterialKolorPaletteStyle.Content
-    }
-    val specVersion = when (colorSpec) {
-        MeowColorSpec.Spec2021 -> ColorSpec.SpecVersion.SPEC_2021
-        MeowColorSpec.Spec2025 -> if (paletteStyle.supportsSpec2025) {
-            ColorSpec.SpecVersion.SPEC_2025
-        } else {
-            ColorSpec.SpecVersion.SPEC_2021
-        }
-        null -> if (paletteStyle.supportsSpec2025) {
-            ColorSpec.SpecVersion.SPEC_2025
-        } else {
-            ColorSpec.SpecVersion.SPEC_2021
-        }
-    }
-
-    return materialKolorDynamicColorScheme(
-        seedColor = seedColor,
-        isDark = isDark,
-        isAmoled = isAmoled,
-        style = style,
-        specVersion = specVersion,
-    ).amoledBackground(isAmoled && isDark)
+    val settings = effectiveColorSettings(paletteStyle, colorSpec)
+    return generateMaterialColorScheme(seedColor, isDark, settings.palette, settings.spec, isAmoled)
+        .amoledBackground(isAmoled && isDark)
 }
 
 /**
@@ -82,15 +50,16 @@ private fun ColorScheme.amoledBackground(amoled: Boolean): ColorScheme =
 
 // 2025 color spec 仅覆盖这四种风格，其余风格回退 2021 spec。
 internal val MeowPaletteStyle.supportsSpec2025: Boolean
-    get() = when (this) {
-        MeowPaletteStyle.TonalSpot,
-        MeowPaletteStyle.Neutral,
-        MeowPaletteStyle.Vibrant,
-        MeowPaletteStyle.Expressive,
-        -> true
+    get() =
+        when (this) {
+            MeowPaletteStyle.TonalSpot,
+            MeowPaletteStyle.Neutral,
+            MeowPaletteStyle.Vibrant,
+            MeowPaletteStyle.Expressive,
+            -> true
 
-        else -> false
-    }
+            else -> false
+        }
 
 /**
  * 对 [ColorScheme] 内全部色 role 做 spring 过渡，
@@ -104,60 +73,62 @@ internal fun ColorScheme.animateAsState(): ColorScheme {
     return remember(animated) { animated.toColorScheme() }
 }
 
-private fun ColorScheme.toColorList(): List<Color> = listOf(
-    primary,
-    onPrimary,
-    primaryContainer,
-    onPrimaryContainer,
-    inversePrimary,
-    secondary,
-    onSecondary,
-    secondaryContainer,
-    onSecondaryContainer,
-    tertiary,
-    onTertiary,
-    tertiaryContainer,
-    onTertiaryContainer,
-    background,
-    onBackground,
-    surface,
-    onSurface,
-    surfaceVariant,
-    onSurfaceVariant,
-    surfaceTint,
-    inverseSurface,
-    inverseOnSurface,
-    error,
-    onError,
-    errorContainer,
-    onErrorContainer,
-    outline,
-    outlineVariant,
-    scrim,
-    surfaceBright,
-    surfaceDim,
-    surfaceContainer,
-    surfaceContainerHigh,
-    surfaceContainerHighest,
-    surfaceContainerLow,
-    surfaceContainerLowest,
-    primaryFixed,
-    primaryFixedDim,
-    onPrimaryFixed,
-    onPrimaryFixedVariant,
-    secondaryFixed,
-    secondaryFixedDim,
-    onSecondaryFixed,
-    onSecondaryFixedVariant,
-    tertiaryFixed,
-    tertiaryFixedDim,
-    onTertiaryFixed,
-    onTertiaryFixedVariant,
-)
+private fun ColorScheme.toColorList(): List<Color> =
+    listOf(
+        primary,
+        onPrimary,
+        primaryContainer,
+        onPrimaryContainer,
+        inversePrimary,
+        secondary,
+        onSecondary,
+        secondaryContainer,
+        onSecondaryContainer,
+        tertiary,
+        onTertiary,
+        tertiaryContainer,
+        onTertiaryContainer,
+        background,
+        onBackground,
+        surface,
+        onSurface,
+        surfaceVariant,
+        onSurfaceVariant,
+        surfaceTint,
+        inverseSurface,
+        inverseOnSurface,
+        error,
+        onError,
+        errorContainer,
+        onErrorContainer,
+        outline,
+        outlineVariant,
+        scrim,
+        surfaceBright,
+        surfaceDim,
+        surfaceContainer,
+        surfaceContainerHigh,
+        surfaceContainerHighest,
+        surfaceContainerLow,
+        surfaceContainerLowest,
+        primaryFixed,
+        primaryFixedDim,
+        onPrimaryFixed,
+        onPrimaryFixedVariant,
+        secondaryFixed,
+        secondaryFixedDim,
+        onSecondaryFixed,
+        onSecondaryFixedVariant,
+        tertiaryFixed,
+        tertiaryFixedDim,
+        onTertiaryFixed,
+        onTertiaryFixedVariant,
+    )
 
 // 与 toColorList 的顺序一一对应。
 private fun List<Color>.toColorScheme(): ColorScheme {
     var index = 0
+
     fun next(): Color = this[index++]
     return ColorScheme(
         primary = next(),

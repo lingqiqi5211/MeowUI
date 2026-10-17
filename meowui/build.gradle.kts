@@ -73,7 +73,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)
-    implementation(libs.materialkolor)
+    // utilities 6 改变二进制 API，不能与 MaterialKolor 5 的 wrapper 混用。
+    if (gradle.parent == null) {
+        debugImplementation(libs.material.color.utilities)
+        releaseImplementation(libs.materialkolor)
+    } else {
+        implementation(libs.materialkolor)
+    }
     implementation(libs.miuix.ui)
     implementation(libs.miuix.preference)
     implementation(libs.miuix.icons)

@@ -36,11 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import io.github.lingqiqi5211.meowui.core.MeowUiStyle
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
-import top.yukonga.miuix.kmp.theme.Colors as MiuixColors
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.theme.ThemeColorSpec as MiuixColorSpec
 import top.yukonga.miuix.kmp.theme.ThemeController
-import top.yukonga.miuix.kmp.theme.ThemePaletteStyle as MiuixPaletteStyle
+import top.yukonga.miuix.kmp.theme.Colors as MiuixColors
 
 @Immutable
 data class MeowColorScheme(
@@ -95,22 +93,23 @@ data class MeowColorScheme(
  * 与调色板无关:它们表达的是「好 / 要注意」，不是主题强调色，跟着 seed 变会让绿色变成
  * 紫色,状态也就读不出来了。
  */
-internal fun meowStatusColors(darkTheme: Boolean): MeowStatusColors =
-    if (darkTheme) DarkStatusColors else LightStatusColors
+internal fun meowStatusColors(darkTheme: Boolean): MeowStatusColors = if (darkTheme) DarkStatusColors else LightStatusColors
 
-private val DarkStatusColors = MeowStatusColors(
-    successContainer = Color(0xFF1E3B2A),
-    onSuccessContainer = Color(0xFF8FD9A8),
-    warningContainer = Color(0xFF3B2F14),
-    onWarningContainer = Color(0xFFF0C069),
-)
+private val DarkStatusColors =
+    MeowStatusColors(
+        successContainer = Color(0xFF1E3B2A),
+        onSuccessContainer = Color(0xFF8FD9A8),
+        warningContainer = Color(0xFF3B2F14),
+        onWarningContainer = Color(0xFFF0C069),
+    )
 
-private val LightStatusColors = MeowStatusColors(
-    successContainer = Color(0xFFDCF0E2),
-    onSuccessContainer = Color(0xFF1B5E38),
-    warningContainer = Color(0xFFFBEBD2),
-    onWarningContainer = Color(0xFF7A4E07),
-)
+private val LightStatusColors =
+    MeowStatusColors(
+        successContainer = Color(0xFFDCF0E2),
+        onSuccessContainer = Color(0xFF1B5E38),
+        warningContainer = Color(0xFFFBEBD2),
+        onWarningContainer = Color(0xFF7A4E07),
+    )
 
 @Immutable
 internal data class MeowStatusColors(
@@ -137,11 +136,12 @@ data class MeowShapes(
     val dialog: Shape,
 )
 
-private val MiuixShapes = MeowShapes(
-    section = RoundedCornerShape(18.dp),
-    item = RoundedCornerShape(14.dp),
-    dialog = RoundedCornerShape(24.dp),
-)
+private val MiuixShapes =
+    MeowShapes(
+        section = RoundedCornerShape(18.dp),
+        item = RoundedCornerShape(14.dp),
+        dialog = RoundedCornerShape(24.dp),
+    )
 
 @Immutable
 data class MeowDimensions(
@@ -156,15 +156,18 @@ private val LocalMeowUiStyle = staticCompositionLocalOf { MeowUiStyle.MaterialEx
 
 // 配色与深浅色随主题设置频繁变化，用可追踪的 compositionLocalOf，
 // 只重组真正读取它们的节点；static 版本会让整棵子树整体闪刷一次。
-private val LocalMeowColors = compositionLocalOf<MeowColorScheme> {
-    error("MeowTheme is missing")
-}
-private val LocalMeowTypography = staticCompositionLocalOf<MeowTypography> {
-    error("MeowTheme is missing")
-}
-private val LocalMeowShapes = staticCompositionLocalOf<MeowShapes> {
-    error("MeowTheme is missing")
-}
+private val LocalMeowColors =
+    compositionLocalOf<MeowColorScheme> {
+        error("MeowTheme is missing")
+    }
+private val LocalMeowTypography =
+    staticCompositionLocalOf<MeowTypography> {
+        error("MeowTheme is missing")
+    }
+private val LocalMeowShapes =
+    staticCompositionLocalOf<MeowShapes> {
+        error("MeowTheme is missing")
+    }
 private val LocalMeowDimensions = staticCompositionLocalOf { MeowDimensions() }
 
 /** 当前主题是否为深色，供库内组件做深浅色差异化（如阴影浓度）。 */
@@ -246,33 +249,37 @@ object MeowTheme {
         dimensions: MeowDimensions = MeowDimensions(),
         content: @Composable () -> Unit,
     ) {
-        val darkTheme = when (appearance.themeMode) {
-            MeowThemeMode.System -> isSystemInDarkTheme()
-            MeowThemeMode.Light -> false
-            MeowThemeMode.Dark -> true
-        }
+        val darkTheme =
+            when (appearance.themeMode) {
+                MeowThemeMode.System -> isSystemInDarkTheme()
+                MeowThemeMode.Light -> false
+                MeowThemeMode.Dark -> true
+            }
         val baseDensity = LocalDensity.current
-        val targetScale = appearance.interfaceScale
-            .takeIf(Float::isFinite)
-            ?.coerceIn(
-                MeowAppearanceDefaults.MinInterfaceScale,
-                MeowAppearanceDefaults.MaxInterfaceScale,
-            ) ?: 1f
+        val targetScale =
+            appearance.interfaceScale
+                .takeIf(Float::isFinite)
+                ?.coerceIn(
+                    MeowAppearanceDefaults.MinInterfaceScale,
+                    MeowAppearanceDefaults.MaxInterfaceScale,
+                ) ?: 1f
         // 密度沿动画过渡，缩放变化时布局连续变化。首帧直接取目标值。
         val interfaceScale by animateFloatAsState(
             targetValue = targetScale,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
             label = "MeowInterfaceScale",
         )
-        val scaledDensity = remember(baseDensity, interfaceScale) {
-            Density(
-                density = baseDensity.density * interfaceScale,
-                fontScale = baseDensity.fontScale,
-            )
-        }
+        val scaledDensity =
+            remember(baseDensity, interfaceScale) {
+                Density(
+                    density = baseDensity.density * interfaceScale,
+                    fontScale = baseDensity.fontScale,
+                )
+            }
 
         CompositionLocalProvider(
             LocalDensity provides scaledDensity,
@@ -308,35 +315,40 @@ private fun MeowThemeContent(
     content: @Composable () -> Unit,
 ) {
     val latestContent by rememberUpdatedState(content)
-    val movableContent = remember {
-        movableContentOf { latestContent() }
-    }
+    val movableContent =
+        remember {
+            movableContentOf { latestContent() }
+        }
 
     SystemBarAppearanceEffect(darkTheme = darkTheme)
 
     CompositionLocalProvider(LocalMeowDarkTheme provides darkTheme) {
         when (style) {
-            MeowUiStyle.MaterialExpressive -> MaterialExpressiveContent(
-                darkTheme = darkTheme,
-                amoledDark = amoledDark,
-                dynamicColor = dynamicColor,
-                seedColor = seedColor,
-                paletteStyle = paletteStyle,
-                colorSpec = colorSpec,
-                dimensions = dimensions,
-                content = movableContent,
-            )
+            MeowUiStyle.MaterialExpressive -> {
+                MaterialExpressiveContent(
+                    darkTheme = darkTheme,
+                    amoledDark = amoledDark,
+                    dynamicColor = dynamicColor,
+                    seedColor = seedColor,
+                    paletteStyle = paletteStyle,
+                    colorSpec = colorSpec,
+                    dimensions = dimensions,
+                    content = movableContent,
+                )
+            }
 
-            MeowUiStyle.Miuix -> MiuixContent(
-                darkTheme = darkTheme,
-                dynamicColor = dynamicColor,
-                seedColor = seedColor,
-                paletteStyle = paletteStyle,
-                colorSpec = colorSpec,
-                monetEnabled = miuixMonetEnabled,
-                dimensions = dimensions,
-                content = movableContent,
-            )
+            MeowUiStyle.Miuix -> {
+                MiuixContent(
+                    darkTheme = darkTheme,
+                    dynamicColor = dynamicColor,
+                    seedColor = seedColor,
+                    paletteStyle = paletteStyle,
+                    colorSpec = colorSpec,
+                    monetEnabled = miuixMonetEnabled,
+                    dimensions = dimensions,
+                    content = movableContent,
+                )
+            }
         }
     }
 }
@@ -355,20 +367,22 @@ private fun MaterialExpressiveContent(
 ) {
     // 动态取色时以系统主色为种子，其余情况用调用侧种子色；
     // 两条路径都展开为完整 tonal palette，保证所有色 role 与种子一致。
-    val keyColor = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        colorResource(id = android.R.color.system_accent1_500)
-    } else {
-        seedColor
-    }
-    val baseColorScheme = remember(keyColor, darkTheme, amoledDark, paletteStyle, colorSpec) {
-        meowMaterialColorScheme(
-            seedColor = keyColor,
-            isDark = darkTheme,
-            paletteStyle = paletteStyle,
-            colorSpec = colorSpec,
-            isAmoled = amoledDark,
-        )
-    }
+    val keyColor =
+        if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            colorResource(id = android.R.color.system_accent1_500)
+        } else {
+            seedColor
+        }
+    val baseColorScheme =
+        remember(keyColor, darkTheme, amoledDark, paletteStyle, colorSpec) {
+            meowMaterialColorScheme(
+                seedColor = keyColor,
+                isDark = darkTheme,
+                paletteStyle = paletteStyle,
+                colorSpec = colorSpec,
+                isAmoled = amoledDark,
+            )
+        }
     val colorScheme = baseColorScheme.animateAsState()
 
     MaterialExpressiveTheme(
@@ -378,55 +392,58 @@ private fun MaterialExpressiveContent(
         val colors = MaterialTheme.colorScheme
         val status = meowStatusColors(darkTheme)
         val typography = MaterialTheme.typography
-        val meowTypography = remember(typography) {
-            MeowTypography(
-                pageTitle = typography.headlineMedium,
-                sectionTitle = typography.titleSmall,
-                title = typography.bodyLarge,
-                summary = typography.bodyMedium,
-                value = typography.labelLarge,
-                button = typography.labelLarge,
-            )
-        }
+        val meowTypography =
+            remember(typography) {
+                MeowTypography(
+                    pageTitle = typography.headlineMedium,
+                    sectionTitle = typography.titleSmall,
+                    title = typography.bodyLarge,
+                    summary = typography.bodyMedium,
+                    value = typography.labelLarge,
+                    button = typography.labelLarge,
+                )
+            }
         val shapes = MaterialTheme.shapes
-        val meowShapes = remember(shapes) {
-            MeowShapes(
-                section = shapes.extraLarge,
-                item = shapes.large,
-                dialog = shapes.extraLarge,
-            )
-        }
+        val meowShapes =
+            remember(shapes) {
+                MeowShapes(
+                    section = shapes.extraLarge,
+                    item = shapes.large,
+                    dialog = shapes.extraLarge,
+                )
+            }
         CompositionLocalProvider(
             LocalMeowUiStyle provides MeowUiStyle.MaterialExpressive,
-            LocalMeowColors provides MeowColorScheme(
-                primary = colors.primary,
-                onPrimary = colors.onPrimary,
-                background = colors.background,
-                onBackground = colors.onBackground,
-                surface = colors.surface,
-                onSurface = colors.onSurface,
-                surfaceVariant = colors.surfaceContainer,
-                onSurfaceVariant = colors.onSurfaceVariant,
-                outline = colors.outline,
-                divider = colors.outlineVariant,
-                error = colors.error,
-                onError = colors.onError,
-                primaryContainer = colors.primaryContainer,
-                onPrimaryContainer = colors.onPrimaryContainer,
-                secondaryContainer = colors.secondaryContainer,
-                onSecondaryContainer = colors.onSecondaryContainer,
-                tertiaryContainer = colors.tertiaryContainer,
-                onTertiaryContainer = colors.onTertiaryContainer,
-                errorContainer = colors.errorContainer,
-                onErrorContainer = colors.onErrorContainer,
-                surfaceContainerHighest = colors.surfaceContainerHighest,
-                onSurfaceContainerHighest = colors.onSurface,
-                page = colors.surfaceContainer,
-                successContainer = status.successContainer,
-                onSuccessContainer = status.onSuccessContainer,
-                warningContainer = status.warningContainer,
-                onWarningContainer = status.onWarningContainer,
-            ),
+            LocalMeowColors provides
+                MeowColorScheme(
+                    primary = colors.primary,
+                    onPrimary = colors.onPrimary,
+                    background = colors.background,
+                    onBackground = colors.onBackground,
+                    surface = colors.surface,
+                    onSurface = colors.onSurface,
+                    surfaceVariant = colors.surfaceContainer,
+                    onSurfaceVariant = colors.onSurfaceVariant,
+                    outline = colors.outline,
+                    divider = colors.outlineVariant,
+                    error = colors.error,
+                    onError = colors.onError,
+                    primaryContainer = colors.primaryContainer,
+                    onPrimaryContainer = colors.onPrimaryContainer,
+                    secondaryContainer = colors.secondaryContainer,
+                    onSecondaryContainer = colors.onSecondaryContainer,
+                    tertiaryContainer = colors.tertiaryContainer,
+                    onTertiaryContainer = colors.onTertiaryContainer,
+                    errorContainer = colors.errorContainer,
+                    onErrorContainer = colors.onErrorContainer,
+                    surfaceContainerHighest = colors.surfaceContainerHighest,
+                    onSurfaceContainerHighest = colors.onSurface,
+                    page = colors.surfaceContainer,
+                    successContainer = status.successContainer,
+                    onSuccessContainer = status.onSuccessContainer,
+                    warningContainer = status.warningContainer,
+                    onWarningContainer = status.onWarningContainer,
+                ),
             LocalMeowTypography provides meowTypography,
             LocalMeowShapes provides meowShapes,
             LocalMeowDimensions provides dimensions,
@@ -447,40 +464,32 @@ private fun MiuixContent(
     content: @Composable () -> Unit,
 ) {
     // 启用 Monet 时从系统主色或调用侧种子色生成配色；关闭时使用 Miuix 原生配色。
-    val keyColor = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        colorResource(id = android.R.color.system_accent1_500)
-    } else {
-        seedColor
-    }
-    val colorSchemeMode = when {
-        !monetEnabled && darkTheme -> ColorSchemeMode.Dark
-        !monetEnabled -> ColorSchemeMode.Light
-        darkTheme -> ColorSchemeMode.MonetDark
-        else -> ColorSchemeMode.MonetLight
-    }
-    val miuixPaletteStyle = paletteStyle.toMiuixPaletteStyle()
-    val miuixColorSpec = when (colorSpec) {
-        MeowColorSpec.Spec2021 -> MiuixColorSpec.Spec2021
-        MeowColorSpec.Spec2025 -> if (paletteStyle.supportsSpec2025) {
-            MiuixColorSpec.Spec2025
+    val keyColor =
+        if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            colorResource(id = android.R.color.system_accent1_500)
         } else {
-            MiuixColorSpec.Spec2021
+            seedColor
         }
-        null -> if (paletteStyle.supportsSpec2025) {
-            MiuixColorSpec.Spec2025
-        } else {
-            MiuixColorSpec.Spec2021
+    val colorSchemeMode =
+        when {
+            !monetEnabled && darkTheme -> ColorSchemeMode.Dark
+            !monetEnabled -> ColorSchemeMode.Light
+            darkTheme -> ColorSchemeMode.MonetDark
+            else -> ColorSchemeMode.MonetLight
         }
-    }
-    val controller = remember(colorSchemeMode, keyColor, miuixPaletteStyle, miuixColorSpec, darkTheme) {
-        ThemeController(
-            colorSchemeMode = colorSchemeMode,
-            keyColor = keyColor,
-            paletteStyle = miuixPaletteStyle,
-            colorSpec = miuixColorSpec,
-            isDark = darkTheme,
-        )
-    }
+    val settings = effectiveColorSettings(paletteStyle, colorSpec)
+    val miuixPaletteStyle = settings.miuixPalette()
+    val miuixColorSpec = settings.miuixSpec()
+    val controller =
+        remember(colorSchemeMode, keyColor, miuixPaletteStyle, miuixColorSpec, darkTheme) {
+            ThemeController(
+                colorSchemeMode = colorSchemeMode,
+                keyColor = keyColor,
+                paletteStyle = miuixPaletteStyle,
+                colorSpec = miuixColorSpec,
+                isDark = darkTheme,
+            )
+        }
 
     // 外层提供 colorSchemeMode 等控制器信息；内层用逐色动画后的配色覆盖颜色，
     // 让 Monet 开关、种子色切换时 Miuix 原生组件的颜色平滑过渡而不是硬切。
@@ -505,53 +514,55 @@ private fun MiuixContentInner(
         // 这层拿不到 darkTheme 参数，读上游已经写入的 local，避免为一个布尔再穿一层参数。
         val status = meowStatusColors(LocalMeowDarkTheme.current)
         val typography = MiuixTheme.textStyles
-        val meowTypography = remember(
-            typography.title2,
-            typography.subtitle,
-            typography.main,
-            typography.body2,
-            typography.button,
-        ) {
-            MeowTypography(
-                pageTitle = typography.title2,
-                sectionTitle = typography.subtitle,
-                title = typography.main,
-                summary = typography.body2,
-                value = typography.body2,
-                button = typography.button,
-            )
-        }
+        val meowTypography =
+            remember(
+                typography.title2,
+                typography.subtitle,
+                typography.main,
+                typography.body2,
+                typography.button,
+            ) {
+                MeowTypography(
+                    pageTitle = typography.title2,
+                    sectionTitle = typography.subtitle,
+                    title = typography.main,
+                    summary = typography.body2,
+                    value = typography.body2,
+                    button = typography.button,
+                )
+            }
         CompositionLocalProvider(
             LocalMeowUiStyle provides MeowUiStyle.Miuix,
-            LocalMeowColors provides MeowColorScheme(
-                primary = colors.primary,
-                onPrimary = colors.onPrimary,
-                background = colors.background,
-                onBackground = colors.onBackground,
-                surface = colors.surface,
-                onSurface = colors.onSurface,
-                surfaceVariant = colors.surfaceContainer,
-                onSurfaceVariant = colors.onSurfaceVariantSummary,
-                outline = colors.outline,
-                divider = colors.dividerLine,
-                error = colors.error,
-                onError = colors.onError,
-                primaryContainer = colors.primaryContainer,
-                onPrimaryContainer = colors.onPrimaryContainer,
-                secondaryContainer = colors.secondaryContainer,
-                onSecondaryContainer = colors.onSecondaryContainer,
-                tertiaryContainer = colors.tertiaryContainer,
-                onTertiaryContainer = colors.onTertiaryContainer,
-                errorContainer = colors.errorContainer,
-                onErrorContainer = colors.onErrorContainer,
-                surfaceContainerHighest = colors.surfaceContainerHighest,
-                onSurfaceContainerHighest = colors.onSurfaceContainerHighest,
-                page = colors.surface,
-                successContainer = status.successContainer,
-                onSuccessContainer = status.onSuccessContainer,
-                warningContainer = status.warningContainer,
-                onWarningContainer = status.onWarningContainer,
-            ),
+            LocalMeowColors provides
+                MeowColorScheme(
+                    primary = colors.primary,
+                    onPrimary = colors.onPrimary,
+                    background = colors.background,
+                    onBackground = colors.onBackground,
+                    surface = colors.surface,
+                    onSurface = colors.onSurface,
+                    surfaceVariant = colors.surfaceContainer,
+                    onSurfaceVariant = colors.onSurfaceVariantSummary,
+                    outline = colors.outline,
+                    divider = colors.dividerLine,
+                    error = colors.error,
+                    onError = colors.onError,
+                    primaryContainer = colors.primaryContainer,
+                    onPrimaryContainer = colors.onPrimaryContainer,
+                    secondaryContainer = colors.secondaryContainer,
+                    onSecondaryContainer = colors.onSecondaryContainer,
+                    tertiaryContainer = colors.tertiaryContainer,
+                    onTertiaryContainer = colors.onTertiaryContainer,
+                    errorContainer = colors.errorContainer,
+                    onErrorContainer = colors.onErrorContainer,
+                    surfaceContainerHighest = colors.surfaceContainerHighest,
+                    onSurfaceContainerHighest = colors.onSurfaceContainerHighest,
+                    page = colors.surface,
+                    successContainer = status.successContainer,
+                    onSuccessContainer = status.onSuccessContainer,
+                    warningContainer = status.warningContainer,
+                    onWarningContainer = status.onWarningContainer,
+                ),
             LocalMeowTypography provides meowTypography,
             LocalMeowShapes provides MiuixShapes,
             LocalMeowDimensions provides dimensions,
@@ -582,23 +593,12 @@ private fun SystemBarAppearanceEffect(darkTheme: Boolean) {
     }
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
-
-private fun MeowPaletteStyle.toMiuixPaletteStyle(): MiuixPaletteStyle = when (this) {
-    MeowPaletteStyle.TonalSpot -> MiuixPaletteStyle.TonalSpot
-    MeowPaletteStyle.Neutral -> MiuixPaletteStyle.Neutral
-    MeowPaletteStyle.Vibrant -> MiuixPaletteStyle.Vibrant
-    MeowPaletteStyle.Expressive -> MiuixPaletteStyle.Expressive
-    MeowPaletteStyle.Rainbow -> MiuixPaletteStyle.Rainbow
-    MeowPaletteStyle.FruitSalad -> MiuixPaletteStyle.FruitSalad
-    MeowPaletteStyle.Monochrome -> MiuixPaletteStyle.Monochrome
-    MeowPaletteStyle.Fidelity -> MiuixPaletteStyle.Fidelity
-    MeowPaletteStyle.Content -> MiuixPaletteStyle.Content
-}
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
 
 @Composable
 internal fun MeowStyleContent(

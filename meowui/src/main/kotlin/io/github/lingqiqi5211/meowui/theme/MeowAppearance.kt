@@ -15,6 +15,9 @@ enum class MeowThemeMode {
 enum class MeowColorSpec {
     Spec2021,
     Spec2025,
+
+    /** 源码 debug 的 CMF 使用此标准；普通现代调色板及正式版依赖路径按 Spec2025 处理。 */
+    Spec2026,
 }
 
 /**

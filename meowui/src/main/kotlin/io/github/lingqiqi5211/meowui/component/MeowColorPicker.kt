@@ -31,8 +31,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text as MaterialText
-import androidx.compose.material3.TextButton as MaterialTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,29 +59,32 @@ import io.github.lingqiqi5211.meowui.theme.MeowColorSpec
 import io.github.lingqiqi5211.meowui.theme.MeowPaletteStyle
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import io.github.lingqiqi5211.meowui.theme.MeowTheme
+import io.github.lingqiqi5211.meowui.theme.effectiveColorSettings
 import io.github.lingqiqi5211.meowui.theme.meowMaterialColorScheme
-import io.github.lingqiqi5211.meowui.theme.supportsSpec2025
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.material3.Text as MaterialText
+import androidx.compose.material3.TextButton as MaterialTextButton
 
 /** [MeowColorPickerDialog] 的默认值。 */
 object MeowColorPickerDefaults {
     /** 默认的自定义种子色列表。 */
-    val PresetColors: List<Color> = listOf(
-        Color(0xFF7B4DFF),
-        Color(0xFFB94073),
-        Color(0xFFBA1A1A),
-        Color(0xFF944A00),
-        Color(0xFF795900),
-        Color(0xFF006D39),
-        Color(0xFF006A64),
-        Color(0xFF00639B),
-        Color(0xFF335BBC),
-        Color(0xFF6750A4),
-        Color(0xFF575D7E),
-        Color(0xFF5F6162),
-    )
+    val PresetColors: List<Color> =
+        listOf(
+            Color(0xFF7B4DFF),
+            Color(0xFFB94073),
+            Color(0xFFBA1A1A),
+            Color(0xFF944A00),
+            Color(0xFF795900),
+            Color(0xFF006D39),
+            Color(0xFF006A64),
+            Color(0xFF00639B),
+            Color(0xFF335BBC),
+            Color(0xFF6750A4),
+            Color(0xFF575D7E),
+            Color(0xFF5F6162),
+        )
 }
 
 /**
@@ -220,12 +221,13 @@ private fun ColorPickerContent(
 ) {
     val supportsDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val distinctPresets = presetColors.distinct()
-    val cells = buildList {
-        if (supportsDynamic) add(ColorPickerCell.FollowWallpaper)
-        distinctPresets.forEach { add(ColorPickerCell.Preset(it)) }
-        // 调色盘:自选任意种子色(参考 miuix 官方示例的 ColorPicker)。
-        add(ColorPickerCell.Custom)
-    }
+    val cells =
+        buildList {
+            if (supportsDynamic) add(ColorPickerCell.FollowWallpaper)
+            distinctPresets.forEach { add(ColorPickerCell.Preset(it)) }
+            // 调色盘:自选任意种子色(参考 miuix 官方示例的 ColorPicker)。
+            add(ColorPickerCell.Custom)
+        }
     val customSelected = !dynamicColor && distinctPresets.none { it == seedColor }
     var showCustomDialog by remember { mutableStateOf(false) }
     // 选中一个色票即时生效，等同于在弹窗里选中一项：响 Confirm。
@@ -247,14 +249,16 @@ private fun ColorPickerContent(
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // 色块尺寸按可用宽度反推：恰好显示 4 个半，露出的半个提示可以左右滑动。
-        val swatchSize = (
-            (maxWidth - SwatchContentPadding - SwatchSpacing * 4) / 4.5f
+        val swatchSize =
+            (
+                (maxWidth - SwatchContentPadding - SwatchSpacing * 4) / 4.5f
             ).coerceIn(44.dp, 72.dp)
 
         LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectableGroup(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .selectableGroup(),
             contentPadding = PaddingValues(horizontal = SwatchContentPadding),
             horizontalArrangement = Arrangement.spacedBy(SwatchSpacing),
         ) {
@@ -269,12 +273,14 @@ private fun ColorPickerContent(
                 },
             ) { cell ->
                 when (cell) {
-                    ColorPickerCell.Custom -> CustomColorSwatch(
-                        selected = customSelected,
-                        currentColor = seedColor,
-                        size = swatchSize,
-                        onClick = { showCustomDialog = true },
-                    )
+                    ColorPickerCell.Custom -> {
+                        CustomColorSwatch(
+                            selected = customSelected,
+                            currentColor = seedColor,
+                            size = swatchSize,
+                            onClick = { showCustomDialog = true },
+                        )
+                    }
 
                     ColorPickerCell.FollowWallpaper -> {
                         val systemSeed = colorResource(id = android.R.color.system_accent1_500)
@@ -293,22 +299,25 @@ private fun ColorPickerContent(
                         )
                     }
 
-                    is ColorPickerCell.Preset -> SchemeSwatch(
-                        seed = cell.color,
-                        selected = !dynamicColor && cell.color == seedColor,
-                        followWallpaper = false,
-                        paletteStyle = paletteStyle,
-                        colorSpec = colorSpec,
-                        size = swatchSize,
-                        contentDescription = remember(cell.color) {
-                            "Theme color #%06X".format(cell.color.toArgb() and 0xFFFFFF)
-                        },
-                        onClick = {
-                            haptics.picked()
-                            onDynamicColorChange(false)
-                            onSeedColorChange(cell.color)
-                        },
-                    )
+                    is ColorPickerCell.Preset -> {
+                        SchemeSwatch(
+                            seed = cell.color,
+                            selected = !dynamicColor && cell.color == seedColor,
+                            followWallpaper = false,
+                            paletteStyle = paletteStyle,
+                            colorSpec = colorSpec,
+                            size = swatchSize,
+                            contentDescription =
+                                remember(cell.color) {
+                                    "Theme color #%06X".format(cell.color.toArgb() and 0xFFFFFF)
+                                },
+                            onClick = {
+                                haptics.picked()
+                                onDynamicColorChange(false)
+                                onSeedColorChange(cell.color)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -321,7 +330,9 @@ private val SwatchSpacing = 14.dp
 private sealed interface ColorPickerCell {
     data object FollowWallpaper : ColorPickerCell
 
-    data class Preset(val color: Color) : ColorPickerCell
+    data class Preset(
+        val color: Color,
+    ) : ColorPickerCell
 
     data object Custom : ColorPickerCell
 }
@@ -339,12 +350,13 @@ private fun SchemeSwatch(
     onClick: () -> Unit,
 ) {
     val isDark = LocalMeowDarkTheme.current
-    val scheme = rememberSwatchScheme(
-        seed = seed,
-        isDark = isDark,
-        paletteStyle = paletteStyle,
-        colorSpec = colorSpec,
-    )
+    val scheme =
+        rememberSwatchScheme(
+            seed = seed,
+            isDark = isDark,
+            paletteStyle = paletteStyle,
+            colorSpec = colorSpec,
+        )
 
     val selectionScale by animateFloatAsState(
         targetValue = if (selected) 1.1f else 1f,
@@ -352,16 +364,17 @@ private fun SchemeSwatch(
     )
 
     Box(
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(size * 0.28f))
-            .background(scheme.surfaceContainer)
-            .semantics { this.contentDescription = contentDescription }
-            .selectable(
-                selected = selected,
-                role = Role.RadioButton,
-                onClick = onClick,
-            ),
+        modifier =
+            Modifier
+                .size(size)
+                .clip(RoundedCornerShape(size * 0.28f))
+                .background(scheme.surfaceContainer)
+                .semantics { this.contentDescription = contentDescription }
+                .selectable(
+                    selected = selected,
+                    role = Role.RadioButton,
+                    onClick = onClick,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.size(size * 2f / 3f)) {
@@ -380,10 +393,11 @@ private fun SchemeSwatch(
         }
 
         Box(
-            modifier = Modifier.graphicsLayer {
-                scaleX = selectionScale
-                scaleY = selectionScale
-            },
+            modifier =
+                Modifier.graphicsLayer {
+                    scaleX = selectionScale
+                    scaleY = selectionScale
+                },
             contentAlignment = Alignment.Center,
         ) {
             AnimatedVisibility(
@@ -392,16 +406,18 @@ private fun SchemeSwatch(
                 exit = fadeOut() + scaleOut(targetScale = 0.8f),
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(size * 0.78f)
-                        .border(2.dp, scheme.primary, CircleShape),
+                    modifier =
+                        Modifier
+                            .size(size * 0.78f)
+                            .border(2.dp, scheme.primary, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(size / 3f)
-                            .clip(CircleShape)
-                            .background(scheme.primary),
+                        modifier =
+                            Modifier
+                                .size(size / 3f)
+                                .clip(CircleShape)
+                                .background(scheme.primary),
                         contentAlignment = Alignment.Center,
                     ) {
                         Image(
@@ -427,10 +443,11 @@ private fun SchemeSwatch(
                     )
                 } else {
                     Box(
-                        modifier = Modifier
-                            .size(size * 0.28f)
-                            .clip(CircleShape)
-                            .background(scheme.primary),
+                        modifier =
+                            Modifier
+                                .size(size * 0.28f)
+                                .clip(CircleShape)
+                                .background(scheme.primary),
                     )
                 }
             }
@@ -450,44 +467,48 @@ private fun CustomColorSwatch(
         targetValue = if (selected) 1.1f else 1f,
         label = "meow_color_swatch_scale",
     )
-    val rainbow = remember {
-        Brush.sweepGradient(
-            listOf(
-                Color(0xFFE57373),
-                Color(0xFFFFD54F),
-                Color(0xFF81C784),
-                Color(0xFF4DD0E1),
-                Color(0xFF7986CB),
-                Color(0xFFBA68C8),
-                Color(0xFFE57373),
-            ),
-        )
-    }
+    val rainbow =
+        remember {
+            Brush.sweepGradient(
+                listOf(
+                    Color(0xFFE57373),
+                    Color(0xFFFFD54F),
+                    Color(0xFF81C784),
+                    Color(0xFF4DD0E1),
+                    Color(0xFF7986CB),
+                    Color(0xFFBA68C8),
+                    Color(0xFFE57373),
+                ),
+            )
+        }
 
     Box(
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(size * 0.28f))
-            .background(MeowTheme.colors.surfaceVariant)
-            .semantics { this.contentDescription = "Custom color" }
-            .selectable(
-                selected = selected,
-                role = Role.RadioButton,
-                onClick = onClick,
-            ),
+        modifier =
+            Modifier
+                .size(size)
+                .clip(RoundedCornerShape(size * 0.28f))
+                .background(MeowTheme.colors.surfaceVariant)
+                .semantics { this.contentDescription = "Custom color" }
+                .selectable(
+                    selected = selected,
+                    role = Role.RadioButton,
+                    onClick = onClick,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            modifier = Modifier
-                .size(size * 2f / 3f)
-                .clip(CircleShape)
-                .background(rainbow),
+            modifier =
+                Modifier
+                    .size(size * 2f / 3f)
+                    .clip(CircleShape)
+                    .background(rainbow),
         )
         Box(
-            modifier = Modifier.graphicsLayer {
-                scaleX = selectionScale
-                scaleY = selectionScale
-            },
+            modifier =
+                Modifier.graphicsLayer {
+                    scaleX = selectionScale
+                    scaleY = selectionScale
+                },
             contentAlignment = Alignment.Center,
         ) {
             AnimatedVisibility(
@@ -496,25 +517,28 @@ private fun CustomColorSwatch(
                 exit = fadeOut() + scaleOut(targetScale = 0.8f),
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(size * 0.78f)
-                        .border(2.dp, MeowTheme.colors.onSurface, CircleShape),
+                    modifier =
+                        Modifier
+                            .size(size * 0.78f)
+                            .border(2.dp, MeowTheme.colors.onSurface, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(size / 3f)
-                            .clip(CircleShape)
-                            .background(currentColor),
+                        modifier =
+                            Modifier
+                                .size(size / 3f)
+                                .clip(CircleShape)
+                                .background(currentColor),
                         contentAlignment = Alignment.Center,
                     ) {
                         Image(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = null,
                             modifier = Modifier.size(size * 0.22f),
-                            colorFilter = ColorFilter.tint(
-                                if (currentColor.luminance() > 0.5f) Color.Black else Color.White,
-                            ),
+                            colorFilter =
+                                ColorFilter.tint(
+                                    if (currentColor.luminance() > 0.5f) Color.Black else Color.White,
+                                ),
                         )
                     }
                 }
@@ -554,41 +578,41 @@ private fun rememberSwatchScheme(
     paletteStyle: MeowPaletteStyle,
     colorSpec: MeowColorSpec?,
 ): SwatchScheme {
-    // null 与不支持 2025 的组合在生成侧等价于对应的有效 spec，
-    // 归一化后作为缓存键，避免同一配色存多份。
-    val effectiveSpec = when {
-        colorSpec == MeowColorSpec.Spec2021 -> MeowColorSpec.Spec2021
-        paletteStyle.supportsSpec2025 -> MeowColorSpec.Spec2025
-        else -> MeowColorSpec.Spec2021
-    }
-    val key = SwatchSchemeKey(seed, isDark, paletteStyle, effectiveSpec)
+    // 使用与主题相同的有效组合，区分 2025/2026 并合并等价回退。
+    val settings = effectiveColorSettings(paletteStyle, colorSpec)
+    val key = SwatchSchemeKey(seed, isDark, settings.palette, settings.spec)
     swatchSchemeCache[key]?.let { return it }
 
     // 以 key 为 remember 键：key 变化且缓存未命中时立即回到占位色，而不是闪现旧配色。
     var generated by remember(key) { mutableStateOf(swatchSchemeCache[key]) }
     LaunchedEffect(key) {
-        generated = withContext(Dispatchers.Default) {
-            swatchSchemeCache[key] ?: run {
-                val scheme = meowMaterialColorScheme(
-                    seedColor = key.seed,
-                    isDark = key.isDark,
-                    paletteStyle = key.paletteStyle,
-                    colorSpec = key.colorSpec,
-                )
-                SwatchScheme(
-                    surfaceContainer = scheme.surfaceContainer,
-                    primaryContainer = scheme.primaryContainer,
-                    tertiaryContainer = scheme.tertiaryContainer,
-                    primary = scheme.primary,
-                    onPrimary = scheme.onPrimary,
-                ).also { swatchSchemeCache.put(key, it) }
+        generated =
+            withContext(Dispatchers.Default) {
+                swatchSchemeCache[key] ?: run {
+                    val scheme =
+                        meowMaterialColorScheme(
+                            seedColor = key.seed,
+                            isDark = key.isDark,
+                            paletteStyle = key.paletteStyle,
+                            colorSpec = key.colorSpec,
+                        )
+                    SwatchScheme(
+                        surfaceContainer = scheme.surfaceContainer,
+                        primaryContainer = scheme.primaryContainer,
+                        tertiaryContainer = scheme.tertiaryContainer,
+                        primary = scheme.primary,
+                        onPrimary = scheme.onPrimary,
+                    ).also { swatchSchemeCache.put(key, it) }
+                }
             }
-        }
     }
     return generated ?: placeholderSwatchScheme(seed, isDark)
 }
 
-private fun placeholderSwatchScheme(seed: Color, isDark: Boolean): SwatchScheme {
+private fun placeholderSwatchScheme(
+    seed: Color,
+    isDark: Boolean,
+): SwatchScheme {
     val base = if (isDark) Color.Black else Color.White
     val container = lerp(seed, base, 0.6f)
     return SwatchScheme(
