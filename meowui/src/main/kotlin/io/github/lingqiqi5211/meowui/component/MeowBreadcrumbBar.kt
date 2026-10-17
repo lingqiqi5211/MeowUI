@@ -44,12 +44,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.lingqiqi5211.meowui.theme.MeowStyleContent
 import androidx.compose.material3.Icon as MaterialIcon
@@ -159,7 +162,10 @@ internal fun Modifier.breadcrumbEdgeFade(
             val fade = fadeWidth.toPx().coerceAtMost(size.width / 2f)
             if (fade <= 0f) return@drawWithContent
             val gap = inset.toPx().coerceAtMost(size.width / 2f - fade).coerceAtLeast(0f)
-            if (scrollState.canScrollBackward) {
+            val rtl = layoutDirection == LayoutDirection.Rtl
+            val fadeLeft = if (rtl) scrollState.canScrollForward else scrollState.canScrollBackward
+            val fadeRight = if (rtl) scrollState.canScrollBackward else scrollState.canScrollForward
+            if (fadeLeft) {
                 // 先把最边上那条整段抹掉：渐隐的透明端因此落在离屏幕边缘 [inset] 的位置，
                 // 而不是贴着边。
                 if (gap > 0f) {
@@ -181,7 +187,7 @@ internal fun Modifier.breadcrumbEdgeFade(
                     blendMode = BlendMode.DstIn,
                 )
             }
-            if (scrollState.canScrollForward) {
+            if (fadeRight) {
                 if (gap > 0f) {
                     drawRect(
                         color = Color.Transparent,
@@ -241,20 +247,20 @@ private fun MaterialBreadcrumbBar(
     contentPadding: PaddingValues,
 ) {
     val hasHighlight = highlightIndex >= 0
-    // The highlighted segment is centred on first layout and whenever it moves. Its
-    // position is captured relative to the scrolling row, so it stays valid however
-    // far the row has already been scrolled.
-    var highlightX by remember { mutableFloatStateOf(0f) }
+    val direction = LocalLayoutDirection.current
+    val contentCoordinates =
+        remember {
+            object {
+                var value: LayoutCoordinates? = null
+            }
+        }
+    var highlightStart by remember { mutableFloatStateOf(0f) }
     var highlightWidth by remember { mutableFloatStateOf(0f) }
-    var positioned by remember { mutableStateOf(false) }
-
-    LaunchedEffect(highlightIndex, positioned) {
-        if (!hasHighlight || !positioned || highlightWidth <= 0f) return@LaunchedEffect
-        val viewport = scrollState.viewportSize.toFloat()
-        if (viewport <= 0f) return@LaunchedEffect
-        val target =
-            (highlightX - (viewport - highlightWidth) / 2f)
-                .coerceIn(0f, scrollState.maxValue.toFloat())
+    val viewport = scrollState.viewportSize
+    val maxScroll = scrollState.maxValue
+    LaunchedEffect(highlightIndex, highlightStart, highlightWidth, viewport, maxScroll, direction) {
+        if (!hasHighlight || highlightWidth <= 0f || viewport <= 0) return@LaunchedEffect
+        val target = (highlightStart - (viewport - highlightWidth) / 2f).coerceIn(0f, maxScroll.toFloat())
         scrollState.animateScrollTo(target.toInt())
     }
 
@@ -266,6 +272,7 @@ private fun MaterialBreadcrumbBar(
                 // 手指走，而路径只在提交那一刻才换，一滑就晚一拍，还和「高亮段自动滚到中间」
                 // 抢同一个方向。只让受影响的那一段自己动，其余原地不动，才是文件管理器的样子。
                 .animateContentSize(tween(LevelChangeMillis, easing = LevelChangeEasing))
+                .onPlaced { contentCoordinates.value = it }
                 .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -305,10 +312,13 @@ private fun MaterialBreadcrumbBar(
                         itemMaxWidth = itemMaxWidth,
                         onPositioned =
                             if (highlighted) {
-                                { x, width ->
-                                    highlightX = x
-                                    highlightWidth = width
-                                    if (!positioned) positioned = true
+                                { coordinates ->
+                                    contentCoordinates.value?.let { row ->
+                                        val x = row.localPositionOf(coordinates, Offset.Zero).x
+                                        val width = coordinates.size.width.toFloat()
+                                        highlightStart = if (direction == LayoutDirection.Rtl) row.size.width - x - width else x
+                                        highlightWidth = width
+                                    }
                                 }
                             } else {
                                 null
@@ -327,7 +337,7 @@ private fun MaterialBreadcrumbSegment(
     highlighted: Boolean,
     enabled: Boolean,
     itemMaxWidth: Dp,
-    onPositioned: ((x: Float, width: Float) -> Unit)?,
+    onPositioned: ((LayoutCoordinates) -> Unit)?,
     onClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -351,12 +361,7 @@ private fun MaterialBreadcrumbSegment(
                     if (onPositioned == null) {
                         Modifier
                     } else {
-                        Modifier.onGloballyPositioned { coordinates ->
-                            onPositioned(
-                                coordinates.positionInParent().x,
-                                coordinates.size.width.toFloat(),
-                            )
-                        }
+                        Modifier.onGloballyPositioned(onPositioned)
                     },
                 ).clip(CircleShape)
                 .background(background)
