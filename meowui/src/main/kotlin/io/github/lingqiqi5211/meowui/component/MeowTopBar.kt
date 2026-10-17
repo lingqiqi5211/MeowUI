@@ -240,7 +240,7 @@ fun MeowTopBar(
     val effect = LocalMeowScaffoldEffect.current
     val scrollContext = LocalMeowScrollContext.current
     // 主题开启模糊且顶栏在 MeowScaffold 里(拿得到内容图层快照)时,顶栏变成磨砂:
-    // 自身底色透明,由背景模糊 + 半透明底色承担容器色。内容需要滚到顶栏下方才看
+    // 自身绘制半透明底色,叠在背景模糊上承担容器色。内容需要滚到顶栏下方才看
     // 得出效果,由页面把 scaffold 顶部内边距交给滚动容器实现。
     val backdrop = LocalMeowBackdrop.current
     val useBlur =
@@ -261,7 +261,13 @@ fun MeowTopBar(
             val baseColor =
                 effect.topBarContainerColor
                     ?: MaterialTheme.colorScheme.surfaceContainer
-            val containerColor = if (useBlur) Color.Transparent else baseColor
+            // 让顶栏自身绘制半透明表面，主题变化可通过正常重组更新；Blur 只负责底层模糊。
+            val containerColor =
+                if (useBlur) {
+                    baseColor.copy(alpha = MeowBlurSurfaceAlpha)
+                } else {
+                    baseColor
+                }
             val colors =
                 TopAppBarDefaults.topAppBarColors(
                     containerColor = containerColor,
@@ -273,7 +279,6 @@ fun MeowTopBar(
                         backdrop = backdrop,
                         shape = { RectangleShape },
                         effects = { blur(MeowBlurRadius.toPx(), MeowBlurRadius.toPx()) },
-                        onDrawSurface = { drawRect(baseColor.copy(alpha = MeowBlurSurfaceAlpha)) },
                     )
                 } else {
                     effectModifier
@@ -302,7 +307,6 @@ fun MeowTopBar(
                         backdrop = backdrop,
                         shape = { RectangleShape },
                         effects = { blur(MeowBlurRadius.toPx(), MeowBlurRadius.toPx()) },
-                        onDrawSurface = { drawRect(baseColor.copy(alpha = MeowBlurSurfaceAlpha)) },
                     )
                 } else {
                     effectModifier
@@ -310,7 +314,12 @@ fun MeowTopBar(
             MiuixTopAppBar(
                 title = title,
                 modifier = barModifier,
-                color = if (useBlur) Color.Transparent else baseColor,
+                color =
+                    if (useBlur) {
+                        baseColor.copy(alpha = MeowBlurSurfaceAlpha)
+                    } else {
+                        baseColor
+                    },
                 subtitle = subtitle,
                 navigationIcon = { resolvedNavigationIcon?.invoke() },
                 actions = {
